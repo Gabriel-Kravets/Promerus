@@ -2,11 +2,14 @@
 import {useEffect,useRef,useState} from 'react';
 import {Application,Container,Graphics,Sprite,Texture,Rectangle,Text,FederatedPointerEvent} from 'pixi.js';
 import {useGame,presets} from '@/store/game';
-import {avatarAsset,loadImage} from '@/lib/sprite-assets';
+import {avatarAsset,loadImage,sproutlingRunAssets} from '@/lib/sprite-assets';
+import {createWalkCycle} from '@/lib/walk-cycle';
+import {createSproutlingWander} from '@/lib/sproutling-wander';
 import {iso,uniso,planRoute,approachRoute,distance,stageFor,blocked,Point} from '@/lib/movement';
 import {studyStations,deskOutline,approaches,gardenApproaches,treeCenter} from '@/lib/world-layout';
 import {contains,floorShape,gardenHotspot,furnitureRegions,pickInteraction,Shape} from '@/lib/world-geometry';
-import {createWalkCycle} from '@/lib/walk-cycle';
+import {chairPose} from '@/lib/avatar-seating';
+import {objectTooltipPosition} from '@/lib/tooltip-position';
 import {createWorldEffects} from '@/lib/world-effects';
 
 type Props={suspended?:boolean;onOpen:(panel:string,player?:number)=>void;onHint:(text:string)=>void};
@@ -39,8 +42,8 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const effects=createWorldEffects(scene,room);destroyEffects=effects.destroy;
    const feedback=new Container();feedback.eventMode='none';scene.addChild(feedback);
    const sprite=(t:Texture,x:number,y:number,width:number)=>{const s=new Sprite(t);s.anchor.set(.5,1);s.width=width;s.height=width*t.height/t.width;s.position.set(x,y);s.zIndex=y;s.eventMode='none';world.addChild(s);return s;};
-   let state=useGame.getState(),position:Point={x:8,y:8},route:Point[]=[],pending:Interaction|undefined,selected:Interaction|undefined,hovered:Interaction|undefined;
-   let seconds=0,reactionStart=-10,speed=0,facing=1,selectionTime=0,confirmation=0,highlightAlpha=0,displayed:Interaction|undefined,seated=false,cursorMode='var(--leaf-default)',pressedUntil=0;
+   let state=useGame.getState(),position:Point={x:8.5,y:8.5},route:Point[]=[],pending:Interaction|undefined,selected:Interaction|undefined,hovered:Interaction|undefined;
+   let seconds=0,reactionStart=-10,speed=0,facing=1,selectionTime=0,confirmation=0,highlightAlpha=0,displayed:Interaction|undefined,seated=false,seatedStation:number|undefined=undefined,cursorMode='var(--leaf-default)',pressedUntil=0;
    const reduced=matchMedia('(prefers-reduced-motion: reduce)');
    const interactions:Interaction[]=[];
    const marker=new Graphics().ellipse(0,0,12,5).stroke({color:0xc9e9ad,width:1.5}).moveTo(-4,0).lineTo(4,0).moveTo(0,-2).lineTo(0,2).stroke({color:0xe1edc3,width:1});marker.visible=false;ground.addChild(marker);
@@ -79,17 +82,22 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const cycle=createWalkCycle(iso(position.x,position.y));
    const reading=await Promise.all(avatars.map(async a=>texture(await avatarAsset(a,true))));if(disposed)return;
    const players=standing.map((t,i)=>{const p=iso(approaches[i].x,approaches[i].y);return sprite(t,p.x,p.y+4,i===2?88:72);});
+   const friendShapes:({kind:'ellipse';x:number;y:number;rx:number;ry:number}|undefined)[]=[];
    // Online classmates use tight body ellipses, not their atlas cell bounds.
-   players.forEach((s,i)=>{if(!i)return;const shape:Shape={kind:'ellipse',x:s.x,y:s.y-28,rx:17,ry:25};add({id:`friend-${i}`,name:['', 'Maya','Kai','Jules'][i],action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>state.online[i]&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen('profile',i)});});
-   const petPoint={x:gp.x+86,y:gp.y-4},pet=sprite(petTextures[state.energy>=100?1:0],petPoint.x,petPoint.y,125);pet.zIndex=gp.y+25;
-   add({id:'pet',name:'Sproutling',action:'Interact with Sproutling',symbol:'♡',priority:50,shape:{kind:'ellipse',x:pet.x+5,y:pet.y-32,rx:25,ry:29},contains:p=>spriteContains(pet,p),approaches:[{x:8,y:4},{x:8.5,y:4.5}],activate:()=>{reactionStart=seconds;useGame.getState().set({reaction:['happy','watering','sleeping'][Math.floor(Math.random()*3)]});handlers.current.onHint('A happy little Sproutling. Every lesson helps it grow.');}});
+   players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,name:['', 'Maya','Kai','Jules'][i],action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>state.online[i]&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen('profile',i)});});
+   const wander=createSproutlingWander(),petPoint=iso(8,4),pet=sprite(petTextures[state.energy>=100?1:0],petPoint.x,petPoint.y,125);pet.zIndex=petPoint.y+6;
+   const petRuns=await Promise.all((await sproutlingRunAssets()).map(frames=>Promise.all(frames.map(texture))));if(disposed)return;
+   const petCycle=createWalkCycle(petPoint);
+   const petShape={kind:'ellipse' as const,x:pet.x+5,y:pet.y-32,rx:25,ry:29};
+   const petInteraction=add({id:'pet',name:'Sproutling',action:'Interact with Sproutling',symbol:'♡',priority:50,shape:petShape,contains:p=>spriteContains(pet,p),approaches:[{x:8,y:4}],activate:()=>{reactionStart=seconds;useGame.getState().set({reaction:['happy','watering','sleeping'][Math.floor(Math.random()*3)]});handlers.current.onHint('A happy little Sproutling. Every lesson helps it grow.');}});
    const sleep=new Text({text:'z z',style:{fontFamily:'Georgia',fontSize:14,fill:0xeee4c4}});sleep.position.set(petPoint.x+18,petPoint.y-75);sleep.visible=false;feedback.addChild(sleep);
    const cues=interactions.filter(i=>i.id.startsWith('desk-')||['garden','board','pet'].includes(i.id)).map(item=>{const g=new Text({text:item.symbol,style:{fontFamily:'Georgia',fontSize:17,fill:0xd8e6ac,stroke:{color:0x30372a,width:3}}});g.anchor.set(.5);feedback.addChild(g);return {item,g};});
    const setActivity=(activity:'Exploring'|'Idle'|'Studying')=>{if(useGame.getState().localActivity!==activity)useGame.getState().set({localActivity:activity});};
-   const reportPosition=()=>{if(host.current){host.current.dataset.playerTile=`${position.x.toFixed(2)},${position.y.toFixed(2)}`;host.current.dataset.destination=route.length?`${route[route.length-1].x},${route[route.length-1].y}`:'';host.current.dataset.facing=String(facing);host.current.dataset.selected=selected?.id??'';host.current.dataset.onlineAvatars=String(state.online.filter(Boolean).length);}};
-   const beginMove=(path:Point[],destination:Point,item?:Interaction)=>{route=path;pending=item;selected=item;selectionTime=seconds;confirmation=0;seated=false;setActivity(path.length?'Exploring':'Idle');
+   const reportPosition=()=>{if(host.current){host.current.dataset.playerTile=`${position.x.toFixed(2)},${position.y.toFixed(2)}`;host.current.dataset.destination=route.length?`${route[route.length-1].x},${route[route.length-1].y}`:'';host.current.dataset.facing=String(facing);host.current.dataset.selected=selected?.id??'';host.current.dataset.seatedAt=seatedStation===undefined?'':studyStations[seatedStation].id;host.current.dataset.onlineAvatars=String(state.online.filter(Boolean).length);}};
+   const sitAt=(item:Interaction)=>{const index=studyStations.findIndex(station=>station.id===item.id);if(index<0)return;seatedStation=index;seated=true;facing=chairPose(index).facing;confirmation=.65;setActivity('Studying');};
+   const beginMove=(path:Point[],destination:Point,item?:Interaction)=>{route=path;pending=item;selected=item;selectionTime=seconds;confirmation=0;seated=false;seatedStation=undefined;setActivity(path.length?'Exploring':'Idle');
     const p=iso(destination.x,destination.y);marker.position.set(p.x,p.y);marker.visible=path.length>0;reportPosition();
-    if(!path.length&&item){confirmation=.3;if(item.lookAt){const look=item.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}if(item.id.startsWith('desk-')){seated=true;setActivity('Studying');}}
+    if(!path.length&&item){confirmation=.3;if(item.lookAt){const look=item.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}if(item.id.startsWith('desk-'))sitAt(item);}
    };
    const resetHint=()=>handlers.current.onHint('Click the floor to wander · choose a desk to learn');
    scene.on('pointermove',(event:FederatedPointerEvent)=>{if(handlers.current.suspended)return;const point=scene.toLocal(event.global),next=pickInteraction(interactions,point);
@@ -123,14 +131,24 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
      speed+=Math.max(-260*dt,Math.min(260*dt,targetSpeed-speed));let travel=speed*dt;
      while(route.length&&travel>0){const next=route[0],d=distance(position,next);const projected=iso(next.x,next.y),current=iso(position.x,position.y);if(Math.abs(projected.x-current.x)>.1)facing=projected.x<current.x?1:-1;
       if(d<=travel+.05){position={...next};route.shift();travel-=d;}else{position.x+=(next.x-position.x)*travel/d;position.y+=(next.y-position.y)*travel/d;travel=0;}}
-     if(!route.length){speed=0;marker.visible=false;confirmation=pending?.3:0;setActivity('Idle');if(pending?.lookAt){const look=pending.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}if(pending?.id.startsWith('desk-')){seated=true;setActivity('Studying');}reportPosition();}
+     if(!route.length){speed=0;marker.visible=false;confirmation=pending?.3:0;setActivity('Idle');if(pending?.lookAt){const look=pending.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}if(pending?.id.startsWith('desk-'))sitAt(pending);reportPosition();}
     }
     if(confirmation>0){confirmation-=dt;if(confirmation<=0&&pending){const done=pending;pending=undefined;selected=undefined;done.activate();}}
-    const p=iso(position.x,position.y),stride=cycle(p,motion&&!handlers.current.suspended&&!seated);players[0].texture=seated?reading[0]:stride.frame>=0?strides[0][stride.frame]:standing[0];players[0].width=76;players[0].height=76*players[0].texture.height/players[0].texture.width;
-    players[0].scale.x=Math.abs(players[0].scale.x)*facing;players[0].position.set(p.x,p.y+4+stride.bob);players[0].rotation=stride.lean;players[0].zIndex=p.y+6;
-    for(let i=1;i<4;i++){const base=iso(approaches[i].x,approaches[i].y);players[i].texture=state.memberActivities[i]==='Studying'?reading[i]:standing[i];players[i].position.set(base.x,base.y+4);players[i].zIndex=base.y+6;players[i].visible=state.online[i];}
+    const p=iso(position.x,position.y),stride=cycle(p);
+    const seat=seated&&seatedStation!==undefined?chairPose(seatedStation,deskTextures[0].height/deskTextures[0].width):undefined;
+    players[0].texture=seat?reading[0]:stride.frame>=0?strides[0][stride.frame]:standing[0];players[0].anchor.set(seat?.anchorX??.5,seat?.anchorY??1);players[0].width=76;players[0].height=76*players[0].texture.height/players[0].texture.width;
+    players[0].scale.x=Math.abs(players[0].scale.x)*(seat?.facing??facing);players[0].position.set(seat?.x??p.x,seat?.y??p.y+4+stride.bob);players[0].rotation=seat?0:stride.lean;players[0].zIndex=seat?.depth??p.y+6;
+    for(let i=1;i<4;i++){const base=iso(approaches[i].x,approaches[i].y),sitting=state.memberActivities[i]==='Studying',chair=sitting?chairPose(i,deskTextures[0].height/deskTextures[0].width):undefined;
+     players[i].texture=sitting?reading[i]:standing[i];players[i].anchor.set(chair?.anchorX??.5,chair?.anchorY??1);players[i].width=i===2?88:72;players[i].height=players[i].width*players[i].texture.height/players[i].texture.width;players[i].scale.x=Math.abs(players[i].scale.x)*(chair?.facing??1);players[i].position.set(chair?.x??base.x,chair?.y??base.y+4);players[i].zIndex=chair?.depth??base.y+6;players[i].visible=state.online[i];
+     const shape=friendShapes[i];if(shape){shape.x=players[i].x;shape.y=players[i].y-(sitting?22:28);}
+    }
     const active=seconds-reactionStart<4,celebrate=active&&['happy','celebrating','evolving'].includes(state.reaction);
-    pet.texture=petTextures[state.energy>=100||active&&state.reaction==='watering'?1:0];pet.y=petPoint.y+(motion?(celebrate?-Math.abs(Math.sin(seconds*7))*9:Math.sin(seconds*2)*1.2):0);pet.rotation=motion&&active&&state.reaction==='watering'?Math.sin(seconds*4)*.06:0;sleep.visible=state.reaction==='sleeping'&&active;pet.alpha=sleep.visible?.8:1;
+    const roaming=wander(dt,handlers.current.suspended||hovered===petInteraction||selected===petInteraction||active);
+    const petFloor=iso(roaming.position.x,roaming.position.y),petStride=petCycle(petFloor);
+    petInteraction.approaches=[roaming.position];
+    const petStage=state.energy>=100||active&&state.reaction==='watering'?1:0;pet.texture=petStride.frame>=0?petRuns[petStage][petStride.frame]:petTextures[petStage];pet.x=petFloor.x;pet.y=petFloor.y+petStride.bob+(motion?(celebrate?-Math.abs(Math.sin(seconds*7))*9:roaming.moving?0:Math.sin(seconds*2)*1.2):0);pet.rotation=petStride.frame>=0?petStride.lean:motion&&active&&state.reaction==='watering'?Math.sin(seconds*4)*.06:0;sleep.visible=state.reaction==='sleeping'&&active;pet.alpha=sleep.visible?.8:1;
+    pet.scale.x=Math.abs(pet.scale.x)*roaming.facing;pet.zIndex=petFloor.y+6;
+    petShape.x=pet.x+5*roaming.facing;petShape.y=pet.y-32;sleep.position.set(pet.x+18,pet.y-75);
     garden.tint=active&&state.reaction==='evolving'?0xedffd2:0xffffff;
     // Frame-rate independent 150ms fade. Only one object owns hover/selected feedback.
     const wanted=handlers.current.suspended?undefined:hovered??selected;if(wanted!==displayed){highlightAlpha=Math.max(0,highlightAlpha-dt/.15);if(highlightAlpha===0){displayed=wanted;highlight.clear();contour.clear();if(displayed){const dest=approachRoute(position,displayed.approaches,displayed.preferFirst)?.destination;
@@ -140,8 +158,8 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
       }}}
     else highlightAlpha=Math.min(1,highlightAlpha+dt/.15);
     if(!wanted)highlightAlpha=Math.max(0,highlightAlpha-dt/.15);
-    highlight.alpha=contour.alpha=highlightAlpha;tooltip.visible=!!displayed&&highlightAlpha>0;tooltip.alpha=highlightAlpha;
-    if(displayed){const shape=displayed.shape,center=shape.kind==='ellipse'?{x:shape.x,y:shape.y-shape.ry-28}:{x:shape.points[0]+45,y:Math.min(...shape.points.filter((_,i)=>i%2===1))-28};tooltip.position.set(Math.max(120,Math.min(1200,center.x)),Math.max(30,center.y));}
+    highlight.alpha=contour.alpha=highlightAlpha;tooltip.visible=!!hovered&&displayed===hovered&&highlightAlpha>0&&!handlers.current.suspended;tooltip.alpha=highlightAlpha;
+    if(displayed){const at=objectTooltipPosition(displayed.shape,tooltipText.width+20,tooltipText.height+14);tooltip.position.set(at.x,at.y);}
     marker.alpha=motion?.65+Math.sin(seconds*3)*.16:.8;
     cues.forEach(({item,g},i)=>{const near=item.approaches.some(a=>distance(position,a)<115),shape=item.shape;g.visible=!handlers.current.suspended&&(near||hovered===item||selected===item);g.alpha=(hovered===item||selected===item)?.8:motion?.22+Math.max(0,Math.sin(seconds*.7+i*2))*.25:.3;
      const x=shape.kind==='ellipse'?shape.x:shape.points[0]+30,y=shape.kind==='ellipse'?shape.y-shape.ry:shape.points[1];g.position.set(x,y-10+(motion?Math.sin(seconds*1.5+i)*1.5:0));

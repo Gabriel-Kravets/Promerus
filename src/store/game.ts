@@ -1,7 +1,7 @@
 import {create} from 'zustand';
 import {persist,createJSONStorage} from 'zustand/middleware';
 export type Avatar={skin:string;hair:string;style:number;outfit:string;cut:number;accessory:string};
-export const presets:Avatar[]=[{skin:'#e5b78d',hair:'#53372e',style:0,outfit:'#678f8d',cut:0,accessory:'None'},{skin:'#9c664d',hair:'#282126',style:2,outfit:'#b17d83',cut:1,accessory:'Glasses'},{skin:'#f4d4af',hair:'#d8b166',style:3,outfit:'#8a85b7',cut:2,accessory:'Hat'},{skin:'#ba8261',hair:'#3e3039',style:4,outfit:'#af955c',cut:3,accessory:'Ribbon'}];
+export const presets:Avatar[]=[{skin:'#e5b78d',hair:'#53372e',style:0,outfit:'#678f8d',cut:0,accessory:'None'},{skin:'#9c664d',hair:'#282126',style:2,outfit:'#b17d83',cut:1,accessory:'Glasses'},{skin:'#f4d4af',hair:'#d8b166',style:1,outfit:'#8a85b7',cut:2,accessory:'Hat'},{skin:'#ba8261',hair:'#3e3039',style:4,outfit:'#af955c',cut:3,accessory:'Ribbon'}];
 type Completion={id:string;player:number;lesson:string};
 export type MemberActivity='Online'|'Studying'|'Exploring'|'Idle'|'Taking a break';
 export const memberActivities:MemberActivity[]=['Online','Studying','Exploring','Idle','Taking a break'];

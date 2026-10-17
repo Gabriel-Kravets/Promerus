@@ -21,13 +21,72 @@ const reading = [
   [[40,0,340,0,340,112,293,121,275,104,253,82,241,82,247,105,265,126,275,152,265,195,248,225,233,228,230,206,215,196,203,213,193,213,185,192,167,182,153,163,143,170,130,173,117,167,106,192,109,215,102,235,105,250,92,255,77,232,78,215,63,192,48,163,40,132]]
 ];
 
+// Cover the full back locks, including the light inner curls missed by the
+// original concave traces. The palette also excludes purple hat/outfit pixels.
+standing[2][3]=[250,220,280,230,290,270,320,290,355,320,360,360,343,380,350,400,335,425,307,430,290,400,275,355,250,330,235,280,230,240];
+reading[2][3]=[265,180,300,200,307,220,335,230,345,250,380,265,384,300,366,322,377,342,370,365,345,375,320,370,300,345,280,310,264,275,242,240,240,210];
+
+// Face and ear exclusions take precedence over every hair polygon, including
+// antialiased boundaries. Hair palettes must never alter facial features.
+export const facesStanding = [
+  [171,156,180,171,186,194,200,213,207,228,224,222,233,212,246,205,257,211,260,227,247,239,225,244,204,255,173,257,145,247,120,240,108,229,109,211,118,219,128,214,139,209,145,196,155,180],
+  [99,201,112,187,124,196,139,184,150,163,156,127,164,142,164,152,173,174,190,190,210,210,226,219,242,226,248,216,263,220,263,238,246,253,222,264,194,270,161,263,137,252,113,241,101,226],
+  [130,183,143,205,159,211,164,181,173,197,178,213,192,220,204,222,203,242,196,254,177,260,154,253,134,242,121,228,122,207],
+  [119,185,120,195,126,201,129,191,137,170,140,159,145,179,151,196,158,209,170,215,186,222,207,227,214,236,214,248,201,260,181,265,154,263,133,253,115,240,110,227,102,204,104,193,114,191]
+];
+export const facesReading = [
+  [190,128,196,136,200,150,210,164,224,175,233,180,232,195,242,196,252,179,266,166,278,161,282,172,279,183,267,191,246,196,234,204,210,212,179,211,154,204,137,197,126,186,125,178,137,176,139,189,151,186,163,183,180,181,183,169,177,160,184,148],
+  [102,174,118,171,136,153,143,134,151,109,162,117,176,140,191,158,209,172,226,189,241,193,254,196,265,195,276,204,272,217,254,226,232,237,208,241,178,235,152,228,129,213,114,200,101,185],
+  [135,165,143,181,160,190,167,174,176,181,193,191,208,198,219,200,218,218,210,229,193,233,170,227,150,218,134,202,130,185],
+  [122,182,121,197,126,215,147,229,174,236,192,238,209,233,217,225,217,210,209,198,187,190,164,175,155,158,151,144,145,144,141,151,141,173,147,184,138,182,132,171,126,164,122,174]
+];
+// Conservative face-edge overrides, editable in original atlas-cell pixels.
+// Each character has [standing polygons, reading polygons]. These exclusions
+// win over hair tinting, including light forehead/ear pixels on the witch.
+export const faceProtection:number[][][][]=[
+ // Forehead slivers and temples extend beyond the original outlines.
+ [[[158,151,177,151,183,179,179,193,157,194],[103,185,119,185,122,215,103,227]],
+  [[181,127,197,125,206,155,199,173,180,171],[129,163,143,163,148,190,130,194]]],
+ [[[137,137,158,135,170,153,173,185,143,193,131,175],[218,207,240,208,252,223,245,241,219,247]],
+  [[140,116,160,115,174,138,183,161,151,173,139,150],[229,169,252,166,261,184,252,199,231,208]]],
+ // The witch's narrow exposed forehead lies between two blonde bangs.
+ [[[163,182,169,179,176,206,172,219,161,211],[234,220,246,218,253,227,250,240,238,248,231,245,230,234]],
+  [[165,160,172,160,181,184,177,199,165,192],[253,190,270,180,281,187,279,203,267,213,249,215]]],
+ [[[131,167,145,165,150,193,145,213,127,209],[211,218,234,216,246,232,238,250,214,252]],
+  [[135,145,149,143,157,171,153,193,132,190],[228,184,250,184,260,200,248,218,229,220]]]
+];
+// Ribbon/bow fabric is never hair. Coordinates use local atlas cells.
+export const ribbonStanding=[196,76,223,78,241,89,257,106,283,111,313,123,313,143,295,155,316,177,329,199,327,224,313,242,294,241,289,210,293,175,275,150,265,133,242,121,223,112,206,100];
+export const ribbonReading=[207,57,229,58,249,69,269,85,294,88,317,101,318,121,300,140,325,155,340,177,340,198,324,214,305,215,300,187,304,160,284,138,274,117,248,103,227,93,211,79];
+export function isHairAccessoryPixel(column:number,readingPose:boolean,x:number,y:number){
+ return column===3&&contains({kind:'polygon',points:readingPose?ribbonReading:ribbonStanding},{x,y});
+}
+export const FACE_EDGE_PADDING=6;
+export function isFacePixel(column:number,readingPose:boolean,x:number,y:number){
+  const ears=readingPose?[236,190,244,188,253,196,256,207,252,216,241,222,232,222,226,214,229,203]:[213,229,219,229,225,220,235,216,244,220,245,230,241,240,226,249,217,248,211,239];
+  const polygons=[(readingPose?facesReading:facesStanding)[column],...(column===3?[ears]:[]),...faceProtection[column][readingPose?1:0]];
+  // Include the antialiased edge around cheeks, ears and the hairline. The
+  // previous point-only test left colored seams just outside the traced face.
+  return polygons.some(points=>{
+    if(contains({kind:'polygon',points},{x,y}))return true;
+    for(let i=0;i<points.length;i+=2){
+      const j=(i+2)%points.length,dx=points[j]-points[i],dy=points[j+1]-points[i+1];
+      const t=Math.max(0,Math.min(1,((x-points[i])*dx+(y-points[i+1])*dy)/(dx*dx+dy*dy||1)));
+      if(Math.hypot(x-points[i]-t*dx,y-points[i+1]-t*dy)<=FACE_EDGE_PADDING)return true;
+    }
+    return false;
+  });
+}
 export function isHairPixel(column:number, readingPose:boolean, x:number, y:number) {
-  return (readingPose ? reading : standing)[column].some(points => contains({kind:'polygon',points}, {x,y}));
+  return !isFacePixel(column,readingPose,x,y)&&!isHairAccessoryPixel(column,readingPose,x,y)&&(readingPose ? reading : standing)[column].some(points => contains({kind:'polygon',points}, {x,y}));
 }
 
 /** Replace the source hue completely while preserving the atlas luminance. */
-export function hairPixel(rgb:number[], selected:number[]) {
+export function hairPixel(rgb:number[], selected:number[],column=0) {
   const luminance = rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;
-  const shade = Math.max(.08, Math.min(1.65, luminance/115));
-  return selected.map(channel => Math.round(Math.min(255, channel*shade)));
+  // Normalize blonde and dark source hair independently; preserve highlights
+  // without clipping the witch's light hair into flat saturated patches.
+  const baseline=[115,65,195,75][column]??115;
+  const shade=Math.max(.08,Math.min(1.6,luminance/baseline));
+  return selected.map(channel=>Math.round(shade<=1?channel*shade:channel+(255-channel)*(shade-1)*.45));
 }

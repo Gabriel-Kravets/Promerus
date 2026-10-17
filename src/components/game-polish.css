@@ -11,3 +11,22 @@
 .modal{min-width:0!important;max-width:calc(100vw - 24px)!important}.stage-gallery{min-width:0}.stage-gallery>button{overflow:hidden}.garden-illustration{flex-shrink:0}.modal .stage-gallery strong{font-size:25px}
 
 .selected-tree-preview{display:block;width:100%;height:250px;overflow:hidden;image-rendering:pixelated;background:radial-gradient(ellipse,#56684644,transparent 70%);margin-bottom:16px}.room-quests{list-style:none;padding:0;margin:24px 0}.room-quests li{display:flex;gap:16px;padding:18px 0;border-bottom:1px solid #88705266}.room-quests li>div{flex:1}.room-quests .bar{margin:12px 0 7px}.quest-check{color:#b5d78e}.room-quests small{color:#c9bd9f}.social-tabs{display:flex;gap:12px;margin:20px 0}.social-tabs [aria-pressed=true]{outline:2px solid #c5d49e}.saved-friend{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #88705266}.saved-friend .friend-copy{flex:1}.saved-friend strong,.saved-friend small{display:block}.saved-friend small{color:#c3b9a8;margin-top:5px}.saved-friend button{flex-shrink:0}
+
+.world-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}.game .hud nav .game-icon-control>.game-tooltip{top:calc(100% + 10px);bottom:auto;right:0;left:auto;max-width:calc(100vw - 24px);white-space:normal;width:max-content}
+
+/* Direct character selection and bottom-right quest window. */
+.creator > .character-selection{grid-column:1/-1;display:flex;justify-content:center;gap:18px;margin:0 0 12px}
+.character-selection button{width:76px;height:96px}
+.character-selection img{width:64px;height:86px;object-fit:contain}
+.character-selection button[aria-pressed="true"]{border-color:#d5dca0;background:#536044;box-shadow:0 0 0 2px #d5dca0}
+.quest-launcher{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0}
+.modal-backdrop.quest-backdrop{align-items:flex-end;justify-content:flex-end;padding:20px 24px 84px;background:#07132333}
+.modal.quest-popup{width:400px;max-width:100%;max-height:calc(100dvh - 110px);margin:0;padding:34px 24px 24px;overflow-y:auto}
+.quest-popup h1{font-size:28px}
+@media(max-width:700px){.modal-backdrop.quest-backdrop{padding:12px 12px 82px}.character-selection button{width:56px;height:72px}.character-selection img{width:48px;height:64px}.creator>.character-selection{gap:12px}.quest-launcher{padding:10px}.bottom-hud .seeds-card{max-width:calc(100% - 110px)}}
+
+.quest-widget{position:absolute;right:24px;bottom:24px;z-index:3;width:min(310px,calc(100% - 32px))}
+.quest-menu{position:relative;padding:16px;background:linear-gradient(130deg,#3e3430f5,#26282df5);border:1px solid #c4a478;border-radius:8px;box-shadow:0 8px 28px #0006;max-height:min(360px,55dvh);overflow-y:auto}
+.quest-menu h2{font-size:20px;padding-right:32px}.quest-close{position:absolute;right:10px;top:10px;display:grid;place-items:center;width:30px;height:30px;border:1px solid #bba17d;background:#3c332e;border-radius:5px}
+.quest-menu .room-quests{margin:10px 0}.quest-menu .room-quests li{gap:10px;padding:9px 0}.quest-menu .room-quests strong{font-size:12px}.quest-menu .room-quests small{font-size:10px}.quest-menu .room-quests .bar{margin:6px 0 3px}.quest-menu .quest-check svg{width:16px}.quest-menu .primary{width:100%;padding:9px;font-size:12px}.quest-widget>.quest-launcher{margin-left:auto}
+@media(max-width:700px){.quest-widget{right:16px;bottom:16px;width:min(280px,calc(100% - 32px))}.bottom-hud .seeds-card{display:none}}
