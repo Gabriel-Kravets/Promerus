@@ -54,3 +54,23 @@ Click a study desk or **Learn** to enter the illustrated cabin. **Flashcards** h
 ## Greenhouse polish
 
 Classmates start offline, leaving their desks visible and unoccupied. Toggle their simulated presence in **Settings → Show demo controls**. Your avatar can still walk around the greenhouse, and the Sproutling remains present. The telescope, hearth, plant shelf, and entrance offer additional room interactions. The garden gallery previews all four cosmetic stages; progression never locks lessons or study tools.
+
+## World interaction and atmosphere
+
+World input is dispatched once in scene coordinates: tight object geometry takes priority over the walkable floor, and decorative sprites never receive pointer events. Desks and Sproutling use atlas alpha checks; the garden uses a stone-bed ellipse instead of a canopy rectangle. Hover and selection feedback fades over 150 ms, with a contextual tooltip, approach tile, and nearby interaction symbol.
+
+Navigation uses a half-tile mesh traced to the visible platform, with a seven-pixel avatar clearance, separate furniture and circular garden collision, connected-region validation, and Dijkstra paths weighted by screen distance. Occupied floor clicks resolve to a reachable edge; water and off-platform clicks are ignored. Objects activate after arrival, and new movement cancels a pending interaction.
+
+The existing Pixi ticker also drives masked water-texture shimmer, wavelets, ripples, anchored plant and tree-leaf patches, layered pixel flames, independent lantern/crystal/garden light, and a fixed pool of 48 motes, dust, embers, leaves, and reward particles. Ambient motion and the system reduced-motion preference stop nonessential motion; Simple atmosphere removes extra particles and light flicker. The ticker pauses when the tab is hidden. Existing atlas art has one standing and one reading pose per avatar, so walking uses directional mirroring and a restrained step animation rather than newly drawn directional frames.
+
+## Cohesive world and party interface
+
+The four original 178px study desks now sit in a left nook, rear window station, fireplace-side corner, and front-right perimeter station. `studyStations` in `world-layout.ts` owns each station's atlas cell, position, seat, alternative approaches, and visible contour. Collision derives from these same positions. Every desk opens the existing study room after walking and a brief reading-pose transition.
+
+The stove now has a traced visible outline, an extended adjoining floor boundary, a preferred front approach at tile `(11.5, -0.5)`, reachable fallbacks, and a look-at point. Preferred chair and stove approaches are honored before considering alternatives. Visible floor tiles show a thin hover diamond; blocked tiles use a subdued unavailable mark. Opening a menu cancels pending world movement so a delayed interaction cannot replace it.
+
+Five lightweight 32px SVG leaf cursors provide default, walking, interaction, blocked, and pressed feedback with a `(3, 2)` hotspot and native fallbacks. Text inputs retain native text cursors.
+
+A compact party roster crops customized standing sprites to head portraits without changing the atlas. It opens the existing Friends menu with that member's details selected. Offline classmates remain listed but do not render in the world. Presence and simulated activities can be adjusted in Settings demo controls. Local activity updates when walking, studying, and resting; offline presence overrides saved activity labels. Older saved games receive safe activity defaults.
+
+Shared UI primitives provide icon tooltips, head portraits, panel headings, status badges, and progress meters. The Friends menu retains its demo code, Copy action, contributions, activity feed, and Moonlight Bloom objective, now using the same walnut, bronze, parchment, and botanical framing as the greenhouse. No networking or powerups are implemented.

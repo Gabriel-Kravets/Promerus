@@ -26,3 +26,13 @@ export function avatarAsset(a:Avatar,reading=false):Promise<string>{
   return canvas.toDataURL('image/png');
  });avatarCache.set(key,result);return result;
 }
+
+const headCache=new Map<string,Promise<string>>();
+/** Head-only view of the customized standing sprite; original atlas stays intact. */
+export function avatarHeadAsset(avatar:Avatar):Promise<string>{
+ const key=JSON.stringify(avatar);if(headCache.has(key))return headCache.get(key)!;
+ const result=avatarAsset(avatar).then(loadImage).then(img=>{const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;const ctx=canvas.getContext('2d')!;ctx.imageSmoothingEnabled=false;
+  const height=img.height*.54,width=img.width*.92,x=img.width*.04,scale=Math.min(96/width,96/height);
+  ctx.drawImage(img,x,0,width,height,(96-width*scale)/2,(96-height*scale)/2,width*scale,height*scale);return canvas.toDataURL('image/png');
+ });headCache.set(key,result);return result;
+}
