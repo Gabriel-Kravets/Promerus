@@ -5,7 +5,7 @@ import Learning from './Learning';
 import {useGame} from '@/store/game';
 import {getCourse} from '@/lib/courses';
 import './study-room.css';
-import {type RoomSave,defaultStudySave,readStudySave} from '@/lib/study-progress';
+import {type RoomSave,defaultStudySave,readStudySave,writeStudySave,currentStudyDay} from '@/lib/study-progress';
 
 type Subject='Science'|'History'|'Math'|'English'|'Python'|'Spanish';
 const defaults=()=>defaultStudySave(useGame.getState().completions.filter(c=>c.player===0).length);
@@ -17,10 +17,12 @@ const authored:Record<string,{q:string;a:string;symbol:string}[]>={
 };
 function deckFor(subject:Subject){if(authored[subject])return authored[subject];const key=subjectList.find(s=>s.name===subject)!.key;return getCourse(key).lessons.flatMap(l=>l.questions.map(q=>({q:q.prompt,a:`${q.options[q.answer]} — ${q.explanation}`,symbol:subject==='Math'?'math':subject==='Python'?'code':'book'})));}
 export default function StudyRoom({onBack}:{onBack:()=>void}){
- const game=useGame();const [tab,setTab]=useState('flashcards'),[subject,setSubject]=useState<Subject>('Science'),[card,setCard]=useState(0),[revealed,setRevealed]=useState(false),[save,setSave]=useState<RoomSave>(defaults),[hydrated,setHydrated]=useState(false),[notice,setNotice]=useState('');const lastTick=useRef(Date.now());
+ const game=useGame();const [tab,setTab]=useState('flashcards'),[subject,setSubject]=useState<Subject>('Science'),[card,setCard]=useState(0),[revealed,setRevealed]=useState(false),[save,setStoredSave]=useState<RoomSave>(defaults),[hydrated,setHydrated]=useState(false),[notice,setNotice]=useState('');const lastTick=useRef(Date.now());
+ const setSave=(update:RoomSave|((previous:RoomSave)=>RoomSave))=>setStoredSave(previous=>typeof update==='function'?update(currentStudyDay(previous,useGame.getState().completions.filter(c=>c.player===0).length)):update);
  const deck=deckFor(subject),current=deck[card%deck.length],running=save.endAt!==null;
  useEffect(()=>{setSave(readStudySave(useGame.getState().completions.filter(c=>c.player===0).length));setHydrated(true);},[]);
- useEffect(()=>{if(hydrated)try{localStorage.setItem('sproutbound-study-room',JSON.stringify(save));}catch{}},[save,hydrated]);
+ useEffect(()=>{if(!hydrated)return;const current=currentStudyDay(save,useGame.getState().completions.filter(c=>c.player===0).length);if(current!==save)setStoredSave(current);else writeStudySave(save);},[save,hydrated]);
+ useEffect(()=>{const timer=setInterval(()=>setStoredSave(previous=>currentStudyDay(previous,useGame.getState().completions.filter(c=>c.player===0).length)),60000);return()=>clearInterval(timer);},[]);
  useEffect(()=>{if(!running)return;lastTick.current=Date.now();const id=setInterval(()=>{const now=Date.now(),elapsed=Math.max(0,(now-lastTick.current)/1000);lastTick.current=now;setSave(s=>{if(!s.endAt)return s;const seconds=Math.max(0,Math.ceil((s.endAt-now)/1000));if(seconds===0)setNotice('Focus session complete. Take a little break!');return {...s,seconds,focusSeconds:s.focusSeconds+Math.min(elapsed,s.seconds),endAt:seconds===0?null:s.endAt};});},250);return()=>clearInterval(id);},[running]);
  const reveal=()=>{setRevealed(true);const id=`${subject}:${card%deck.length}`;setSave(s=>({...s,seen:s.seen.includes(id)?s.seen:[...s.seen,id]}));};
  const startTimer=()=>setSave(s=>s.endAt?{...s,endAt:null,seconds:Math.max(0,Math.ceil((s.endAt-Date.now())/1000))}:{...s,seconds:s.seconds||s.duration*60,endAt:Date.now()+(s.seconds||s.duration*60)*1000});
