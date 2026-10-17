@@ -4,8 +4,9 @@ import {Application,Container,Graphics,Sprite,Texture,Rectangle,Text,FederatedPo
 import {useGame,presets} from '@/store/game';
 import {avatarAsset,loadImage} from '@/lib/sprite-assets';
 import {iso,uniso,planRoute,approachRoute,distance,stageFor,blocked,Point} from '@/lib/movement';
-import {studyStations,deskOutline,approaches,gardenApproaches} from '@/lib/world-layout';
+import {studyStations,deskOutline,approaches,gardenApproaches,treeCenter} from '@/lib/world-layout';
 import {contains,floorShape,gardenHotspot,furnitureRegions,pickInteraction,Shape} from '@/lib/world-geometry';
+import {createWalkCycle} from '@/lib/walk-cycle';
 import {createWorldEffects} from '@/lib/world-effects';
 
 type Props={suspended?:boolean;onOpen:(panel:string,player?:number)=>void;onHint:(text:string)=>void};
@@ -64,7 +65,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     add({id:station.id,name:station.label,action:'Begin Studying',symbol:'▤',priority:30,contains:q=>contains(shape,q)&&spriteContains(desk,q),shape,approaches:[station.seat,...station.alternatives],preferFirst:true,lookAt:{x:p.x,y:p.y-25},activate:()=>handlers.current.onOpen('learn')});
    });
    furnitureRegions.forEach(item=>add({...item,priority:20,contains:p=>contains(item.shape,p),activate:()=>handlers.current.onOpen(item.panel)}));
-   const gp=iso(5.5,5.5),garden=sprite(gardenTextures[stageFor(state.energy)],gp.x,gp.y+83,365);garden.zIndex=gp.y+40;
+   const gp=iso(treeCenter.x,treeCenter.y),garden=sprite(gardenTextures[stageFor(state.energy)],gp.x,gp.y+83,365);garden.zIndex=gp.y+40;
    add({id:'garden',name:'Shared Garden',action:'View Garden Progress',symbol:'❧',priority:10,contains:p=>contains(gardenHotspot,p),shape:gardenHotspot,approaches:gardenApproaches,activate:()=>handlers.current.onOpen('garden')});
    // Animate only small outer leaf clusters, never scale the complete garden/tree.
    const branches=[-1,1].map(side=>{const c=new Container();c.eventMode='none';c.zIndex=garden.zIndex+1;world.addChild(c);const leaf=new Sprite(garden.texture);leaf.anchor.set(.5,1);leaf.width=365;leaf.height=365*leaf.texture.height/leaf.texture.width;leaf.position.set(garden.x,garden.y);c.addChild(leaf);const mask=new Graphics();c.addChild(mask);leaf.mask=mask;return {c,leaf,mask,side};});
@@ -74,6 +75,8 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const moonflower=new Graphics();moonflower.moveTo(0,0).lineTo(0,-23).stroke({color:0x9ad7ae,width:2});for(let i=0;i<5;i++)moonflower.circle(Math.cos(i*1.256)*5,-27+Math.sin(i*1.256)*5,4).fill(0xd3f2dd);moonflower.circle(0,-27,3).fill(0xf5dda0);moonflower.position.set(gp.x+65,gp.y+24);moonflower.zIndex=gp.y+60;moonflower.eventMode='none';world.addChild(moonflower);
    const avatars=[state.avatar,...presets.slice(1)];
    const standing=await Promise.all(avatars.map(async a=>texture(await avatarAsset(a))));
+   const strides=await Promise.all(avatars.map(a=>Promise.all([0,1,2,3].map(async frame=>texture(await avatarAsset(a,false,frame))))));
+   const cycle=createWalkCycle(iso(position.x,position.y));
    const reading=await Promise.all(avatars.map(async a=>texture(await avatarAsset(a,true))));if(disposed)return;
    const players=standing.map((t,i)=>{const p=iso(approaches[i].x,approaches[i].y);return sprite(t,p.x,p.y+4,i===2?88:72);});
    // Online classmates use tight body ellipses, not their atlas cell bounds.
@@ -109,7 +112,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    });
    const updateGarden=()=>{garden.texture=gardenTextures[stageFor(state.energy)];garden.width=365;garden.height=365*garden.texture.height/garden.texture.width;moonflower.visible=new Set(state.completions.map(c=>c.player)).size>=2;updateBranches();};updateGarden();
    unsubscribe=useGame.subscribe((next,previous)=>{state=next;if(next.online!==previous.online)reportPosition();if(next.energy!==previous.energy||next.completions!==previous.completions)updateGarden();if(next.reaction!==previous.reaction)reactionStart=seconds;
-    if(next.avatar!==previous.avatar)Promise.all([avatarAsset(next.avatar),avatarAsset(next.avatar,true)]).then(async urls=>{const textures=await Promise.all(urls.map(texture));if(!disposed){standing[0]=textures[0];reading[0]=textures[1];}});
+    if(next.avatar!==previous.avatar)Promise.all([avatarAsset(next.avatar),avatarAsset(next.avatar,true),...[0,1,2,3].map(frame=>avatarAsset(next.avatar,false,frame))]).then(async urls=>{const textures=await Promise.all(urls.map(texture));if(!disposed&&next.avatar===useGame.getState().avatar){standing[0]=textures[0];reading[0]=textures[1];strides[0]=textures.slice(2);}});
    });
    app.ticker.add(tick=>{
     const dt=Math.min(tick.deltaMS/1000,.05);seconds+=dt;const motion=state.settings.motion&&!reduced.matches;
@@ -123,8 +126,8 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
      if(!route.length){speed=0;marker.visible=false;confirmation=pending?.3:0;setActivity('Idle');if(pending?.lookAt){const look=pending.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}if(pending?.id.startsWith('desk-')){seated=true;setActivity('Studying');}reportPosition();}
     }
     if(confirmation>0){confirmation-=dt;if(confirmation<=0&&pending){const done=pending;pending=undefined;selected=undefined;done.activate();}}
-    const p=iso(position.x,position.y);players[0].texture=seated?reading[0]:standing[0];players[0].width=76;players[0].height=76*players[0].texture.height/players[0].texture.width;
-    players[0].scale.x=Math.abs(players[0].scale.x)*facing;players[0].position.set(p.x,p.y+4+(motion?(walking?Math.sin(seconds*15)*1.7:Math.sin(seconds*1.6)*.5):0));players[0].zIndex=p.y+6;
+    const p=iso(position.x,position.y),stride=cycle(p,motion&&!handlers.current.suspended&&!seated);players[0].texture=seated?reading[0]:stride.frame>=0?strides[0][stride.frame]:standing[0];players[0].width=76;players[0].height=76*players[0].texture.height/players[0].texture.width;
+    players[0].scale.x=Math.abs(players[0].scale.x)*facing;players[0].position.set(p.x,p.y+4+stride.bob);players[0].rotation=stride.lean;players[0].zIndex=p.y+6;
     for(let i=1;i<4;i++){const base=iso(approaches[i].x,approaches[i].y);players[i].texture=state.memberActivities[i]==='Studying'?reading[i]:standing[i];players[i].position.set(base.x,base.y+4);players[i].zIndex=base.y+6;players[i].visible=state.online[i];}
     const active=seconds-reactionStart<4,celebrate=active&&['happy','celebrating','evolving'].includes(state.reaction);
     pet.texture=petTextures[state.energy>=100||active&&state.reaction==='watering'?1:0];pet.y=petPoint.y+(motion?(celebrate?-Math.abs(Math.sin(seconds*7))*9:Math.sin(seconds*2)*1.2):0);pet.rotation=motion&&active&&state.reaction==='watering'?Math.sin(seconds*4)*.06:0;sleep.visible=state.reaction==='sleeping'&&active;pet.alpha=sleep.visible?.8:1;

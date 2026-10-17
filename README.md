@@ -69,7 +69,7 @@ Tests cover coordinate conversion, obstacle avoidance, interactive approach poin
 
 ## Cozy study room
 
-Click a study desk or **Learn** to enter the illustrated cabin. **Flashcards** has six subject decks and answer reveal; **My Desk** retains the full lesson journey and energy rewards. **Stats**, **Quests**, and **Settings** are functional. The focus clock starts, pauses, resets, and supports 5/15/25/45-minute sessions. Flashcard review and active focus time update daily chores automatically; repeat reveals do not count twice. Study-room state is stored separately under `sproutbound-study-room` so existing game progression remains intact.
+Click a study desk or **Learn** to enter the illustrated cabin. **Flashcards** has six subject decks and answer reveal; **My Desk** retains the full lesson journey and energy rewards. **Stats** and **Settings** are functional. Quests now open over the greenhouse from its Quests button or the quest board. The focus clock starts, pauses, resets, and supports 5/15/25/45-minute sessions. Flashcard review and active focus time update daily chores automatically; repeat reveals do not count twice. Study-room state is stored separately under `sproutbound-study-room` so existing game progression remains intact.
 
 ## Greenhouse polish
 
@@ -81,11 +81,11 @@ World input is dispatched once in scene coordinates: tight object geometry takes
 
 Navigation uses a half-tile mesh traced to the visible platform, with a seven-pixel avatar clearance, separate furniture and circular garden collision, connected-region validation, and Dijkstra paths weighted by screen distance. Occupied floor clicks resolve to a reachable edge; water and off-platform clicks are ignored. Objects activate after arrival, and new movement cancels a pending interaction.
 
-The existing Pixi ticker also drives masked water-texture shimmer, wavelets, ripples, anchored plant and tree-leaf patches, layered pixel flames, independent lantern/crystal/garden light, and a fixed pool of 48 motes, dust, embers, leaves, and reward particles. Ambient motion and the system reduced-motion preference stop nonessential motion; Simple atmosphere removes extra particles and light flicker. The ticker pauses when the tab is hidden. Existing atlas art has one standing and one reading pose per avatar, so walking uses directional mirroring and a restrained step animation rather than newly drawn directional frames.
+The existing Pixi ticker also drives masked water-texture shimmer, wavelets, ripples, anchored plant and tree-leaf patches, layered pixel flames, independent lantern/crystal/garden light, and a fixed pool of 48 motes, dust, embers, leaves, and reward particles. Ambient motion and the system reduced-motion preference stop nonessential motion; Simple atmosphere removes extra particles and light flicker. The ticker pauses when the tab is hidden. Existing atlas art has one standing and one reading pose per avatar, so walking uses four generated stride frames with independent leg motion, directional mirroring, and a small body bob. Actual scene-coordinate changes advance the cycle; stopping, opening a menu, and reduced-motion settings restore the idle pose.
 
 ## Cohesive world and party interface
 
-The four original 178px study desks now sit in a left nook, rear window station, fireplace-side corner, and front-right perimeter station. `studyStations` in `world-layout.ts` owns each station's atlas cell, position, seat, alternative approaches, and visible contour. Collision derives from these same positions. Every desk opens the existing study room after walking and a brief reading-pose transition.
+The four original 178px study desks use a fixed mirrored layout around the center tree: two on the left and two on the right. `studyStations` in `world-layout.ts` owns each station's atlas cell, position, seat, alternative approaches, and visible contour. Collision derives from these same positions. Every desk opens the existing study room after walking and a brief reading-pose transition.
 
 The stove now has a traced visible outline, an extended adjoining floor boundary, a preferred front approach at tile `(11.5, -0.5)`, reachable fallbacks, and a look-at point. Preferred chair and stove approaches are honored before considering alternatives. Visible floor tiles show a thin hover diamond; blocked tiles use a subdued unavailable mark. Opening a menu cancels pending world movement so a delayed interaction cannot replace it.
 
@@ -139,3 +139,11 @@ The Auth0 SDK's local storage cache restores a valid token after refresh. For th
 - `auth0-spa-js.production.js`: official Auth0 SPA SDK browser bundle, version 2.27, from `https://cdn.auth0.com/js/auth0-spa-js/2.27/auth0-spa-js.production.js`; its license is in `LICENSE.auth0-spa-js`.
 
 The prototype contains no database, game dashboard, or progression system. The welcome panel can be replaced by the game's authenticated route when the team integrates it.
+
+## Room updates
+
+Hair recoloring uses per-pose atlas masks for the full crown, bangs and long locks, preserving face and accessory colors. Garden stage buttons show a large clipped visual preview without changing energy or the active stage.
+
+The greenhouse Quests popup shows daily flashcard, focus, and lesson goals using the same persisted study data. The study page no longer contains quest navigation or the chores sidebar.
+
+Friends contains separate **Room members** and **Friends List** views. Accept the explicitly labeled demo requests to save friends independently of room membership; Rowan demonstrates a friend outside the greenhouse. Accepted friends persist under `sproutbound-friends`. These remain local simulations, not networked friendship requests.

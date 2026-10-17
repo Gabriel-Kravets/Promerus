@@ -1,10 +1,11 @@
-/** Original atlas cells and 178px render size are preserved. All station geometry follows position. */
-export const studyStations=[
- {id:'desk-0',label:'Left study nook',position:{x:.5,y:6.5},seat:{x:1.5,y:7.5},alternatives:[{x:2,y:7.5}],atlasColumn:0,width:178},
- {id:'desk-1',label:'Rear window desk',position:{x:6.5,y:1},seat:{x:7.5,y:2},alternatives:[{x:7.5,y:2.5}],atlasColumn:1,width:178},
- {id:'desk-2',label:'Fireplace study corner',position:{x:10,y:0},seat:{x:11,y:1},alternatives:[{x:11,y:1.5}],atlasColumn:0,width:178},
- {id:'desk-3',label:'Front-right study desk',position:{x:10,y:5},seat:{x:10.5,y:5.5},alternatives:[{x:11,y:5}],atlasColumn:1,width:178}
-];
+export const treeCenter={x:5.5,y:5.5};
+/** Fixed mirrored pairs: exactly two tables on each screen side of the tree. */
+const offsets=[{x:-4,y:1},{x:1,y:-4},{x:-2.5,y:4.5},{x:4.5,y:-2.5}];
+export const studyStations=offsets.map((offset,index)=>{
+ const position={x:treeCenter.x+offset.x,y:treeCenter.y+offset.y};
+ return {id:`desk-${index}`,label:`${index%2?'Right':'Left'} ${index<2?'rear':'front'} study desk`,position,
+  seat:{x:position.x+1,y:position.y+1},alternatives:[{x:position.x+1.5,y:position.y+1}],atlasColumn:index%2,width:178};
+});
 export const desks=studyStations.map(station=>station.position);
 export const approaches=studyStations.map(station=>station.seat);
 export const gardenApproaches=[{x:4,y:8},{x:8,y:4},{x:8.5,y:4},{x:6,y:9.5}];
