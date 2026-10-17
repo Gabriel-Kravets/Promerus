@@ -1,0 +1,27 @@
+{
+  "run": {
+    "width": 192,
+    "height": 154,
+    "frames": 12
+  },
+  "desk": {
+    "width": 364,
+    "height": 293,
+    "density": 2,
+    "pad": 4,
+    "bounds": [
+      {
+        "left": 54,
+        "top": 41,
+        "right": 324,
+        "bottom": 280
+      },
+      {
+        "left": 40,
+        "top": 41,
+        "right": 310,
+        "bottom": 280
+      }
+    ]
+  }
+}

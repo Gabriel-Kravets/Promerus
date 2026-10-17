@@ -2,15 +2,17 @@
 import {useEffect,useRef,useState} from 'react';
 import {Application,Container,Graphics,Sprite,Texture,Rectangle,Text,FederatedPointerEvent} from 'pixi.js';
 import {useGame,presets} from '@/store/game';
-import {avatarAsset,loadImage,sproutlingRunAssets} from '@/lib/sprite-assets';
+import {avatarCanvas,loadImage} from '@/lib/sprite-assets';
 import {createWalkCycle} from '@/lib/walk-cycle';
+import {RUN_FRAME_COUNT} from '@/lib/sprite-locomotion';
 import {createSproutlingWander} from '@/lib/sproutling-wander';
 import {iso,uniso,planRoute,approachRoute,distance,stageFor,blocked,Point} from '@/lib/movement';
-import {studyStations,deskOutline,approaches,gardenApproaches,treeCenter} from '@/lib/world-layout';
+import {studyStations,approaches,gardenApproaches,treeCenter} from '@/lib/world-layout';
 import {contains,floorShape,gardenHotspot,furnitureRegions,pickInteraction,Shape} from '@/lib/world-geometry';
 import {chairPose} from '@/lib/avatar-seating';
 import {objectTooltipPosition} from '@/lib/tooltip-position';
 import {createWorldEffects} from '@/lib/world-effects';
+import sceneAssets from '@/lib/scene-assets.json';
 
 type Props={suspended?:boolean;onOpen:(panel:string,player?:number)=>void;onHint:(text:string)=>void};
 type Interaction={id:string;name:string;action:string;symbol:string;priority:number;contains:(p:Point)=>boolean;shape:Shape;approaches:Point[];activate:()=>void;lookAt?:Point;preferFirst?:boolean};
@@ -22,14 +24,15 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
  useEffect(()=>{
   let disposed=false,unsubscribe=()=>{},observer:ResizeObserver|undefined,visibility=()=>{},destroyEffects=()=>{};
   const app=new Application();
+  const hoverTextures:Texture[]=[];
   const run=async()=>{
    await app.init({backgroundAlpha:0,antialias:false,resolution:Math.min(devicePixelRatio,2),autoDensity:true,width:1320,height:744});
    if(disposed){app.destroy(true);return;}host.current!.appendChild(app.canvas);
    const scene=new Container();app.stage.addChild(scene);
    const resize=()=>{if(!host.current)return;const r=host.current.getBoundingClientRect();app.renderer.resize(r.width,r.height);const scale=Math.min(r.width/1320,r.height/744);scene.scale.set(scale);scene.position.set((r.width-1320*scale)/2,(r.height-744*scale)/2);};
    observer=new ResizeObserver(resize);observer.observe(host.current!);resize();
-   const texture=async(url:string)=>{const t=Texture.from(await loadImage(url));t.source.scaleMode='nearest';return t;};
-   const [room,propSheet,gardenSheet]=await Promise.all(['/assets/greenhouse-room.png','/assets/study-and-companions.png','/assets/garden-stages.png'].map(texture));
+   const texture=async(source:string|HTMLCanvasElement)=>{const t=Texture.from(typeof source==='string'?await loadImage(source):source);t.source.scaleMode='nearest';return t;};
+   const [room,propSheet,gardenSheet,petRunSheet,deskHoverSheet]=await Promise.all(['/assets/greenhouse-room.webp','/assets/study-and-companions.webp','/assets/garden-stages.webp','/assets/sproutling-run.png','/assets/desk-hover.png'].map(texture));
    if(disposed)return;
    // One scene-level pointer dispatcher: visual sprites never compete with the floor for events.
    scene.eventMode='static';scene.hitArea=new Rectangle(0,0,1320,744);
@@ -54,18 +57,25 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const tooltipBg=new Graphics();tooltip.addChild(tooltipBg);
    const tooltipText=new Text({text:'',style:{fontFamily:'Georgia',fontSize:12,fill:0xefe2c2,align:'center'}});tooltipText.anchor.set(.5);tooltip.addChild(tooltipText);
    // Alpha checks use the actual atlas pixels, excluding empty margins around desks and characters.
-   const propImage=await loadImage('/assets/study-and-companions.png');if(disposed)return;
+   const propImage=await loadImage('/assets/study-and-companions.webp');if(disposed)return;
    const pixels=document.createElement('canvas');pixels.width=propImage.width;pixels.height=propImage.height;
    const context=pixels.getContext('2d',{willReadFrequently:true})!;context.drawImage(propImage,0,0);const alpha=context.getImageData(0,0,pixels.width,pixels.height).data;
-   const spriteContains=(s:Sprite,p:Point)=>{const local=s.toLocal(scene.toGlobal(p)),f=s.texture.frame;
-    const x=Math.floor(local.x+s.texture.width*.5),y=Math.floor(local.y+s.texture.height);
+   const spriteContains=(s:Sprite,p:Point,hitTexture:Texture=s.texture)=>{const local=s.toLocal(scene.toGlobal(p)),f=hitTexture.frame;
+    const x=Math.floor((local.x/s.texture.width+.5)*hitTexture.width),y=Math.floor((local.y/s.texture.height+1)*hitTexture.height);
     return x>=0&&y>=0&&x<f.width&&y<f.height&&alpha[((Math.floor(f.y)+y)*pixels.width+Math.floor(f.x)+x)*4+3]>90;
    };
    const add=(item:Interaction)=>{interactions.push(item);return item;};
-   const deskSprites:Sprite[]=[];
-   studyStations.forEach((station,i)=>{const p=iso(station.position.x,station.position.y),desk=sprite(deskTextures[station.atlasColumn],p.x,p.y+36,station.width);desk.zIndex=p.y;deskSprites.push(desk);
-    const shape:Shape={kind:'polygon',points:deskOutline(i).map((value,n)=>value+(n%2?p.y:p.x))};
-    add({id:station.id,name:station.label,action:'Begin Studying',symbol:'▤',priority:30,contains:q=>contains(shape,q)&&spriteContains(desk,q),shape,approaches:[station.seat,...station.alternatives],preferFirst:true,lookAt:{x:p.x,y:p.y-25},activate:()=>handlers.current.onOpen('learn')});
+   const deskHighlights=new Map<string,Sprite>();
+   const deskHover=sceneAssets.desk.bounds.map((bounds,col)=>({
+    texture:new Texture({source:deskHoverSheet.source,frame:new Rectangle(col*sceneAssets.desk.width,0,sceneAssets.desk.width,sceneAssets.desk.height)}),
+    bounds,pad:sceneAssets.desk.pad,density:sceneAssets.desk.density
+   }));
+   studyStations.forEach(station=>{const p=iso(station.position.x,station.position.y),desk=sprite(deskTextures[station.atlasColumn],p.x,p.y+36,station.width);desk.zIndex=p.y;const hover=deskHover[station.atlasColumn],outline=new Sprite(hover.texture);
+    outline.scale.set(1/hover.density);outline.position.set(desk.x-desk.width/2-hover.pad/hover.density,desk.y-desk.height-hover.pad/hover.density);
+    outline.zIndex=desk.zIndex+.1;outline.alpha=0;outline.eventMode='none';world.addChild(outline);deskHighlights.set(station.id,outline);
+    const b=hover.bounds,left=outline.x+b.left/hover.density,top=outline.y+b.top/hover.density,right=outline.x+b.right/hover.density,bottom=outline.y+b.bottom/hover.density;
+    const shape:Shape={kind:'polygon',points:[left,top,right,top,right,bottom,left,bottom]};
+    add({id:station.id,name:station.label,action:'Begin Studying',symbol:'▤',priority:30,contains:q=>spriteContains(desk,q),shape,approaches:[station.seat,...station.alternatives],preferFirst:true,lookAt:{x:p.x,y:p.y-25},activate:()=>handlers.current.onOpen('learn')});
    });
    furnitureRegions.forEach(item=>add({...item,priority:20,contains:p=>contains(item.shape,p),activate:()=>handlers.current.onOpen(item.panel)}));
    const gp=iso(treeCenter.x,treeCenter.y),garden=sprite(gardenTextures[stageFor(state.energy)],gp.x,gp.y+83,365);garden.zIndex=gp.y+40;
@@ -77,19 +87,30 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    });};updateBranches();
    const moonflower=new Graphics();moonflower.moveTo(0,0).lineTo(0,-23).stroke({color:0x9ad7ae,width:2});for(let i=0;i<5;i++)moonflower.circle(Math.cos(i*1.256)*5,-27+Math.sin(i*1.256)*5,4).fill(0xd3f2dd);moonflower.circle(0,-27,3).fill(0xf5dda0);moonflower.position.set(gp.x+65,gp.y+24);moonflower.zIndex=gp.y+60;moonflower.eventMode='none';world.addChild(moonflower);
    const avatars=[state.avatar,...presets.slice(1)];
-   const standing=await Promise.all(avatars.map(async a=>texture(await avatarAsset(a))));
-   const strides=await Promise.all(avatars.map(a=>Promise.all([0,1,2,3].map(async frame=>texture(await avatarAsset(a,false,frame))))));
+   const standing=await Promise.all(avatars.map(async a=>texture(await avatarCanvas(a))));
+   let strides:Texture[]=[],strideGeneration=0;
+   const warmStrides=async(avatar:typeof state.avatar)=>{
+    const generation=++strideGeneration,frames:Texture[]=[];
+    for(let frame=0;frame<RUN_FRAME_COUNT;frame++){
+     // Let the initial scene paint and keep input responsive between frames.
+     await new Promise<void>(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));
+     if(disposed||generation!==strideGeneration)return;
+     frames.push(await texture(await avatarCanvas(avatar,false,frame)));
+    }
+    if(!disposed&&generation===strideGeneration)strides=frames;
+   };
    const cycle=createWalkCycle(iso(position.x,position.y));
-   const reading=await Promise.all(avatars.map(async a=>texture(await avatarAsset(a,true))));if(disposed)return;
+   const reading=await Promise.all(avatars.map(async (a,i)=>i===0||state.online[i]?texture(await avatarCanvas(a,true)):standing[i]));if(disposed)return;
    const players=standing.map((t,i)=>{const p=iso(approaches[i].x,approaches[i].y);return sprite(t,p.x,p.y+4,i===2?88:72);});
    const friendShapes:({kind:'ellipse';x:number;y:number;rx:number;ry:number}|undefined)[]=[];
    // Online classmates use tight body ellipses, not their atlas cell bounds.
    players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,name:['', 'Maya','Kai','Jules'][i],action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>state.online[i]&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen('profile',i)});});
    const wander=createSproutlingWander(),petPoint=iso(8,4),pet=sprite(petTextures[state.energy>=100?1:0],petPoint.x,petPoint.y,125);pet.zIndex=petPoint.y+6;
-   const petRuns=await Promise.all((await sproutlingRunAssets()).map(frames=>Promise.all(frames.map(texture))));if(disposed)return;
+   const petRuns=[0,1].map(stage=>Array.from({length:sceneAssets.run.frames},(_,frame)=>new Texture({source:petRunSheet.source,frame:new Rectangle(frame*sceneAssets.run.width,stage*sceneAssets.run.height,sceneAssets.run.width,sceneAssets.run.height)})));
+   let petHitTexture=petTextures[state.energy>=100?1:0];
    const petCycle=createWalkCycle(petPoint);
    const petShape={kind:'ellipse' as const,x:pet.x+5,y:pet.y-32,rx:25,ry:29};
-   const petInteraction=add({id:'pet',name:'Sproutling',action:'Interact with Sproutling',symbol:'♡',priority:50,shape:petShape,contains:p=>spriteContains(pet,p),approaches:[{x:8,y:4}],activate:()=>{reactionStart=seconds;useGame.getState().set({reaction:['happy','watering','sleeping'][Math.floor(Math.random()*3)]});handlers.current.onHint('A happy little Sproutling. Every lesson helps it grow.');}});
+   const petInteraction=add({id:'pet',name:'Sproutling',action:'Interact with Sproutling',symbol:'♡',priority:50,shape:petShape,contains:p=>spriteContains(pet,p,petHitTexture),approaches:[{x:8,y:4}],activate:()=>{reactionStart=seconds;useGame.getState().set({reaction:['happy','watering','sleeping'][Math.floor(Math.random()*3)]});handlers.current.onHint('A happy little Sproutling. Every lesson helps it grow.');}});
    const sleep=new Text({text:'z z',style:{fontFamily:'Georgia',fontSize:14,fill:0xeee4c4}});sleep.position.set(petPoint.x+18,petPoint.y-75);sleep.visible=false;feedback.addChild(sleep);
    const cues=interactions.filter(i=>i.id.startsWith('desk-')||['garden','board','pet'].includes(i.id)).map(item=>{const g=new Text({text:item.symbol,style:{fontFamily:'Georgia',fontSize:17,fill:0xd8e6ac,stroke:{color:0x30372a,width:3}}});g.anchor.set(.5);feedback.addChild(g);return {item,g};});
    const setActivity=(activity:'Exploring'|'Idle'|'Studying')=>{if(useGame.getState().localActivity!==activity)useGame.getState().set({localActivity:activity});};
@@ -119,8 +140,19 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     const plan=planRoute(position,uniso(point.x,point.y),true);if(!plan)return;beginMove(plan.path,plan.destination);resetHint();
    });
    const updateGarden=()=>{garden.texture=gardenTextures[stageFor(state.energy)];garden.width=365;garden.height=365*garden.texture.height/garden.texture.width;moonflower.visible=new Set(state.completions.map(c=>c.player)).size>=2;updateBranches();};updateGarden();
-   unsubscribe=useGame.subscribe((next,previous)=>{state=next;if(next.online!==previous.online)reportPosition();if(next.energy!==previous.energy||next.completions!==previous.completions)updateGarden();if(next.reaction!==previous.reaction)reactionStart=seconds;
-    if(next.avatar!==previous.avatar)Promise.all([avatarAsset(next.avatar),avatarAsset(next.avatar,true),...[0,1,2,3].map(frame=>avatarAsset(next.avatar,false,frame))]).then(async urls=>{const textures=await Promise.all(urls.map(texture));if(!disposed&&next.avatar===useGame.getState().avatar){standing[0]=textures[0];reading[0]=textures[1];strides[0]=textures.slice(2);}});
+   unsubscribe=useGame.subscribe((next,previous)=>{state=next;if(next.online!==previous.online){
+     reportPosition();
+     for(let i=1;i<avatars.length;i++)if(next.online[i]&&!previous.online[i]){
+      void avatarCanvas(avatars[i],true).then(texture).then(t=>{if(!disposed)reading[i]=t;}).catch(console.error);
+     }
+    }if(next.energy!==previous.energy||next.completions!==previous.completions)updateGarden();if(next.reaction!==previous.reaction)reactionStart=seconds;
+    if(next.avatar!==previous.avatar){
+     strides=[];strideGeneration++;
+     Promise.all([avatarCanvas(next.avatar),avatarCanvas(next.avatar,true)]).then(async canvases=>{
+      const textures=await Promise.all(canvases.map(texture));
+      if(!disposed&&next.avatar===useGame.getState().avatar){standing[0]=textures[0];reading[0]=textures[1];void warmStrides(next.avatar).catch(console.error);}
+     }).catch(console.error);
+    }
    });
    app.ticker.add(tick=>{
     const dt=Math.min(tick.deltaMS/1000,.05);seconds+=dt;const motion=state.settings.motion&&!reduced.matches;
@@ -136,7 +168,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     if(confirmation>0){confirmation-=dt;if(confirmation<=0&&pending){const done=pending;pending=undefined;selected=undefined;done.activate();}}
     const p=iso(position.x,position.y),stride=cycle(p);
     const seat=seated&&seatedStation!==undefined?chairPose(seatedStation,deskTextures[0].height/deskTextures[0].width):undefined;
-    players[0].texture=seat?reading[0]:stride.frame>=0?strides[0][stride.frame]:standing[0];players[0].anchor.set(seat?.anchorX??.5,seat?.anchorY??1);players[0].width=76;players[0].height=76*players[0].texture.height/players[0].texture.width;
+    players[0].texture=seat?reading[0]:stride.frame>=0?(strides[stride.frame]??standing[0]):standing[0];players[0].anchor.set(seat?.anchorX??.5,seat?.anchorY??1);players[0].width=76;players[0].height=76*players[0].texture.height/players[0].texture.width;
     players[0].scale.x=Math.abs(players[0].scale.x)*(seat?.facing??facing);players[0].position.set(seat?.x??p.x,seat?.y??p.y+4+stride.bob);players[0].rotation=seat?0:stride.lean;players[0].zIndex=seat?.depth??p.y+6;
     for(let i=1;i<4;i++){const base=iso(approaches[i].x,approaches[i].y),sitting=state.memberActivities[i]==='Studying',chair=sitting?chairPose(i,deskTextures[0].height/deskTextures[0].width):undefined;
      players[i].texture=sitting?reading[i]:standing[i];players[i].anchor.set(chair?.anchorX??.5,chair?.anchorY??1);players[i].width=i===2?88:72;players[i].height=players[i].width*players[i].texture.height/players[i].texture.width;players[i].scale.x=Math.abs(players[i].scale.x)*(chair?.facing??1);players[i].position.set(chair?.x??base.x,chair?.y??base.y+4);players[i].zIndex=chair?.depth??base.y+6;players[i].visible=state.online[i];
@@ -146,14 +178,14 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     const roaming=wander(dt,handlers.current.suspended||hovered===petInteraction||selected===petInteraction||active);
     const petFloor=iso(roaming.position.x,roaming.position.y),petStride=petCycle(petFloor);
     petInteraction.approaches=[roaming.position];
-    const petStage=state.energy>=100||active&&state.reaction==='watering'?1:0;pet.texture=petStride.frame>=0?petRuns[petStage][petStride.frame]:petTextures[petStage];pet.x=petFloor.x;pet.y=petFloor.y+petStride.bob+(motion?(celebrate?-Math.abs(Math.sin(seconds*7))*9:roaming.moving?0:Math.sin(seconds*2)*1.2):0);pet.rotation=petStride.frame>=0?petStride.lean:motion&&active&&state.reaction==='watering'?Math.sin(seconds*4)*.06:0;sleep.visible=state.reaction==='sleeping'&&active;pet.alpha=sleep.visible?.8:1;
+    const petStage=state.energy>=100||active&&state.reaction==='watering'?1:0;petHitTexture=petTextures[petStage];pet.texture=petStride.frame>=0?petRuns[petStage][petStride.frame]:petTextures[petStage];pet.width=125;pet.height=125*petTextures[0].height/petTextures[0].width;pet.x=petFloor.x;pet.y=petFloor.y+petStride.bob+(motion?(celebrate?-Math.abs(Math.sin(seconds*7))*9:roaming.moving?0:Math.sin(seconds*2)*1.2):0);pet.rotation=petStride.frame>=0?petStride.lean:motion&&active&&state.reaction==='watering'?Math.sin(seconds*4)*.06:0;sleep.visible=state.reaction==='sleeping'&&active;pet.alpha=sleep.visible?.8:1;
     pet.scale.x=Math.abs(pet.scale.x)*roaming.facing;pet.zIndex=petFloor.y+6;
     petShape.x=pet.x+5*roaming.facing;petShape.y=pet.y-32;sleep.position.set(pet.x+18,pet.y-75);
     garden.tint=active&&state.reaction==='evolving'?0xedffd2:0xffffff;
     // Frame-rate independent 150ms fade. Only one object owns hover/selected feedback.
     const wanted=handlers.current.suspended?undefined:hovered??selected;if(wanted!==displayed){highlightAlpha=Math.max(0,highlightAlpha-dt/.15);if(highlightAlpha===0){displayed=wanted;highlight.clear();contour.clear();if(displayed){const dest=approachRoute(position,displayed.approaches,displayed.preferFirst)?.destination;
        if(dest){const a=iso(dest.x,dest.y);highlight.poly([a.x,a.y-8,a.x+16,a.y,a.x,a.y+8,a.x-16,a.y]).fill({color:0xbae5bf,alpha:.14}).stroke({color:0xbcebd7,width:1});}
-       drawShape(contour,displayed.shape).fill({color:0xc9e4af,alpha:.045}).stroke({color:0xc9e6bf,width:1.2,alpha:.65});tooltipText.text=`${displayed.symbol}  ${displayed.name}\n${displayed.action}`;
+       if(!deskHighlights.has(displayed.id))drawShape(contour,displayed.shape).fill({color:0xc9e4af,alpha:.045}).stroke({color:0xc9e6bf,width:1.2,alpha:.65});tooltipText.text=`${displayed.symbol}  ${displayed.name}\n${displayed.action}`;
        tooltipBg.clear().roundRect(-tooltipText.width/2-10,-tooltipText.height/2-7,tooltipText.width+20,tooltipText.height+14,3).fill({color:0x292a25,alpha:.95}).stroke({color:0xb59868,width:1});
       }}}
     else highlightAlpha=Math.min(1,highlightAlpha+dt/.15);
@@ -164,10 +196,11 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     cues.forEach(({item,g},i)=>{const near=item.approaches.some(a=>distance(position,a)<115),shape=item.shape;g.visible=!handlers.current.suspended&&(near||hovered===item||selected===item);g.alpha=(hovered===item||selected===item)?.8:motion?.22+Math.max(0,Math.sin(seconds*.7+i*2))*.25:.3;
      const x=shape.kind==='ellipse'?shape.x:shape.points[0]+30,y=shape.kind==='ellipse'?shape.y-shape.ry:shape.points[1];g.position.set(x,y-10+(motion?Math.sin(seconds*1.5+i)*1.5:0));
     });
-    deskSprites.forEach((desk,i)=>{desk.tint=(hovered?.id===studyStations[i].id||selected?.id===studyStations[i].id)?0xfff1d2:0xffffff;});
+    deskHighlights.forEach((outline,id)=>{outline.alpha=displayed?.id===id?highlightAlpha:0;});
     branches.forEach(({c,side})=>{c.visible=motion&&state.settings.graphics==='Full'&&stageFor(state.energy)>0;c.alpha=.7;c.x=motion?Math.sin(seconds*(side===1?.61:.43)+side)*1.3:0;c.y=motion?Math.sin(seconds*.37+side)*.45:0;});
     effects.update(seconds,dt,motion,state.settings.graphics==='Full',celebrate);
    });
+   void warmStrides(state.avatar).catch(console.error);
    reportPosition();visibility=()=>{if(document.hidden)app.ticker.stop();else app.ticker.start();};document.addEventListener('visibilitychange',visibility);visibility();
   };
   run().catch(e=>{console.error(e);if(!disposed)setError(true);});

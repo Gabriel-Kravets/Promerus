@@ -11,8 +11,3 @@ export const desks=studyStations.map(station=>station.position);
 export const approaches=studyStations.map(station=>station.seat);
 export const gardenApproaches=[{x:4,y:8},{x:8,y:4},{x:8.5,y:4},{x:6,y:9.5}];
 export const gardenApproach=gardenApproaches[0];
-/** Simplified visible contours, in scene pixels relative to each desk's floor origin. */
-export function deskOutline(index:number){const station=studyStations[index],mirror=station.atlasColumn===1?-1:1;
- const points=[-64,-59,-54,-86,-32,-91,-16,-87,19,-85,36,-73,40,-58,58,-56,70,-39,69,-30,58,-20,56,13,46,21,46,29,32,32,14,21,-24,21,-40,18,-48,-6,-62,-22];
- return points.map((value,i)=>i%2?value:value*mirror);
-}
