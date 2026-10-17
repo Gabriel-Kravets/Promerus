@@ -9,7 +9,7 @@ window.SproutboundAuth = (() => {
   }
 
   function pageUrl() {
-    return window.location.origin + window.location.pathname;
+    return window.location.origin + "/";
   }
 
   function getClient() {
