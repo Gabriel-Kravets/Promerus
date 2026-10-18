@@ -76,20 +76,27 @@ export default function AuthGate({children}: {children: React.ReactNode}) {
   return <main className="auth-scene">
     <LoginAtmosphere/>
     <section className="auth-card" aria-labelledby="auth-title" aria-busy={busy}>
-    <img className="auth-card-art" src="/assets/login-card.png" width={1086} height={1448} alt="" aria-hidden="true" draggable={false}/>
+    <img className="auth-card-art" src="/assets/Sprout%20Mascot%20Parchment%20Frame.png" width={1122} height={1402} alt="" aria-hidden="true" draggable={false}/>
     <div className="auth-card-content">
     <header className="auth-card-heading">
     <div className="auth-brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M32 51V23M32 33C16 31 11 20 13 10c12 0 20 6 19 18M32 28C34 14 44 8 54 9c1 12-7 21-22 22"/><path d="M20 51h24"/></svg></div>
-    <h1 id="auth-title">Sproutbound</h1>
+    <h1 id="auth-title" aria-label="Sproutbound"><span>Sprout</span><span className="auth-title-ending">bound</span></h1>
     <div className="auth-ornament" aria-hidden="true"><span/><svg viewBox="0 0 16 16"><path d="m8 1 3 4 4 3-4 3-3 4-3-4-4-3 4-3z"/><path d="m8 5 3 3-3 3-3-3z"/></svg><span/></div>
     <p className="auth-tagline">Your journey of growth begins here.</p>
     </header>
-    <div className="auth-actions">
     <button className="auth-enter" disabled={busy || !adapter?.isConfigured()} onClick={() => authenticate(false)}>
       <svg className="auth-button-leaf" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V10M12 14C4 14 2 9 3 4c6 0 10 3 9 8m0 0C12 5 16 2 22 3c0 6-3 11-10 11"/></svg>
       <span>Enter the Greenhouse</span>
       <svg className="auth-button-leaf" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V10M12 14C4 14 2 9 3 4c6 0 10 3 9 8m0 0C12 5 16 2 22 3c0 6-3 11-10 11"/></svg>
     </button>
+    <div className="auth-feedback">
+      <p className="auth-status" role="status" aria-live="polite" aria-atomic="true">{error || activity}</p>
+      {error && <>
+        {adapter?.isConfigured() && <button className="auth-link" disabled={busy} onClick={() => authenticate(signupRequested.current, true)}>Continue sign-in in this tab</button>}
+        <button className="auth-link" disabled={busy} onClick={() => void initialize()}>Retry connection</button>
+      </>}
+    </div>
+    <div className="auth-actions">
     <div className="auth-small-ornament" aria-hidden="true"><span/><svg viewBox="0 0 24 24"><path d="M12 21V10M12 14C4 14 2 9 3 4c6 0 10 3 9 8m0 0C12 5 16 2 22 3c0 6-3 11-10 11"/></svg><span/></div>
     <div className="auth-account-links">
       <button className="auth-link" disabled={busy || !adapter?.isConfigured()} onClick={() => authenticate(true)}>Create an account</button>
@@ -97,13 +104,6 @@ export default function AuthGate({children}: {children: React.ReactNode}) {
       <button className="auth-link" disabled={busy || !adapter?.isConfigured()} onClick={() => authenticate(false)} aria-describedby="auth-recovery-note">Forgot password?</button>
     </div>
     <span className="auth-visually-hidden" id="auth-recovery-note">Opens secure sign-in. Choose Reset password in the Auth0 window.</span>
-    </div>
-    <div className="auth-feedback">
-      <p className="auth-status" role="status" aria-live="polite" aria-atomic="true">{error || activity}</p>
-      {error && <>
-        {adapter?.isConfigured() && <button className="auth-link" disabled={busy} onClick={() => authenticate(signupRequested.current, true)}>Continue sign-in in this tab</button>}
-        <button className="auth-link" disabled={busy} onClick={() => void initialize()}>Retry connection</button>
-      </>}
     </div>
     </div>
   </section></main>;
