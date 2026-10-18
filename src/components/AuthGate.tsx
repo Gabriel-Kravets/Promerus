@@ -2,6 +2,7 @@
 
 import {createContext, useContext, useEffect, useState} from 'react';
 import './auth.css';
+import OnlineStudyTime from './OnlineStudyTime';
 
 type User = {sub: string; name?: string; nickname?: string; email?: string};
 type AuthAdapter = {
@@ -72,7 +73,7 @@ export default function AuthGate({children}: {children: React.ReactNode}) {
     catch (e) { setError(authError(e)); }
     finally { setBusy(false); }
   }
-  if (user) return <AuthContext.Provider value={{user, logout, busy, error}}>{children}</AuthContext.Provider>;
+  if (user) return <AuthContext.Provider value={{user, logout, busy, error}}><OnlineStudyTime/>{children}</AuthContext.Provider>;
   return <main className="auth-scene"><section className="auth-card" aria-labelledby="auth-title" aria-busy={busy}>
     <img className="auth-mascot" src="/auth/sprout-mascot.png" alt="A smiling sprout"/>
     <span className="auth-sprig" aria-hidden="true">❧</span>

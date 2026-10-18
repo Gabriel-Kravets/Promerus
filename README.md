@@ -1,5 +1,13 @@
 # Sproutbound development branch
 
+## Topic and difficulty study quizzes
+
+Open **My Desk** in the study room, enter any learning topic, choose Beginner, Intermediate, or Advanced, and select **Start studying**. The room generates four multiple-choice questions and one short answer using Gemini. Matching flashcards appear in **Flashcards**. Submit all five answers for explanations and a score. Each correct answer gives 10/20/30 nutrients by difficulty; every five nutrients gives one coin. Nutrients contribute to greenhouse energy, and coins appear in Stats. Rewards and completed lessons are saved in this browser.
+
+Set `GEMINI_API_KEY=your_key` in `.env.local`; optionally set `GEMINI_MODEL=gemini-3.8-flash`. Restart `npm run dev` after changing these settings. Keys stay on the server. Quiz sessions expire after two hours or a server restart. Generation and typed-answer grading require Gemini access and quota. Switching study tabs preserves the active quiz; leaving the room starts a fresh session next time.
+
+The integrated app now requires a Next.js server for `/api/study`; `npm run build` followed by `npm start` runs production. Static `out/` hosting applies only to the older version described below.
+
 The Next.js greenhouse now uses the Auth0 popup login from `feature/sproutbound-auth`. All game routes wait for authentication. Login and signup open Auth0 Universal Login; a restored session opens the game on refresh. Use **Settings ? Sign out** to end the session.
 
 ## Integrated authentication setup
