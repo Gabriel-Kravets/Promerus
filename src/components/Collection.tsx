@@ -1,5 +1,4 @@
 'use client';
-import {useBackend} from './backend/BackendProvider';
 import {useEffect,useState} from 'react';
 import {Archive,Armchair,Flame,Lamp,Layers,Sparkles,Table2,Telescope,TreePine} from 'lucide-react';
 import {useInventory} from '@/store/inventory';
@@ -12,7 +11,6 @@ const itemIcons:Record<ItemType,typeof Table2>={desk:Table2,tree:TreePine,carpet
 const typeLabels:Record<ItemType,string>={desk:'Desk',tree:'Tree',carpet:'Carpet','botanical-desk':'Desk',lantern:'Lighting',armchair:'Chair',stove:'Stove',telescope:'Curio'};
 
 export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
-  const backend=useBackend();
   const {initialized,items,tutorialSeen,markTutorialSeen,placements,returnItem,theme,fixturePositions,storedFixtures}=useInventory();
   const collectionItems=[...items,...roomFixtures.map(f=>fixtureItem(f.id,theme,fixturePositions?.[f.id]?.mirrored)!)];
   const available=items.length-placements.length+(storedFixtures?.length??0);
@@ -28,7 +26,6 @@ export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
     <GamePanelHeader eyebrow="SHARED BY EVERYONE IN THE ROOM" title="Room collection">
       Drag a room item to move it, including the original study desks and shared garden. Hold it still for options. After you let go, press the green Place button beside it (or Flip, or X to return it).
     </GamePanelHeader>
-    {backend.enabled&&<p role="status">Online room layouts are read-only until shared furniture storage is connected. Your local preview collection remains saved on this device.</p>}
     {!initialized?<p role="status">Opening your collection…</p>:<>
       {showTutorial&&<section className="collection-tutorial" aria-labelledby="collection-tutorial-title">
         <Sparkles size={24} aria-hidden="true"/>
@@ -49,7 +46,7 @@ export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
             <h2>{label}</h2>
             <span className="collection-theme">{placedDesks} in room · {desks.length-placedDesks} available{themes.length===1?` · ${themes[0]} style`:''}</span>
             {starter&&<span className="collection-starter"><Sparkles size={12} aria-hidden="true"/> Starting item</span>}
-            <button type="button" className="secondary collection-preview" disabled={!next||backend.enabled} aria-label={next?'Preview a desk in the room':`All ${label} are in the room`} onClick={()=>next&&onSelect(next.id)}>{next?'Preview in room':'All in room'}</button>
+            <button type="button" className="secondary collection-preview" disabled={!next} aria-label={next?'Preview a desk in the room':`All ${label} are in the room`} onClick={()=>next&&onSelect(next.id)}>{next?'Preview in room':'All in room'}</button>
           </li>;
         })()}
         {others.map(item=>{
@@ -63,8 +60,8 @@ export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
             <h2>{name}</h2>
             <span className="collection-theme">{item.theme} style</span>
             {starter&&<span className="collection-starter"><Sparkles size={12} aria-hidden="true"/> Starting item</span>}
-            <button type="button" className="secondary collection-preview" disabled={placed||backend.enabled} aria-label={placed?`${name} is already in the room`:`Preview ${name} in the room`} onClick={()=>onSelect(item.id)}>{placed?'In room':'Preview in room'}</button>
-            {placed&&<button type="button" className="text-button collection-return" disabled={backend.enabled} onClick={()=>returnItem(item.id)}>Return to collection</button>}
+            <button type="button" className="secondary collection-preview" disabled={placed} aria-label={placed?`${name} is already in the room`:`Preview ${name} in the room`} onClick={()=>onSelect(item.id)}>{placed?'In room':'Preview in room'}</button>
+            {placed&&<button type="button" className="text-button collection-return" onClick={()=>returnItem(item.id)}>Return to collection</button>}
           </li>;
         })}
       </ul>:<div className="collection-empty"><Archive size={32} aria-hidden="true"/><p>Your collection is waiting for its first little treasure.</p></div>}

@@ -12,11 +12,13 @@ Existing backend source comes selectively from `af3d505a22d8e687588fc9a31ebc2396
 - Character/avatar/preferences save through the existing save_profile RPC. Completing character creation leads to a separate Sproutling introduction. Continue and Skip persist seen/skipped; completed returning players bypass the introduction.
 - Greenhouse Worlds reuses list_greenhouses, create_greenhouse, join_greenhouse, request_visit and enter_greenhouse. My Worlds shows actual memberships; Explore Worlds retains owner-permitted browsing/visits. Continue saved greenhouse uses the stored last_greenhouse_id and existing entry/takeover checks.
 - Existing profile, avatar, presence, movement, lessons, verified energy, contribution, garden, quest and Sproutling code is reused. Main's roster progress and minimizable board are retained with real data. Central-tree progression remains available.
-- No new tables, login system, AI features, production changes or hosted deployments were introduced.
+- No new tables, login system, AI features or production changes were introduced. The existing game-api was updated on staging after the user installed Queries 27 and 28.
 
 ## Compatibility limits
 
-Main's shop and editable furniture are device-local prototypes; the existing 21-table backend has no shared furniture-layout storage. Online purchases/placement are explicitly read-only, while main's original local-demo editing remains intact. This prevents one player's local furniture from moving a shared study desk or changing server-authoritative collision geometry. Online navigation also conservatively reserves the deployed moonlit-v2 validator's previous bed bounds alongside main's newer bed, preserving artwork without routing into positions staging rejects. A later shared-layout integration/protocol deployment needs separate work.
+Main's collection, shop, furniture controls, party panels and weekly leaderboard retain their original renderers. Backend adapters supply real membership, avatar, contribution and weekly energy data. A separate Worlds control preserves Garden navigation. Shared furniture commands now reuse main's inventory and placement logic, with authenticated active-session checks, permanent membership checks, strict command schemas, server-generated item identifiers, geometry validation and version-checked service-only commits. Movement checks use the saved room layout. Local demo behavior remains available.
+
+Live two-account furniture editing, concurrent edits/movement, rollback and reconnect acceptance have not been completed. Server placement rejects an occupied location rather than reproducing the local automatic gardener nudge; movement/layout writes are not one atomic database transaction. These remain integration limitations, not production-verified behavior. Static same-state browser fixtures were captured for main and the integrated UI; no pixel-identical or full hosted parity claim is made.
 
 The new introduction/returning-player routing and token renewal have automated coverage. A returning real account was refreshed at localhost:3000, loaded actual memberships and the four requested world sections, then continued its saved greenhouse. The live room showed two real customized avatars, 100 shared energy through the Sprout/Bloom progress display, saved +20 contribution rows, Sprout tree and active Sproutling. No fresh real account onboarding or new invite/create workflow was repeated during this timebox; previous hosted verification is recorded separately in backend-staging-setup.md. Full two-account movement/replay/reconnection/adversarial/celebration acceptance remains incomplete. Gemini reliability/content-quality issues from the previous pass remain outstanding.
 
@@ -40,9 +42,9 @@ npx --yes supabase@2.121.0 migration repair 202610180005 --status applied --link
 
 - TypeScript passed.
 - Frontend/gameplay/Auth0 tests: 149 passed, including Gabriel's furniture/gameplay regression tests and account-bound token renewal.
-- Backend/PostgreSQL tests: 32 passed, including onboarding routing and all five canonical migrations in embedded PostgreSQL. Hosted guard installation was separately verified read-only.
+- Backend/PostgreSQL tests: 38 passed, including all seven canonical migrations, permanent member counts, service-only layout RPC permissions, version conflicts, membership checks, command validation and placement geometry.
 - Production static build passed; /, /game and /learn exported.
-- Edge Function Deno type check passed. No hosted deployment was performed.
+- Edge Function Deno type check passed. Updated game-api deployed successfully to staging llrrlwuwygkxftgnvvsa; deployment alone does not verify authenticated live editing.
 - No standalone lint target exists. Python tests were not rerun in this timebox.
 
 Known npm findings remain: one high and one moderate affected package through Next/PostCSS. No forced dependency remediation or unrelated framework upgrade was attempted.
@@ -52,3 +54,12 @@ Before a hosted frontend deployment, set both public Supabase variables plus exi
 Review this PR against main. PR #3 remains the prior backend candidate; do not merge both blindly, since this branch selectively carries its backend into the newer UI. No merges or force-pushes are authorized by this report.
 
 Post-repair verification: migration list shows all five local/remote versions matched. `db push --dry-run` returned `upToDate: true`, with no migrations, seeds or roles pending. No migration SQL ran during that verification.
+
+
+## Queries 27 and 28 — user installed, independently verified
+
+The user ran 27_Sproutbound_World_Membership_Counts and 28_Sproutbound_Shared_Room_Layout in staging. Catalog inspection confirmed list_greenhouses includes permanent member_count, room_layout and room_layout_version exist, and commit_room_layout is SECURITY DEFINER with an empty search_path and executable only by service_role (not anon/authenticated). The commit function checks permanent membership and expected revision while locking the greenhouse row. The four-member admission guard is unchanged.
+
+Canonical files are 202610180006_world_membership_counts.sql and 202610180007_shared_room_layout.sql. Only provenance comments changed when promoting the approved proposals. Reconciled bookkeeping using migration repair for these two versions with --status applied. No migration SQL was reapplied. Subsequent migration list matched all seven local/remote versions; db push --dry-run returned upToDate:true with no migrations, seeds or roles pending.
+
+No production database changes or merges occurred. Remaining hosted acceptance includes fresh onboarding/create/join, two-session shared furniture/movement and reconnection regression. Previously observed intermittent Gemini failures and lesson content quality issues remain unresolved. Existing Next/PostCSS advisories were not changed by this scoped work.

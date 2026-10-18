@@ -18,6 +18,8 @@ before(async()=>{
  await db.exec(await readFile(new URL('../migrations/202610170003_live_sessions.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../migrations/202610170004_membership_lifecycle.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../migrations/202610180005_four_permanent_members.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../migrations/202610180006_world_membership_counts.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../migrations/202610180007_shared_room_layout.sql',import.meta.url),'utf8'));
 });
 after(async()=>{await db.close();});
 let alice:string,bob:string,world:string,invite:string;
@@ -205,4 +207,17 @@ test('permanent-member limit includes offline members and preserves existing mem
  assert.equal(await scalar<number>('(select count(*)::integer from room_sessions where greenhouse_id=$1)',[limited]),0);
  assert.equal(await scalar<number>('(select uses from private.greenhouse_invites where greenhouse_id=$1)',[limited]),uses);
  await as('auth0|limit-member-0',async()=>{assert.equal(await scalar('join_greenhouse($1)',[code]),limited);});
+});
+
+test('Worlds counts include offline permanent members and shared layout writes remain service-only and versioned',async()=>{
+ let target='',owner='',code='';
+ await as('auth0|layout-owner',async()=>{owner=(await scalar<{profile:{player_id:string}}>('bootstrap_player()')).profile.player_id;target=await scalar<string>("create_greenhouse('Layout test')");code=await scalar<string>('issue_invite($1)',[target]);});
+ await as('auth0|layout-member',async()=>{await scalar('bootstrap_player()');await scalar('join_greenhouse($1)',[code]);const rows=await scalar<{id:string;member_count:number;occupants:number}[]>('list_greenhouses()');const room=rows.find(r=>r.id===target)!;assert.equal(room.member_count,2);assert.equal(room.occupants,0);
+  await assert.rejects(()=>scalar("commit_room_layout($1,$2,0,'{}')",[owner,target]),/permission denied/);
+ });
+ const layout={items:[],placements:[],fixturePositions:{},storedFixtures:[]};
+ assert.equal((await scalar<{layout_version:number}>('commit_room_layout($1,$2,0,$3::jsonb)',[owner,target,JSON.stringify(layout)])).layout_version,1);
+ await assert.rejects(()=>scalar('commit_room_layout($1,$2,0,$3::jsonb)',[owner,target,JSON.stringify(layout)]),/Room layout changed/);
+ await assert.rejects(()=>scalar('commit_room_layout($1,$2,1,$3::jsonb)',[bob,target,JSON.stringify(layout)]),/Membership required/);
+ await assert.rejects(()=>scalar('commit_room_layout($1,$2,1,$3::jsonb)',[owner,target,JSON.stringify({...layout,energy:999})]),/Invalid room layout/);
 });

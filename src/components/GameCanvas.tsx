@@ -3,7 +3,6 @@ import {useBackend} from './backend/BackendProvider';
 import {rpc} from '@/lib/backend/client';
 import {sharedSproutlingAt,sproutlingClock} from '@/lib/backend/shared-sproutling';
 import {BackendError} from '@/lib/backend/contracts';
-import {deployedGardenReservation} from '@/lib/backend/online-geometry';
 import {useEffect,useRef,useState} from 'react';
 import {Application,Container,Graphics,Sprite,Texture,Rectangle,Text,FederatedPointerEvent} from 'pixi.js';
 import {useGame,presets,type MemberActivity} from '@/store/game';
@@ -209,7 +208,6 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
    };
    const nearestClear=(point:Point)=>[...walkableTiles].filter(p=>!blocked(p.x,p.y)).sort((a,b)=>distance(a,point)-distance(b,point))[0]??point;
    const syncPlacements=()=>{
-    if(handlers.current.backend.enabled){setMovementObstacles([deployedGardenReservation],false);return;}
     syncFixtures();
     placedArt.forEach(art=>art.destroy({children:true}));placedArt.clear();
     for(let i=interactions.length-1;i>=0;i--)if(interactions[i].id.startsWith('owned:'))interactions.splice(i,1);
@@ -311,7 +309,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
     hits.sort((a,b)=>Number(b[1].parent===world)-Number(a[1].parent===world)||b[1].zIndex-a[1].zIndex);
     return hits[0]?.[0];
    };
-   cleanupPreviewInput=attachItemDragInput(app.canvas,{point:roomPoint,hitTest:overPreview,suspended:()=>handlers.current.suspended,pickItem:point=>handlers.current.backend.enabled?undefined:pickPlacedItem(point),onTap:point=>activatePoint(iso(point.x,point.y)),onHoldStart:stopRoomMove});
+   cleanupPreviewInput=attachItemDragInput(app.canvas,{point:roomPoint,hitTest:overPreview,suspended:()=>handlers.current.suspended,pickItem:pickPlacedItem,onTap:point=>activatePoint(iso(point.x,point.y)),onHoldStart:stopRoomMove});
    scene.on('pointermove',(event:FederatedPointerEvent)=>{if(roomInputBlocked())return;const point=scene.toLocal(event.global),next=pickInteraction(interactions,point);pointer=point;
     if(next!==hovered){hovered=next;if(next)handlers.current.onHint(`${next.name} · ${next.action}`);else resetHint();}
     const tile=uniso(point.x,point.y),snapped={x:Math.round(tile.x*2)/2,y:Math.round(tile.y*2)/2},inFloor=contains(floorShape,point),valid=!blocked(snapped.x,snapped.y),center=iso(snapped.x,snapped.y);
@@ -377,7 +375,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
     }
     if(net.enabled&&net.lease&&seconds-networkAt>=.2&&!networkBusy){
      const signature=`${net.lease.id}:${position.x.toFixed(3)}:${position.y.toFixed(3)}:${facing}:${state.localActivity}:${seatedStation??-1}`;
-     if(signature!==networkSent){networkAt=seconds;networkBusy=true;const session=net.lease.id;const sample={session,geometryVersion:'moonlit-v2',x:position.x,y:position.y,facing,sequence:++networkSequence,activity:state.localActivity,seat:seatedStation??-1};
+     if(signature!==networkSent){networkAt=seconds;networkBusy=true;const session=net.lease.id;const sample={session,geometryVersion:'moonlit-v2',layoutVersion:net.snapshot?.world.room_layout_version??0,x:position.x,y:position.y,facing,sequence:++networkSequence,activity:state.localActivity,seat:seatedStation??-1};
       void net.invoke('move',sample).then(()=>{if(handlers.current.backend.lease?.id===session)networkSent=signature;}).catch(e=>{
        if(handlers.current.backend.lease?.id!==session)return;
        if(e instanceof BackendError&&e.details?.position){position={...e.details.position};route=[];pending=undefined;seatedStation=undefined;seated=false;marker.visible=false;reportPosition();}

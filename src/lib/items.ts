@@ -1,4 +1,4 @@
-import type {Theme} from '../store/game';
+import type {Theme} from './theme.ts';
 
 export type ItemType='desk'|'tree'|'carpet'|'botanical-desk'|'lantern'|'armchair'|'stove'|'telescope';
 export type ItemLayer='floor'|'furniture';

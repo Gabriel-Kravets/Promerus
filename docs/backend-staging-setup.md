@@ -114,3 +114,7 @@ Keep PR #3 open. Before release, repeat the remaining live checks with uninterru
 The user subsequently installed the four-permanent-member guard manually in staging. Its function body, enabled membership trigger, SECURITY DEFINER/empty search_path and restricted execute ACL were verified read-only; no room exceeded four permanent memberships. The approved SQL now resides in `supabase/migrations/202610180005_four_permanent_members.sql`. Migration history was marked applied using `migration repair`, without re-executing SQL or changing application data. See main-worlds-integration.md for the command and evidence. Do not run Query 26 again on this project.
 
 Post-repair verification: migration list shows all five local/remote versions matched. `db push --dry-run` returned `upToDate: true`, with no migrations, seeds or roles pending. No migration SQL ran during that verification.
+
+
+### 2026-10-18 shared layouts and member counts
+The user installed Queries 27 and 28 in staging. Catalog definitions and restricted layout RPC permissions were verified, and versions 202610180006/202610180007 were marked applied without rerunning SQL. All seven versions match; push dry-run reports up to date. game-api was deployed with authenticated command validation and room revision checks. Automated checks: 149 frontend tests, 38 backend tests, TypeScript, production build and Deno check pass. Full two-account layout editing/reconnection remains unverified; see docs/main-worlds-integration.md for limitations. No production changes.

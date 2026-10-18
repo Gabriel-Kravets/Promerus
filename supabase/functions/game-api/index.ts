@@ -8,6 +8,7 @@ import {positionSchema} from '../../../src/lib/backend/contracts.ts';
 import {generatedCourse,generationInput,courseInstructions,gradingInstructions,geminiJson,generationFailureCode} from '../../../src/lib/backend/generation.ts';
 import {studyStations} from '../../../src/lib/world-layout.ts';
 import {validMovement} from '../../../src/lib/backend/movement-validation.ts';
+import {applyLayoutCommand,parseRoomLayout,withRoomGeometry,layoutCommand} from '../../../src/lib/backend/room-layout.ts';
 import {distance} from '../../../src/lib/movement.ts';
 import {courses} from '../../../src/lib/courses.ts';
 
@@ -31,17 +32,41 @@ Deno.serve(async(req:Request)=>{
  try{const match=req.headers.get('Authorization')?.match(/^Bearer (.+)$/);if(!match)return reply({error:'Sign-in required'},401);token=match[1];await verifyPlayerToken(token,issuer,audience,jwks);}catch{return reply({error:'Your sign-in expired or could not be verified'},401);}
  try{
   const input=await readJsonBody(req);
-  const body=z.object({action:z.enum(['move','generate','job','short-answer','finish']),payload:z.unknown()}).strict().parse(input);
+  const body=z.object({action:z.enum(['move','layout','generate','job','short-answer','finish']),payload:z.unknown()}).strict().parse(input);
   const user=createClient(keys.url,keys.publishable,{accessToken:async()=>token,auth:{persistSession:false,autoRefreshToken:false}});
   const boot=await rpc<{profile:{player_id:string}}>(user,'bootstrap_player'),actor=boot.profile.player_id;
   await rpc(user,'consume_api_quota',{p_kind:'request'});
+  if(body.action==='layout'){
+   const p=z.object({session:uuid,expectedVersion:z.number().int().nonnegative(),command:layoutCommand}).strict().parse(body.payload);
+   const {data:session}=await admin.from('room_sessions').select('greenhouse_id').eq('id',p.session).eq('player_id',actor).gt('lease_until',new Date().toISOString()).maybeSingle();
+   if(!session)return reply({error:'Session unavailable'},403);
+   const [{data:world},{data:members,error:memberError},{data:occupants,error:occupantError}]=await Promise.all([
+    admin.from('greenhouses').select('room_layout,room_layout_version').eq('id',session.greenhouse_id).eq('archived',false).maybeSingle(),
+    admin.from('greenhouse_memberships').select('player_id').eq('greenhouse_id',session.greenhouse_id),
+    admin.from('room_sessions').select('x,y').eq('greenhouse_id',session.greenhouse_id).gt('lease_until',new Date().toISOString())]);
+   if(memberError||occupantError||!world||!members?.some(m=>m.player_id===actor))return reply({error:'Membership required'},403);
+   if(world.room_layout_version!==p.expectedVersion)return reply({error:'Room layout changed; reload before editing'},409);
+   try{
+    const layout=applyLayoutCommand(world.room_layout,members.map(m=>m.player_id),p.command,occupants??[]);
+    if(p.command.kind==='initialize'&&JSON.stringify(layout)===JSON.stringify(world.room_layout))return reply({layout,layout_version:world.room_layout_version});
+    return reply(await rpc(admin,'commit_room_layout',{p_player:actor,p_world:session.greenhouse_id,p_expected_version:p.expectedVersion,p_layout:layout}));
+   }catch(error){
+    const known=['Room collection is full','Room item unavailable','Keep the whole item inside the greenhouse.','This spot overlaps solid furniture. Drag to a clear spot.','Leave space around gardeners and the Sproutling.','Keep the carpet clear of built-in fixtures and the garden bed.'];
+    return reply({error:error instanceof Error&&known.includes(error.message)?error.message:'Room layout changed or is unavailable. Reload before editing.'},409);
+   }
+  }
   if(body.action==='move'){
    const {session,...movement}=z.object({session:uuid,...positionSchema.shape}).strict().parse(body.payload);
-   const {data:s,error}=await admin.from('room_sessions').select('id,player_id,x,y,sequence,moved_at').eq('id',session).eq('player_id',actor).maybeSingle();
+   const {data:s,error}=await admin.from('room_sessions').select('id,player_id,greenhouse_id,x,y,sequence,moved_at').eq('id',session).eq('player_id',actor).maybeSingle();
    if(error||!s)return reply({error:'Session unavailable'},403);
    if(movement.sequence<=s.sequence)return reply(s);
-   if(!validMovement({x:s.x,y:s.y},movement,(Date.now()-Date.parse(s.moved_at))/1000))return reply({error:'Please choose a clear floor destination',position:{x:s.x,y:s.y}},409);
-   if(movement.seat>=0&&!([studyStations[movement.seat].seat,...studyStations[movement.seat].alternatives].some(p=>distance(p,movement)<30)))return reply({error:'Choose an accessible chair',position:{x:s.x,y:s.y}},409);
+   const {data:layoutWorld,error:layoutError}=await admin.from('greenhouses').select('room_layout,room_layout_version').eq('id',s.greenhouse_id).maybeSingle();
+   if(layoutError||!layoutWorld)return reply({error:'Session unavailable'},403);
+   if(layoutWorld.room_layout&&movement.layoutVersion!==layoutWorld.room_layout_version)return reply({error:'Room layout changed; reload before editing',position:{x:s.x,y:s.y}},409);
+   const layout=layoutWorld.room_layout?parseRoomLayout(layoutWorld.room_layout,[]):null;
+   const valid=()=>validMovement({x:s.x,y:s.y},movement,(Date.now()-Date.parse(s.moved_at))/1000);
+   if(!(layout?withRoomGeometry(layout,valid):valid()))return reply({error:'Please choose a clear floor destination',position:{x:s.x,y:s.y}},409);
+   if(movement.seat>=0&&!(()=>{const station=studyStations[movement.seat],id=`fixture:${station.id}`,at=layout?.fixturePositions[id]??station.position;if(layout?.storedFixtures.includes(id))return false;return [station.seat,...station.alternatives].map(p=>{const dx=p.x-station.position.x,dy=p.y-station.position.y;return {x:at.x+('mirrored' in at&&at.mirrored?dy:dx),y:at.y+('mirrored' in at&&at.mirrored?dx:dy)};}).some(p=>distance(p,movement)<30);})())return reply({error:'Choose an accessible chair',position:{x:s.x,y:s.y}},409);
    try{return reply(await rpc(admin,'apply_movement',{p_player:actor,p_session:session,p_x:movement.x,p_y:movement.y,p_facing:movement.facing,p_sequence:movement.sequence,p_activity:movement.activity,p_seat:movement.seat,p_previous_sequence:s.sequence}));}
    catch{return reply({error:'Movement could not be accepted',position:{x:s.x,y:s.y}},409);}
   }
