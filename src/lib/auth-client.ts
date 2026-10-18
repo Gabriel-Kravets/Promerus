@@ -6,6 +6,7 @@ export type AuthAdapter = {
   signup: () => Promise<AuthUser | undefined>;
   loginInTab: (signup?: boolean) => Promise<void>;
   logout: () => Promise<void>;
+  getToken: (expectedSubject?: string) => Promise<string>;
   errorMessage: (error: unknown) => string;
 };
 
