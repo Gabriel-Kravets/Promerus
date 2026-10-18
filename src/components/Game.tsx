@@ -19,6 +19,7 @@ import Collection from './Collection';
 import ItemPlacementControls from './ItemPlacementControls';
 import QuestPanel from './QuestPanel';
 import BackendProvider,{useBackend} from './backend/BackendProvider';
+import DailyQuestProvider from './backend/DailyQuestProvider';
 import Greenhouses from './backend/Greenhouses';
 import './backend/backend.css';
 import {playerEntryStep} from '@/lib/backend/entry-flow';
@@ -33,7 +34,7 @@ import './game-polish.css';
 import './game-themes.css';
 import './stardew-ui.css';
 const GameCanvas=dynamic(()=>import('./GameCanvas'),{ssr:false});
-export default function Game(props:{initialLearn?:boolean}){return <BackendProvider><GameContent {...props}/></BackendProvider>;}
+export default function Game(props:{initialLearn?:boolean}){return <BackendProvider><DailyQuestProvider><GameContent {...props}/></DailyQuestProvider></BackendProvider>;}
 function GameContent({initialLearn=false}:{initialLearn?:boolean}){const auth=useAuth();const backend=useBackend();const s=useGame();const [ready,setReady]=useState(false);const [panel,setPanel]=useState('');const [questsOpen,setQuestsOpen]=useState(true);const [player,setPlayer]=useState(0);const [create,setCreate]=useState(false);const [hint,setHint]=useState('Click the floor to wander. A little learning goes a long way.');const [friendDetail,setFriendDetail]=useState<number|null>(null);const questLauncher=useRef<HTMLButtonElement>(null);const questMenu=useRef<HTMLElement>(null);const [demo,setDemo]=useState(false);const [introBusy,setIntroBusy]=useState(false);const [introError,setIntroError]=useState('');const [banner,setBanner]=useState('');const previousEnergy=useRef(60);const stage=stageFor(s.energy);const entryStep=playerEntryStep(backend.profile,backend.lease);const needsIntro=backend.enabled&&entryStep==='intro';const contributors=backend.enabled?(backend.snapshot?.contributions.map((_,i)=>i)??[]):[...new Set(s.completions.map(c=>c.player))];const names=backend.enabled?[s.name,...(backend.snapshot?.members.filter(m=>m.player_id!==backend.profile?.player_id).slice(0,3).map(m=>m.name)??[])]:[s.name,'Maya','Kai','Jules'];const subjects=['Your learning journey','College Algebra','Spanish Basics','Creative Writing'];
  useSharedRoomLayout(setHint);
  useEffect(()=>{if(backend.enabled){previousEnergy.current=useGame.getState().energy;setReady(true);if(initialLearn)setPanel('learn');return;}useGame.persist.rehydrate();const savedStudy=readStudySave(useGame.getState().completions.filter(c=>c.player===0).length);try{localStorage.setItem('sproutbound-study-room',JSON.stringify(savedStudy));}catch{}previousEnergy.current=useGame.getState().energy;setReady(true);if(initialLearn)setPanel('learn');},[initialLearn,backend.enabled]);

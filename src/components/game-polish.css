@@ -51,3 +51,5 @@
 @media(max-width:700px){.quest-widget{right:16px;bottom:16px;width:min(280px,calc(100% - 32px))}.bottom-hud .seeds-card{display:none}}
 /* The HUD strip spans the room; only its cards should catch clicks, not the floor between them. */
 .bottom-hud{pointer-events:none}.bottom-hud>*{pointer-events:auto}
+
+.quest-menu .quest-penalty-note{font-size:11px;line-height:1.5;margin:10px 0;color:inherit;opacity:.9}

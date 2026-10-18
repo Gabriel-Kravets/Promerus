@@ -1,3 +1,4 @@
+import {questDay} from './daily-quests';
 import {scopedStorageKey} from './backend/storage-scope';
 export type RoomSave={focusEnabled?:boolean;date:string;seen:string[];focusSeconds:number;lessonBaseline:number;duration:number;seconds:number;endAt:number|null};
 export const STUDY_STORAGE_KEY='sproutbound-study-room';
@@ -7,7 +8,7 @@ export function writeStudySave(save:RoomSave) {
   // Storage events only reach other tabs; notify the mounted greenhouse too.
   window.dispatchEvent(new Event(STUDY_PROGRESS_EVENT));
 }
-export const studyDay=()=>new Date().toLocaleDateString('en-CA');
+export const studyDay=questDay;
 export function defaultStudySave(lessons:number):RoomSave {
   return {focusEnabled:true,date:studyDay(),seen:[],focusSeconds:0,lessonBaseline:lessons,duration:25,seconds:1500,endAt:null};
 }

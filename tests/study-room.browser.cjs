@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const {useGame} = require('../src/store/game.ts');
 const baseURL = process.env.STUDY_TEST_URL || 'http://127.0.0.1:3100';
-const savedGame = JSON.stringify({state:{...useGame.getState(),created:true,course:'python',studyTopic:'python',settings:{...useGame.getState().settings,motion:false}},version:0});
+const savedGame = JSON.stringify({state:{...useGame.getState(),created:true,tourDone:true,course:'python',studyTopic:'python',settings:{...useGame.getState().settings,motion:false}},version:0});
 const session = {id:'browser-quiz',topic:'Root biology',difficulty:'Intermediate',quiz:{
  multiple_choice:Array.from({length:4},(_,i)=>({question:`Root question ${i+1}?`,A:'Absorb water',B:'Produce flowers',C:'Make seeds',D:'Attract bees',correct_answer:'A',explanation:'Roots absorb water.'})),
  short_answer:{question:'What do roots do?',correct_answer:'Absorb water.',explanation:'Roots take up water and minerals.',grading_criteria:'Water uptake.'},

@@ -20,6 +20,7 @@ before(async()=>{
  await db.exec(await readFile(new URL('../migrations/202610180005_four_permanent_members.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../migrations/202610180006_world_membership_counts.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../migrations/202610180007_shared_room_layout.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../migrations/202610180008_daily_quest_penalties.sql',import.meta.url),'utf8'));
 });
 after(async()=>{await db.close();});
 let alice:string,bob:string,world:string,invite:string;

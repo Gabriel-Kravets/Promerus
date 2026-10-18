@@ -143,3 +143,9 @@ Hair recoloring uses per-pose atlas masks for the full crown, bangs and long loc
 The greenhouse Quests popup shows daily flashcard, focus, and lesson goals using the same persisted study data. The study page no longer contains quest navigation or the chores sidebar.
 
 Friends contains separate **Room members** and **Friends List** views. Accept the explicitly labeled demo requests to save friends independently of room membership; Rowan demonstrates a friend outside the greenhouse. Accepted friends persist under `sproutbound-friends`. These remain local simulations, not networked friendship requests.
+
+## Daily quest accountability
+
+Online greenhouses lose **10 nutrients per permanent member** who completes no daily quest during a full New York calendar day. Any one completed quest protects that member's trees. New members receive their joining day without a penalty; nutrients never fall below zero. The quest widget shows server-confirmed progress, the deadline, sync failures, and recent deductions.
+
+See [daily quest rules and Supabase activation](docs/daily-quest-penalties.md) for the new migration and scheduled settlement job. Database rollout and scheduling are required before this is active in hosted rooms.

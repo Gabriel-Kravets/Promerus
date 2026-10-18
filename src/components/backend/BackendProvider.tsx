@@ -7,6 +7,7 @@ import {backendConfig} from '@/lib/backend/config';
 import {createBackend,rpc,bootstrap,enterWorld,worldSnapshot} from '@/lib/backend/client';
 import {profilePatchSchema,type BackendProfile,type SessionLease,type WorldSnapshot,type Bootstrap,BackendError} from '@/lib/backend/contracts';
 import {z} from 'zod';
+import {DAILY_QUEST_REFRESH} from '@/lib/daily-quests';
 import {scopedStorageKey,setPlayerStorageScope} from '@/lib/backend/storage-scope';
 
 type Context={enabled:boolean;client:SupabaseClient|null;profile:BackendProfile|null;snapshot:WorldSnapshot|null;lease:SessionLease|null;status:string;error:string;switchWorld:(id:string,takeover?:boolean)=>Promise<void>;saveProfile:(patch:unknown)=>Promise<void>;leaveWorld:()=>Promise<void>;refresh:()=>Promise<void>;invoke:<T>(action:string,payload:unknown)=>Promise<T>};
@@ -30,6 +31,7 @@ export default function BackendProvider({children}:{children:ReactNode}){
   const world=lease?await worldSnapshot(client,lease.greenhouse_id):null;
   if(current.current.profile?.player_id!==profile.player_id||current.current.lease?.id!==lease?.id)return;
   useGame.getState().set({completions:(completions??[]).map(c=>({id:c.id,player:0,lesson:c.canonical_key})),...(world?{energy:world.world.energy,sharedBloom:world.world.moonlight_bloom}:{})});
+  window.dispatchEvent(new Event(DAILY_QUEST_REFRESH));
   if(world){const own=world.members.find(m=>m.player_id===profile.player_id);if(own&&own.appearance_version>appearanceVersion.current){appearanceVersion.current=own.appearance_version;useGame.getState().set({name:own.name,avatar:own.avatar});setProfile(p=>p?{...p,name:own.name}:p);}setSnapshot(world);}
  },[client]);
  const switchWorld=useCallback(async(id:string,takeover=false)=>{
@@ -97,7 +99,7 @@ export default function BackendProvider({children}:{children:ReactNode}){
    .on('postgres_changes',{event:'*',schema:'public',table:'greenhouses',filter:`id=eq.${lease.greenhouse_id}`},()=>void synchronize())
    .on('postgres_changes',{event:'*',schema:'public',table:'world_events',filter:`greenhouse_id=eq.${lease.greenhouse_id}`},event=>{
     const row=event.new as {id?:number;kind?:string;reaction?:string};if(row.id===undefined)return;const id=String(row.id);const key=`sproutbound-event:${profile.player_id}:${lease.greenhouse_id}`;
-    const last=sessionStorage.getItem(key);if(!last||BigInt(id)>BigInt(last)){sessionStorage.setItem(key,id);useGame.getState().set({reaction:row.kind==='growth'?'evolving':row.kind==='sproutling'&&['happy','watering','sleeping'].includes(row.reaction??'')?row.reaction!:'celebrating'});}
+    const last=sessionStorage.getItem(key);if(!last||BigInt(id)>BigInt(last)){sessionStorage.setItem(key,id);if(row.kind!=='daily-penalty')useGame.getState().set({reaction:row.kind==='growth'?'evolving':row.kind==='sproutling'&&['happy','watering','sleeping'].includes(row.reaction??'')?row.reaction!:'celebrating'});}
     void synchronize();
    }).subscribe(state=>{if(state==='CHANNEL_ERROR'||state==='TIMED_OUT')setStatus('Reconnecting');});
   const heartbeat=setInterval(()=>void synchronize(true),20000),onOnline=()=>{void client.realtime.setAuth().catch(()=>setStatus('Sign-in expired'));void synchronize(true);};

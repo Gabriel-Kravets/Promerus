@@ -3,22 +3,25 @@ import {useEffect,useRef,useState} from 'react';
 import {BookOpen,Check,ChevronRight,Hourglass,Leaf,ScrollText,Sparkles,Sprout} from 'lucide-react';
 import {useGame} from '@/store/game';
 import {dailyQuests,readStudySave,defaultStudySave,STUDY_STORAGE_KEY,STUDY_PROGRESS_EVENT} from '@/lib/study-progress';
+import {nextQuestReset,onlineDailyQuests,dailyQuestNotice} from '@/lib/daily-quests';
+import {useDailyQuests} from './backend/DailyQuestProvider';
 import {ProgressMeter} from './ui/GamePrimitives';
 
 const questIcons=[BookOpen,Hourglass,Sprout];
-const untilReset=()=>{const now=new Date(),next=new Date(now);next.setHours(24,0,0,0);const minutes=Math.ceil((next.getTime()-now.getTime())/60000);return `${Math.floor(minutes/60)}h ${minutes%60}m`;};
+const untilReset=()=>{const now=new Date(),next=nextQuestReset(now);const minutes=Math.ceil((next.getTime()-now.getTime())/60000);return `${Math.floor(minutes/60)}h ${minutes%60}m`;};
 
 // Nonmodal quest widget keeps the room interactive.
 export default function QuestPanel({onStudy}:{onStudy:()=>void}) {
+  const daily=useDailyQuests();
   const lessons=useGame(s=>s.completions.filter(c=>c.player===0).length);
   const [save,setSave]=useState(()=>defaultStudySave(lessons)),[reset,setReset]=useState(''),[bloomed,setBloomed]=useState<string[]>([]);
   const completed=useRef<Set<string>|null>(null);
   // Focus time and flashcards are saved by the study room; keep the widget current while it stays open.
   useEffect(()=>{const refresh=()=>{setSave(readStudySave(lessons));setReset(untilReset());};refresh();
-    const id=setInterval(refresh,5000);window.addEventListener('focus',refresh);window.addEventListener('storage',refresh);
-    return()=>{clearInterval(id);window.removeEventListener('focus',refresh);window.removeEventListener('storage',refresh);};
+    const id=setInterval(refresh,5000);window.addEventListener('focus',refresh);window.addEventListener('storage',refresh);window.addEventListener(STUDY_PROGRESS_EVENT,refresh);
+    return()=>{clearInterval(id);window.removeEventListener('focus',refresh);window.removeEventListener('storage',refresh);window.removeEventListener(STUDY_PROGRESS_EVENT,refresh);};
   },[lessons]);
-  const quests=dailyQuests(save,lessons),done=quests.filter(q=>q.value>=q.max);
+  const quests=daily.online?onlineDailyQuests(daily.status??{day:'',resets_at:'',time_zone:'America/New_York',science_cards:0,focus_seconds:0,lesson_completed:false,penalties_start_on:''}):dailyQuests(save,lessons),done=quests.filter(q=>q.value>=q.max);
   // Celebrate quests that finish while the widget is open, not the ones already done on load.
   useEffect(()=>{const now=new Set(done.map(q=>q.text)),before=completed.current;completed.current=now;if(!before)return;
     const fresh=[...now].filter(text=>!before.has(text));if(!fresh.length)return;
@@ -43,6 +46,8 @@ export default function QuestPanel({onStudy}:{onStudy:()=>void}) {
         </button>
       </li>;})}</ul>
     {done.length===quests.length&&<p className="quest-complete" role="status"><Sparkles size={15}/> Every quest done. The garden thanks you!</p>}
+    <p className="quest-penalty-note" role="status">{dailyQuestNotice(daily.online,daily.status,daily.error)} Quests reset at midnight New York time. New members start their first full day; nutrients never drop below zero.</p>
+    {daily.status?.last_penalty&&daily.status.last_penalty.amount>0&&<p className="quest-penalty-note">{daily.status.last_penalty.greenhouse_name} lost {daily.status.last_penalty.amount} nutrients for your missed quests on {daily.status.last_penalty.day}.</p>}
     <button className="primary quest-study" onClick={onStudy}>Study · +20 nutrients</button>
   </>;
 }

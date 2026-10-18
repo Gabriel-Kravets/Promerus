@@ -2,6 +2,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {ArrowLeft,ArrowRight,BookOpen,Check,Code2,FlaskConical,Globe,Leaf,Pause,PenLine,Play,RotateCcw,Settings,Sprout,Trophy,X} from 'lucide-react';
 import TopicStudy from './TopicStudy';
+import {useDailyFocus,useDailyQuests} from './backend/DailyQuestProvider';
 import Learning from './Learning';
 import FocusTimerWidget from './FocusTimerWidget';
 import {useOnlineStudySeconds} from './OnlineStudyTime';
@@ -28,6 +29,7 @@ const authored:Record<string,{q:string;a:string;symbol:string}[]>={
 function deckFor(subject:Subject){if(authored[subject])return authored[subject];const key=subjectList.find(s=>s.name===subject)!.key;return getCourse(key).lessons.flatMap(l=>l.questions.map(q=>({q:q.prompt,a:`${q.options[q.answer]} — ${q.explanation}`,symbol:subject==='Math'?'math':subject==='Python'?'code':'book'})));}
 export default function StudyRoom({onBack}:{onBack:()=>void}){
  const onlineSeconds=useOnlineStudySeconds();
+ const daily=useDailyQuests();
  const [deskMode,setDeskMode]=useState<'quiz'|'journey'>('quiz');
  const game=useGame();const [tab,setTab]=useState('desk'),[subject,setSubject]=useState<Subject>('Science'),[card,setCard]=useState(0),[revealed,setRevealed]=useState(false),[save,setStoredSave]=useState<RoomSave>(defaults),[hydrated,setHydrated]=useState(false),[notice,setNotice]=useState('');const lastTick=useRef(Date.now());
  const setSave=(update:RoomSave|((previous:RoomSave)=>RoomSave))=>setStoredSave(previous=>typeof update==='function'?update(currentStudyDay(previous,useGame.getState().completions.filter(c=>c.player===0).length)):update);
@@ -48,6 +50,7 @@ export default function StudyRoom({onBack}:{onBack:()=>void}){
  const [reviewingQuiz,setReviewingQuiz]=useState(false);
  const flashcardSession=reviewingQuiz?generated:null;
  const deck=flashcardSession?flashcardSession.quiz.multiple_choice.map(q=>({q:q.question,a:flashcardSession.online?(q.explanation||'Complete this question to reveal verified feedback.'):q[q.correct_answer]+' — '+q.explanation,symbol:'book'})).concat([{q:flashcardSession.quiz.short_answer.question,a:flashcardSession.quiz.short_answer.correct_answer+' — '+flashcardSession.quiz.short_answer.explanation,symbol:'book'}]):deckFor(subject),current=deck[card%deck.length],running=save.focusEnabled!==false&&save.endAt!==null;
+ useDailyFocus(running);
  useEffect(()=>{setSave(readStudySave(useGame.getState().completions.filter(c=>c.player===0).length));setHydrated(true);},[]);
  useEffect(()=>{if(!hydrated)return;const current=currentStudyDay(save,useGame.getState().completions.filter(c=>c.player===0).length);if(current!==save)setStoredSave(current);else writeStudySave(save);},[save,hydrated]);
  useEffect(()=>{const timer=setInterval(()=>setStoredSave(previous=>currentStudyDay(previous,useGame.getState().completions.filter(c=>c.player===0).length)),60000);return()=>clearInterval(timer);},[]);
@@ -64,7 +67,7 @@ export default function StudyRoom({onBack}:{onBack:()=>void}){
   const timer=setInterval(tick,1000);
   return()=>{clearInterval(timer);flush();window.removeEventListener('pointerdown',activity);window.removeEventListener('keydown',activity);window.removeEventListener('pointermove',activity);document.removeEventListener('visibilitychange',visibility);};
  },[tab,deskMode,generated?.id,flashcardSession?.id,subject,studyBusy]);
- const reveal=()=>{setRevealed(true);setTopicStats(previous=>addTopicActivity(previous,flashcardSession?.topic||subject,{kind:'flashcards',event:`card:${reviewVisit.current}:${flashcardSession?.id||subject}:${card%deck.length}`}));const id=flashcardSession?`${flashcardSession.topic}:${flashcardSession.id}:${card%deck.length}`:`${subject}:${card%deck.length}`;setSave(s=>({...s,seen:s.seen.includes(id)?s.seen:[...s.seen,id]}));};
+ const reveal=()=>{setRevealed(true);if(!flashcardSession&&subject==='Science')void daily.record('science_card',card%deck.length);setTopicStats(previous=>addTopicActivity(previous,flashcardSession?.topic||subject,{kind:'flashcards',event:`card:${reviewVisit.current}:${flashcardSession?.id||subject}:${card%deck.length}`}));const id=flashcardSession?`${flashcardSession.topic}:${flashcardSession.id}:${card%deck.length}`:`${subject}:${card%deck.length}`;setSave(s=>({...s,seen:s.seen.includes(id)?s.seen:[...s.seen,id]}));};
  const startTimer=()=>setSave(s=>s.endAt?{...s,endAt:null,seconds:Math.max(0,Math.ceil((s.endAt-Date.now())/1000))}:{...s,seconds:s.seconds||s.duration*60,endAt:Date.now()+(s.seconds||s.duration*60)*1000});
  const choose=(name:Subject)=>{setSubject(name);setCard(0);setRevealed(false);setReviewingQuiz(false);setTab('flashcards');};
 
