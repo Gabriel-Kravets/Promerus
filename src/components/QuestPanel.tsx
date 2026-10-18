@@ -2,7 +2,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {BookOpen,Check,ChevronRight,Hourglass,Leaf,ScrollText,Sparkles,Sprout} from 'lucide-react';
 import {useGame} from '@/store/game';
-import {dailyQuests,readStudySave,defaultStudySave} from '@/lib/study-progress';
+import {dailyQuests,readStudySave,defaultStudySave,STUDY_STORAGE_KEY,STUDY_PROGRESS_EVENT} from '@/lib/study-progress';
 import {ProgressMeter} from './ui/GamePrimitives';
 
 const questIcons=[BookOpen,Hourglass,Sprout];

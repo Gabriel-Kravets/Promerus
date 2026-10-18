@@ -58,7 +58,7 @@ export function createWorldEffects(scene:Container,room:Texture){
    layer.visible=true;waterCopy.x=motion?Math.sin(time*.47)*1.7:0;waterCopy.y=motion?Math.sin(time*.31)*.65:0;waterCopy.alpha=motion?.32+Math.sin(time*.37)*.045:.28;
    waveBands.forEach((g,i)=>{const p=waves[i];g.visible=full;g.position.set(p.x+(motion?Math.sin(time*.25+p.phase)*5:0),p.y);g.alpha=motion?.17+(Math.sin(time*.6+p.phase)+1)*.16:.2;});
    ripples.forEach((g,i)=>{const p=rippleSeeds[i],phase=motion?((time+p.offset)%p.life)/p.life:.5;g.visible=full&&i< (motion?8:3);g.position.set(p.x,p.y);g.scale.set(.3+phase*1.8);g.alpha=Math.sin(phase*Math.PI)*.4;});
-   lights.forEach((g,i)=>{const organic=Math.sin(time*(1.1+i*.137)+i*2.3)*.055+Math.sin(time*(2.7+i*.12)+i)*.025;g.alpha=motion&&full?.91+organic:.91;if(i===9&&time-milestone<2)g.alpha+=Math.sin((time-milestone)/2*Math.PI)*.7;});
+   lights.forEach((g,i)=>{const organic=Math.sin(time*(1.1+i*.137)+i*2.3)*.055+Math.sin(time*(2.7+i*.12)+i)*.025;g.alpha=motion&&full?.91+organic:.91;if(motion&&i===9&&time-milestone<2)g.alpha+=Math.sin((time-milestone)/2*Math.PI)*.7;});
    foliage.forEach(p=>{p.c.rotation=motion&&full?Math.sin(time*(.43+p.phase*.06)+p.phase)*p.amp:0;p.c.alpha=motion&&full?.72:0;});
    flameShapes.forEach((g,i)=>{g.scale.y=motion?.8+Math.sin(time*(3.1+i*.7)+i)*.12: .9;g.x=(i-1.5)*3+(motion?Math.sin(time*2.3+i)*.8:0);g.alpha=motion?.68+Math.sin(time*2+i)*.09:.7;});
    particles.forEach(p=>{p.g.visible=full&&motion&&(p.kind!==4||time-milestone<2);if(!p.g.visible)return;p.age+=dt;if(p.age>=p.life)reset(p,p.kind===4&&time-milestone<2);
