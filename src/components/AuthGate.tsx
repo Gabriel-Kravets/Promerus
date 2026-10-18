@@ -1,85 +1,107 @@
 'use client';
 
-import {createContext, useContext, useEffect, useState} from 'react';
+import {createContext, useContext, useEffect, useRef, useState} from 'react';
+import {loadAuth, type AuthAdapter, type AuthUser} from '@/lib/auth-client';
+import LoginAtmosphere from './LoginAtmosphere';
 import './auth.css';
 
-type User = {sub: string; name?: string; nickname?: string; email?: string};
-type AuthAdapter = {
-  initialize: () => Promise<User | null>;
-  login: () => Promise<User | undefined>;
-  signup: () => Promise<User | undefined>;
-  logout: () => Promise<void>;
-};
-declare global { interface Window { SproutboundAuth?: AuthAdapter } }
-
-let adapterPromise: Promise<AuthAdapter> | undefined;
-function loadAuth() {
-  if (!adapterPromise) adapterPromise = (async () => {
-    for (const file of ['auth0-spa-js.production.js', 'config.js', 'auth.js']) {
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = `/auth/${file}`;
-        script.onload = () => resolve();
-        script.onerror = () => { script.remove(); reject(new Error('Sign-in could not load. Check your connection and retry.')); };
-        document.head.appendChild(script);
-      });
-    }
-    if (!window.SproutboundAuth) throw new Error('Sign-in is unavailable. Please retry.');
-    return window.SproutboundAuth;
-  })().catch(error => { adapterPromise = undefined; throw error; });
-  return adapterPromise;
-}
-
-export function authError(error: unknown) {
-  const e = error as {error?: string; code?: string; name?: string; message?: string};
-  const code = e?.error || e?.code || e?.name;
-  if (code === 'PopupCancelledError' || code === 'popup_closed' || e?.message === 'Popup closed') return 'The sign-in window was closed. You can try again.';
-  if (code === 'TimeoutError' || code === 'timeout') return 'Sign-in timed out. Please try again.';
-  return e?.message || 'Sign-in could not be completed. Please try again.';
-}
-
-const AuthContext = createContext<{user: User; logout: () => void; busy: boolean; error: string} | null>(null);
+const AuthContext = createContext<{user: AuthUser; logout: () => void; busy: boolean; error: string} | null>(null);
 export const useAuth = () => useContext(AuthContext);
 
 export default function AuthGate({children}: {children: React.ReactNode}) {
   const [adapter, setAdapter] = useState<AuthAdapter>();
-  const [user, setUser] = useState<User | null>(null);
-  const [busy, setBusy] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [activity, setActivity] = useState<string | null>('Checking your session…');
   const [error, setError] = useState('');
-  async function initialize() {
-    setBusy(true); setError('');
-    try { const auth = await loadAuth(); setAdapter(auth); setUser(await auth.initialize()); }
-    catch (e) { setError(authError(e)); }
-    finally { setBusy(false); }
+  const busy = activity !== null;
+  const locked = useRef(false);
+  const mounted = useRef(false);
+  const signupRequested = useRef(false);
+
+  function reportError(e: unknown, auth = adapter) {
+    setError(auth?.errorMessage(e) || 'Sign-in could not load. Check your connection and retry.');
   }
-  useEffect(() => { void initialize(); }, []);
-  function authenticate(signup: boolean) {
-    if (!adapter || busy) return;
-    setBusy(true); setError('');
-    // Invoke directly in the click handler so the adapter can open its popup immediately.
+
+  async function initialize() {
+    if (locked.current) return;
+    locked.current = true;
+    setActivity('Checking your session…'); setError('');
+    let auth: AuthAdapter | undefined;
     try {
+      auth = await loadAuth();
+      if (!mounted.current) return;
+      setAdapter(auth);
+      const profile = await auth.initialize();
+      if (mounted.current) setUser(profile?.sub ? profile : null);
+    } catch (e) { if (mounted.current) reportError(e, auth); }
+    finally { locked.current = false; if (mounted.current) setActivity(null); }
+  }
+  useEffect(() => {
+    mounted.current = true;
+    void initialize();
+    return () => { mounted.current = false; };
+  }, []);
+  function authenticate(signup: boolean, inTab = false) {
+    if (!adapter || locked.current || !adapter.isConfigured()) return;
+    locked.current = true;
+    signupRequested.current = signup;
+    setActivity(inTab ? 'Taking you to secure sign-in…' : 'Opening your secure sign-in window…'); setError('');
+    // Keep popup creation directly inside the click, before any asynchronous work.
+    try {
+      if (inTab) {
+        void adapter.loginInTab(signup).catch(e => {
+          if (mounted.current) { reportError(e); setActivity(null); }
+          locked.current = false;
+        });
+        return;
+      }
       const result = signup ? adapter.signup() : adapter.login();
       void result.then(profile => {
-        if (!profile) throw new Error('Your profile could not be loaded. Please retry.');
-        setUser(profile);
-      }).catch(e => setError(authError(e))).finally(() => setBusy(false));
-    } catch (e) { setError(authError(e)); setBusy(false); }
+        if (!profile?.sub) throw new Error('Profile unavailable');
+        if (mounted.current) setUser(profile);
+      }).catch(e => { if (mounted.current) reportError(e); }).finally(() => {
+        locked.current = false; if (mounted.current) setActivity(null);
+      });
+    } catch (e) { locked.current = false; reportError(e); setActivity(null); }
   }
   async function logout() {
-    if (!adapter || busy) return;
-    setBusy(true); setError('');
+    if (!adapter || locked.current) return;
+    locked.current = true;
+    setActivity('Signing out…'); setError('');
     try { await adapter.logout(); setUser(null); }
-    catch (e) { setError(authError(e)); }
-    finally { setBusy(false); }
+    catch { setError("We couldn't sign you out. Check your connection and try again."); }
+    finally { locked.current = false; setActivity(null); }
   }
   if (user) return <AuthContext.Provider value={{user, logout, busy, error}}>{children}</AuthContext.Provider>;
-  return <main className="auth-scene"><section className="auth-card" aria-labelledby="auth-title" aria-busy={busy}>
-    <img className="auth-mascot" src="/auth/sprout-mascot.png" alt="A smiling sprout"/>
-    <span className="auth-sprig" aria-hidden="true">❧</span>
-    <h1 id="auth-title">Sproutbound</h1><p className="auth-tagline">Your journey of growth begins here.</p>
-    <button className="auth-enter" disabled={busy || !adapter} onClick={() => authenticate(false)}>Enter the Greenhouse</button>
-    <button className="auth-link" disabled={busy || !adapter} onClick={() => authenticate(true)}>Create an account</button>
-    <p className="auth-status" role="status">{error || (busy ? 'Checking your session…' : 'Sign in securely to enter your greenhouse.')}</p>
+  return <main className="auth-scene">
+    <LoginAtmosphere/>
+    <section className="auth-card" aria-labelledby="auth-title" aria-busy={busy}>
+    <div className="auth-card-frame" aria-hidden="true"/>
+    <div className="auth-card-content">
+    <div className="auth-brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M32 51V23M32 33C16 31 11 20 13 10c12 0 20 6 19 18M32 28C34 14 44 8 54 9c1 12-7 21-22 22"/><path d="M20 51h24"/></svg></div>
+    <h1 id="auth-title">Sproutbound</h1>
+    <div className="auth-ornament" aria-hidden="true"><span/><svg viewBox="0 0 16 16"><path d="m8 1 3 4 4 3-4 3-3 4-3-4-4-3 4-3z"/><path d="m8 5 3 3-3 3-3-3z"/></svg><span/></div>
+    <p className="auth-tagline">Your journey of growth begins here.</p>
+    <button className="auth-enter" disabled={busy || !adapter?.isConfigured()} onClick={() => authenticate(false)}>
+      <svg className="auth-button-leaf" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V10M12 14C4 14 2 9 3 4c6 0 10 3 9 8m0 0C12 5 16 2 22 3c0 6-3 11-10 11"/></svg>
+      <span>Enter the Greenhouse</span>
+      <svg className="auth-button-leaf" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V10M12 14C4 14 2 9 3 4c6 0 10 3 9 8m0 0C12 5 16 2 22 3c0 6-3 11-10 11"/></svg>
+    </button>
+    <div className="auth-small-ornament" aria-hidden="true"><span/><svg viewBox="0 0 24 24"><path d="M12 21V10M12 14C4 14 2 9 3 4c6 0 10 3 9 8m0 0C12 5 16 2 22 3c0 6-3 11-10 11"/></svg><span/></div>
+    <div className="auth-account-links">
+      <button className="auth-link" disabled={busy || !adapter?.isConfigured()} onClick={() => authenticate(true)}>Create an account</button>
+      <span aria-hidden="true"/>
+      <button className="auth-link" disabled={busy || !adapter?.isConfigured()} onClick={() => authenticate(false)} aria-describedby="auth-recovery-note">Forgot password?</button>
+    </div>
+    <span className="auth-visually-hidden" id="auth-recovery-note">Opens secure sign-in. Choose Reset password in the Auth0 window.</span>
+    <details className="auth-help">
+      <summary>Need a hand signing in?</summary>
+      <p>Choose from the methods offered by secure sign-in. Google and passkeys appear when enabled. To recover your password, choose Reset password in the sign-in window.</p>
+      <p>If the popup does not work, continue in this tab.</p>
+      <button className="auth-link" disabled={busy || !adapter?.isConfigured()} onClick={() => authenticate(signupRequested.current, true)}>Continue sign-in in this tab</button>
+    </details>
+    <p className="auth-status" role="status" aria-live="polite" aria-atomic="true">{error || activity || 'Sign in securely to enter your greenhouse.'}</p>
     {error && <button className="auth-link" disabled={busy} onClick={() => void initialize()}>Retry connection</button>}
+    </div>
   </section></main>;
 }
