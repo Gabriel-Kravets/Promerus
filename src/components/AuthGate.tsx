@@ -6,7 +6,7 @@ import LoginAtmosphere from './LoginAtmosphere';
 import './auth.css';
 import OnlineStudyTime from './OnlineStudyTime';
 
-const AuthContext = createContext<{user: AuthUser; logout: () => void; busy: boolean; error: string} | null>(null);
+const AuthContext = createContext<{user: AuthUser; logout: () => void; busy: boolean; error: string; getToken: () => Promise<string>} | null>(null);
 export const useAuth = () => useContext(AuthContext);
 
 export default function AuthGate({children}: {children: React.ReactNode}) {
@@ -78,7 +78,7 @@ export default function AuthGate({children}: {children: React.ReactNode}) {
     catch { setError("We couldn't sign you out. Check your connection and try again."); }
     finally { locked.current = false; setActivity(null); }
   }
-  if (user) return <AuthContext.Provider value={{user, logout, busy, error}}><OnlineStudyTime/>{children}</AuthContext.Provider>;
+  if (user) return <AuthContext.Provider value={{user, logout, busy, error, getToken: async () => { if(!adapter) throw new Error("Sign-in is unavailable"); return adapter.getToken(user.sub); }}}><OnlineStudyTime/>{children}</AuthContext.Provider>;
   return <main className="auth-scene">
     <LoginAtmosphere/>
     <section className="auth-card" aria-labelledby="auth-title" aria-busy={busy}>

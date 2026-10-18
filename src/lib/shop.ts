@@ -1,4 +1,4 @@
-import {itemSprites,type ItemType} from './items';
+import {itemSprites,type ItemType} from './items.ts';
 
 export type ShopCategory='Furniture'|'Lighting'|'Curios';
 export type ShopEntry={type:ItemType;category:ShopCategory;price:number;description:string;image:string};
