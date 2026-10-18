@@ -17,10 +17,9 @@ const BackendContext=createContext<Context>(local);
 export const useBackend=()=>useContext(BackendContext);
 export default function BackendProvider({children}:{children:ReactNode}){
  const auth=useAuth(),authRef=useRef(auth);authRef.current=auth;
- let configValue:ReturnType<typeof backendConfig>=null,configError='';
- try{configValue=backendConfig();}catch(e){configError=(e as Error).message;}
- const client=useMemo(()=>configValue?createBackend(()=>authRef.current!.getToken()):null,[configValue?.url,configValue?.key]);
- const [profile,setProfile]=useState<BackendProfile|null>(null),[snapshot,setSnapshot]=useState<WorldSnapshot|null>(null),[lease,setLease]=useState<SessionLease|null>(null),[economy,setEconomy]=useState<PlayerState|null>(null),[ready,setReady]=useState(false),[error,setError]=useState(configError),[status,setStatus]=useState('Connecting');
+ const [configuration]=useState(()=>{try{return {value:backendConfig(),error:''};}catch(e){return {value:null,error:(e as Error).message};}});
+ const client=useMemo(()=>configuration.value?createBackend(()=>authRef.current!.getToken()):null,[configuration]);
+ const [profile,setProfile]=useState<BackendProfile|null>(null),[snapshot,setSnapshot]=useState<WorldSnapshot|null>(null),[lease,setLease]=useState<SessionLease|null>(null),[economy,setEconomy]=useState<PlayerState|null>(null),[ready,setReady]=useState(false),[error,setError]=useState(configuration.error),[status,setStatus]=useState('Connecting');
  const appearanceVersion=useRef(0),controller=useRef('');
  const current=useRef({profile,lease,snapshot});current.current={profile,lease,snapshot};
  const refresh=useCallback(async()=>{
@@ -112,6 +111,6 @@ export default function BackendProvider({children}:{children:ReactNode}){
   void synchronize(true);
   return()=>{disposed=true;clearInterval(heartbeat);clearTimeout(retryTimer);window.removeEventListener('online',onOnline);document.removeEventListener('visibilitychange',visible);activity();void client.removeChannel(channel);};
  },[client,lease?.id,profile?.player_id,snapshot?.world.access_epoch,refresh]);
- if(configError||client&&!ready)return <main className="boot" role="status"><p>{error||configError||'Opening your greenhouse account…'}</p>{(error||configError)&&<button className="secondary" onClick={()=>window.location.reload()}>Retry connection</button>}{(error||configError)&&<button className="text-button" onClick={()=>auth?.logout()}>Sign in again</button>}</main>;
+ if(configuration.error||client&&!ready)return <main className="boot" role="status"><p>{error||'Opening your greenhouse account…'}</p>{error&&<button className="secondary" onClick={()=>window.location.reload()}>Retry connection</button>}{error&&<button className="text-button" onClick={()=>auth?.logout()}>Sign in again</button>}</main>;
  return <BackendContext.Provider value={client?{enabled:true,client,profile,snapshot,lease,economy,status,error,switchWorld,saveProfile,leaveWorld,refresh,invoke}:local}>{children}</BackendContext.Provider>;
 }

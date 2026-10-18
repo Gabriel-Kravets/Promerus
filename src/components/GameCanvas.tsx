@@ -11,7 +11,6 @@ import {createWalkCycle} from '@/lib/walk-cycle';
 import {RUN_FRAME_COUNT} from '@/lib/sprite-locomotion';
 import {createSproutlingWander} from '@/lib/sproutling-wander';
 import {iso,uniso,planRoute,approachRoute,distance,stageFor,blocked,setMovementObstacles,walkableTiles,Point} from '@/lib/movement';
-import {facingSign,memberTile,otherGardeners,seatIndex} from '@/lib/room-characters';
 import {studyStations,gardenApproaches,treeCenter} from '@/lib/world-layout';
 import {contains,floorShape,gardenHotspot,furnitureRegions,inGardenBase,pickInteraction,Shape} from '@/lib/world-geometry';
 import {chairPose,placedChairPose} from '@/lib/avatar-seating';
@@ -75,7 +74,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
    let state=useGame.getState(),position:Point={x:8.5,y:8.5},route:Point[]=[],pending:Interaction|undefined,selected:Interaction|undefined,hovered:Interaction|undefined;
    let seconds=0,reactionStart=-10,speed=0,facing=1,selectionTime=0,confirmation=0,highlightAlpha=0,displayed:Interaction|undefined,seated=false,seatedStation:number|undefined=undefined,seatedItem:Interaction|undefined=undefined,seatActivity:'Studying'|'Idle'='Studying',cursorMode='var(--leaf-default)',pressedUntil=0,pointer:Point|undefined,treeAlpha=1;
    let networkSignature='',networkGeneration=0,networkSent='',networkAt=0,networkBusy=false,networkSequence=0,networkSession='',networkWorld='';
-   const remotePeers=()=>otherGardeners(handlers.current.backend.snapshot?.members,handlers.current.backend.profile?.player_id);
+   const remotePeers=()=>handlers.current.backend.snapshot?.members.filter(m=>m.player_id!==handlers.current.backend.profile?.player_id&&m.online).sort((a,b)=>(a.slot??0)-(b.slot??0)).slice(0,3)??[];
    const remotePositions:Point[]=[];
    const remoteCycles:ReturnType<typeof createWalkCycle>[]=[],remoteStrides:Texture[][]=[];
    const reduced=matchMedia('(prefers-reduced-motion: reduce)');
@@ -168,12 +167,10 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
    const cycle=createWalkCycle(iso(position.x,position.y));
    const reading=await Promise.all(avatars.map(async (a,i)=>i===0||state.online[i]?texture(await avatarCanvas(a,true)):standing[i]));if(disposed)return;
    const players=standing.map((t,i)=>{const p=iso(approaches[i].x,approaches[i].y);return sprite(t,p.x,p.y+4,i===2?88:72);});
-   // Keep gardeners above room lighting. Depth stays on each sprite so nearer feet still draw in front.
-   const cast=new Container();cast.sortableChildren=true;cast.eventMode='none';players.forEach(s=>{world.removeChild(s);cast.addChild(s);});scene.addChildAt(cast,scene.getChildIndex(feedback));
    const friendShapes:({kind:'ellipse';x:number;y:number;rx:number;ry:number}|undefined)[]=[];
    const friendPositions:(Point|undefined)[]=[];
    // Online classmates use tight body ellipses, not their atlas cell bounds.
-   players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,get name(){return remotePeers()[i-1]?.name??'Gardener';},action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>(handlers.current.backend.enabled?!!remotePeers()[i-1]:state.online[i])&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen(handlers.current.backend.enabled?'friends':'profile',i)});});
+   players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,get name(){return remotePeers()[i-1]?.name??'Gardener';},action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>(handlers.current.backend.enabled?!!remotePeers()[i-1]?.online:state.online[i])&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen(handlers.current.backend.enabled?'friends':'profile',i)});});
    let wander=createSproutlingWander();const petPoint=iso(8,4),pet=sprite(petTextures[state.energy>=100?1:0],petPoint.x,petPoint.y,125);pet.zIndex=petPoint.y+6;
    const petRuns=[0,1].map(stage=>Array.from({length:sceneAssets.run.frames},(_,frame)=>new Texture({source:petRunSheet.source,frame:new Rectangle(frame*sceneAssets.run.width,stage*sceneAssets.run.height,sceneAssets.run.width,sceneAssets.run.height)})));
    let petHitTexture=petTextures[state.energy>=100?1:0];
@@ -200,7 +197,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
    const sleep=new Text({text:'z z',style:{fontFamily:'Georgia',fontSize:14,fill:0xeee4c4}});sleep.position.set(petPoint.x+18,petPoint.y-75);sleep.visible=false;feedback.addChild(sleep);
    const cues=interactions.filter(i=>i.id.startsWith('desk-')||['garden','board','pet'].includes(i.id)).map(item=>{const g=new Text({text:item.symbol,style:{fontFamily:'Georgia',fontSize:17,fill:0xd8e6ac,stroke:{color:0x30372a,width:3}}});g.anchor.set(.5);feedback.addChild(g);return {item,g};});
    const setActivity=(activity:MemberActivity)=>{if(useGame.getState().localActivity!==activity)useGame.getState().set({localActivity:activity});};
-   const reportPosition=()=>{if(!host.current||!Number.isFinite(position.x)||!Number.isFinite(position.y))return;host.current.dataset.playerTile=`${position.x.toFixed(2)},${position.y.toFixed(2)}`;host.current.dataset.destination=route.length?`${route[route.length-1].x},${route[route.length-1].y}`:'';host.current.dataset.facing=String(facing);host.current.dataset.selected=selected?.id??'';host.current.dataset.seatedAt=seatedItem?.id??(seatedStation===undefined?'':studyStations[seatedStation].id);host.current.dataset.onlineAvatars=String(handlers.current.backend.enabled?1+remotePeers().length:state.online.filter(Boolean).length);};
+   const reportPosition=()=>{if(host.current){host.current.dataset.playerTile=`${position.x.toFixed(2)},${position.y.toFixed(2)}`;host.current.dataset.destination=route.length?`${route[route.length-1].x},${route[route.length-1].y}`:'';host.current.dataset.facing=String(facing);host.current.dataset.selected=selected?.id??'';host.current.dataset.seatedAt=seatedItem?.id??(seatedStation===undefined?'':studyStations[seatedStation].id);host.current.dataset.onlineAvatars=String(handlers.current.backend.enabled?1+remotePeers().length:state.online.filter(Boolean).length);}};
    const sitAt=(item:Interaction)=>{
     if(item.seat){seatedItem=item;seated=true;facing=item.seat.facing;seatActivity=itemInteractions.desk?.action===item.action?'Studying':'Idle';confirmation=.65;setActivity(seatActivity);return;}
     const index=studyStations.findIndex(station=>station.id===item.id);if(index<0)return;seatedStation=index;seated=true;seatActivity='Studying';facing=chairPose(index).facing;confirmation=.65;setActivity('Studying');};
@@ -388,7 +385,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
      }).catch(console.error);
     }
    });
-   app.ticker.add(tick=>{try{
+   app.ticker.add(tick=>{
     if(previewArt)publishAnchor();
     const dt=Math.min(tick.deltaMS/1000,.05);seconds+=dt;const motion=state.settings.motion&&!reduced.matches;
     if(roomInputBlocked()){if(route.length||pending){route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity(handlers.current.activityOverride??'Idle');reportPosition();}hovered=undefined;floorHover.visible=false;}
@@ -401,29 +398,25 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
      if(!route.length){speed=0;marker.visible=false;confirmation=pending?.3:0;setActivity('Idle');if(pending?.lookAt){const look=pending.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}if(pending)sitAt(pending);reportPosition();}
     }
     if(confirmation>0){confirmation-=dt;if(confirmation<=0&&pending){const done=pending;pending=undefined;selected=undefined;done.activate();}}
-    if(!Number.isFinite(position.x)||!Number.isFinite(position.y))position={x:8.5,y:8.5};
-    facing=facingSign(facing);
-    const net=handlers.current.backend,peers=remotePeers();
-    if(net.lease?.id!==networkSession){networkSession=net.lease?.id??'';networkSequence=net.lease?.sequence??0;networkSent='';const local=net.snapshot?.members.find(m=>m.player_id===net.profile?.player_id);if(local){position=memberTile(local,local.slot??0);facing=facingSign(local.facing);route=[];pending=undefined;reportPosition();}}
     const p=iso(position.x,position.y),stride=cycle(p);
     const seat=seated&&seatedStation!==undefined?chairPose(seatedStation,deskTextures[0].height/deskTextures[0].width,stationPositions[seatedStation],stationMirrors[seatedStation]):seated?seatedItem?.seat:undefined;
-    const localTexture=seat?reading[0]:stride.frame>=0?(strides[stride.frame]??standing[0]):standing[0];
-    if(localTexture?.width)players[0].texture=localTexture;players[0].anchor.set(seat?.anchorX??.5,seat?.anchorY??1);players[0].width=76;players[0].height=76*(players[0].texture.height||1)/(players[0].texture.width||1);
-    players[0].scale.x=(Math.abs(players[0].scale.x)||1)*facingSign(seat?.facing??facing);const localX=seat?.x??p.x,localY=seat?.y??p.y+4+stride.bob;if(Number.isFinite(localX)&&Number.isFinite(localY))players[0].position.set(localX,localY);players[0].rotation=seat?0:stride.lean;players[0].zIndex=seat?.depth??(Number.isFinite(p.y)?p.y+6:500);players[0].visible=true;players[0].alpha=1;
-    const signature=peers.map(peer=>`${peer.player_id}:${peer.appearance_version}`).join('|');
-    if(net.enabled&&signature!==networkSignature){reportPosition();networkSignature=signature;const generation=++networkGeneration;peers.forEach((peer,j)=>{const tile=memberTile(peer,peer.slot??j);remoteCycles[j+1]=createWalkCycle(iso(tile.x,tile.y));remoteStrides[j+1]=[];void(async()=>{const portrait=peer.avatar??useGame.getState().avatar;const [idle,study]=await Promise.all([avatarCanvas(portrait),avatarCanvas(portrait,true)].map(async canvas=>texture(await canvas)));if(disposed||generation!==networkGeneration||!idle.width)return;standing[j+1]=idle;reading[j+1]=study;const frames:Texture[]=[];for(let frame=0;frame<RUN_FRAME_COUNT;frame++){await new Promise<void>(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));if(disposed||generation!==networkGeneration)return;frames.push(await texture(await avatarCanvas(portrait,false,frame)));}if(!disposed&&generation===networkGeneration)remoteStrides[j+1]=frames;})().catch(()=>handlers.current.onHint('A gardener’s portrait is still loading.'));});}
+    players[0].texture=seat?reading[0]:stride.frame>=0?(strides[stride.frame]??standing[0]):standing[0];players[0].anchor.set(seat?.anchorX??.5,seat?.anchorY??1);players[0].width=76;players[0].height=76*players[0].texture.height/players[0].texture.width;
+    players[0].scale.x=Math.abs(players[0].scale.x)*(seat?.facing??facing);players[0].position.set(seat?.x??p.x,seat?.y??p.y+4+stride.bob);players[0].rotation=seat?0:stride.lean;players[0].zIndex=seat?.depth??p.y+6;
+    const net=handlers.current.backend,peers=remotePeers();
+    const signature=peers.map(p=>`${p.player_id}:${p.appearance_version}`).join('|');
+    if(net.enabled&&signature!==networkSignature){reportPosition();networkSignature=signature;const generation=++networkGeneration;peers.forEach((peer,j)=>{remoteCycles[j+1]=createWalkCycle(iso(peer.x,peer.y));remoteStrides[j+1]=[];void(async()=>{const [idle,study]=await Promise.all([avatarCanvas(peer.avatar),avatarCanvas(peer.avatar,true)].map(async canvas=>texture(await canvas)));if(disposed||generation!==networkGeneration)return;standing[j+1]=idle;reading[j+1]=study;const frames:Texture[]=[];for(let frame=0;frame<RUN_FRAME_COUNT;frame++){await new Promise<void>(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));if(disposed||generation!==networkGeneration)return;frames.push(await texture(await avatarCanvas(peer.avatar,false,frame)));}if(!disposed&&generation===networkGeneration)remoteStrides[j+1]=frames;})().catch(()=>handlers.current.onHint('A gardener’s portrait is still loading.'));});}
+    if(net.lease?.id!==networkSession){networkSession=net.lease?.id??'';networkSequence=net.lease?.sequence??0;networkSent='';const local=net.snapshot?.members.find(m=>m.player_id===net.profile?.player_id);if(local){position={x:local.x,y:local.y};facing=local.facing;route=[];pending=undefined;reportPosition();}}
     if((net.snapshot?.world.id??'')!==networkWorld){networkWorld=net.snapshot?.world.id??'';remotePositions.length=0;if(net.snapshot)sharedPet=sharedSproutlingAt(net.snapshot.world.id,sproutlingClock(Date.now()+net.snapshot.clockOffset,net.snapshot.world.pet_pause_total,net.snapshot.world.pet_pause_until));}
-    for(let i=1;i<4;i++){const ground=friendPositions[i]??approaches[i];if(!net.enabled&&state.online[i]&&blocked(ground.x,ground.y))friendPositions[i]={...nearestClear(ground)};const at=friendPositions[i]??approaches[i];const peer=net.enabled?peers[i-1]:undefined,tile=peer?memberTile(peer,peer.slot??i-1):at,target=iso(tile.x,tile.y);if(!remotePositions[i]||!Number.isFinite(remotePositions[i].x)||!Number.isFinite(remotePositions[i].y))remotePositions[i]={...target};if(Number.isFinite(target.x)&&Number.isFinite(target.y)){remotePositions[i].x+=(target.x-remotePositions[i].x)*Math.min(1,dt*12);remotePositions[i].y+=(target.y-remotePositions[i].y)*Math.min(1,dt*12);}const base=net.enabled?remotePositions[i]:target,chairSeat=seatIndex(peer?.seat),sitting=net.enabled?chairSeat!==undefined:!friendPositions[i]&&!stationStored[i]&&state.memberActivities[i]==='Studying',chair=sitting?chairPose(chairSeat??i,deskTextures[0].height/deskTextures[0].width,stationPositions[chairSeat??i],stationMirrors[chairSeat??i]):undefined;
-     const gait=net.enabled&&!sitting?remoteCycles[i]?.(base):undefined,worn=sitting?reading[i]:gait&&gait.frame>=0?(remoteStrides[i]?.[gait.frame]??standing[i]):standing[i];if(worn?.width)players[i].texture=worn;players[i].rotation=gait?.lean??0;players[i].anchor.set(chair?.anchorX??.5,chair?.anchorY??1);const width=net.enabled?(peer?.avatar?.style===1?88:72):i===2?88:72;players[i].width=width;players[i].height=width*(players[i].texture.height||1)/(players[i].texture.width||1);players[i].scale.x=(Math.abs(players[i].scale.x)||1)*facingSign(chair?.facing??peer?.facing);const footX=chair?.x??base.x,footY=chair?.y??base.y+4+(gait?.bob??0);if(Number.isFinite(footX)&&Number.isFinite(footY))players[i].position.set(footX,footY);players[i].zIndex=chair?.depth??(Number.isFinite(base.y)?base.y+6:500);players[i].visible=net.enabled?!!peer:state.online[i];players[i].alpha=1;if(peer){const hit=interactions.find(item=>item.id===`friend-${i}`);if(hit){hit.name=peer.name;hit.approaches=[{x:tile.x,y:tile.y}];}}
+    for(let i=1;i<4;i++){const ground=friendPositions[i]??approaches[i];if(!net.enabled&&state.online[i]&&blocked(ground.x,ground.y))friendPositions[i]={...nearestClear(ground)};const at=friendPositions[i]??approaches[i];const peer=net.enabled?peers[i-1]:undefined,target=peer?iso(peer.x,peer.y):iso(at.x,at.y);if(!remotePositions[i])remotePositions[i]={...target};remotePositions[i].x+=(target.x-remotePositions[i].x)*Math.min(1,dt*12);remotePositions[i].y+=(target.y-remotePositions[i].y)*Math.min(1,dt*12);const base=net.enabled?remotePositions[i]:target,sitting=net.enabled?!!peer&&peer.seat>=0:!friendPositions[i]&&!stationStored[i]&&state.memberActivities[i]==='Studying',chair=sitting?chairPose(peer?.seat??i,deskTextures[0].height/deskTextures[0].width,stationPositions[peer?.seat??i],stationMirrors[peer?.seat??i]):undefined;
+     const gait=net.enabled&&!sitting?remoteCycles[i]?.(base):undefined;players[i].texture=sitting?reading[i]:gait&&gait.frame>=0?(remoteStrides[i]?.[gait.frame]??standing[i]):standing[i];players[i].rotation=gait?.lean??0;players[i].anchor.set(chair?.anchorX??.5,chair?.anchorY??1);players[i].width=net.enabled?(peer?.avatar.style===1?88:72):i===2?88:72;players[i].height=players[i].width*players[i].texture.height/players[i].texture.width;players[i].scale.x=Math.abs(players[i].scale.x)*(chair?.facing??peer?.facing??1);players[i].position.set(chair?.x??base.x,chair?.y??base.y+4+(gait?.bob??0));players[i].zIndex=chair?.depth??base.y+6;players[i].visible=net.enabled?!!peer?.online:state.online[i];if(peer){const target=interactions.find(item=>item.id===`friend-${i}`);if(target){target.name=peer.name;target.approaches=[{x:peer.x,y:peer.y}];}}
      const shape=friendShapes[i];if(shape){shape.x=players[i].x;shape.y=players[i].y-(sitting?22:28);}
     }
-    if(net.enabled&&net.lease&&Number.isFinite(position.x)&&seconds-networkAt>=.2&&!networkBusy){
+    if(net.enabled&&net.lease&&seconds-networkAt>=.2&&!networkBusy){
      const signature=`${net.lease.id}:${position.x.toFixed(3)}:${position.y.toFixed(3)}:${facing}:${state.localActivity}:${seatedStation??-1}`;
      if(signature!==networkSent){networkAt=seconds;networkBusy=true;const session=net.lease.id;const sample={session,geometryVersion:'moonlit-v2',layoutVersion:net.snapshot?.world.room_layout_version??0,x:position.x,y:position.y,facing,sequence:++networkSequence,activity:state.localActivity,seat:seatedStation??-1};
       void net.invoke('move',sample).then(()=>{if(handlers.current.backend.lease?.id===session)networkSent=signature;}).catch(e=>{
        if(handlers.current.backend.lease?.id!==session)return;
-       const recovered=e instanceof BackendError?e.details?.position:undefined;
-       if(recovered&&Number.isFinite(recovered.x)&&Number.isFinite(recovered.y)){position={x:recovered.x,y:recovered.y};route=[];pending=undefined;seatedStation=undefined;seated=false;marker.visible=false;reportPosition();}
+       if(e instanceof BackendError&&e.details?.position){position={...e.details.position};route=[];pending=undefined;seatedStation=undefined;seated=false;marker.visible=false;reportPosition();}
        handlers.current.onHint(e instanceof BackendError?e.message:'Your movement is reconnecting. Please try that destination again.');
       }).finally(()=>{networkBusy=false;});
      }
@@ -467,7 +460,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
     branches.forEach(({c,side})=>{c.visible=!movingGarden&&!gardenStored&&motion&&state.settings.graphics==='Full'&&stageFor(state.energy)>0;c.alpha=.7*treeAlpha;c.pivot.x=gp.x;c.scale.x=gardenMirrored?-1:1;c.x=gp.x+(motion?Math.sin(seconds*(side===1?.61:.43)+side)*1.3:0);c.y=motion?Math.sin(seconds*.37+side)*.45:0;});
     effects.update(seconds,dt,motion,state.settings.graphics==='Full',celebrate);
     stoveSmokes.forEach(smoke=>smoke.update(seconds));
-   }catch(e){console.error(e);}});
+   });
    void warmStrides(state.avatar).catch(console.error);
    reportPosition();visibility=()=>{if(document.hidden)app.ticker.stop();else app.ticker.start();};document.addEventListener('visibilitychange',visibility);visibility();
   };
