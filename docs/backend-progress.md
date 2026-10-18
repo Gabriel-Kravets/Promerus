@@ -2,7 +2,7 @@
 
 ## Phase 1 — frontend integration and multiplayer backend
 
-**Local implementation is prepared; hosted integration is not yet verified.** The user approved the staging architecture and is arranging the staging project/access. No production database structures were changed.
+**Hosted staging is configured and partially verified with two real accounts.** The four approved migrations are applied to sproutbound-backend (`llrrlwuwygkxftgnvvsa`), game-api is deployed, the approved Auth0 trust is enabled and Realtime is private-only. Fixed the hosted gateway's rejection of external Auth0 RS256 tokens while retaining mandatory cryptographic handler authentication and RLS. Real users joined the same room, movement persisted, avatar updates reached the other session, both completed authored lessons, +40 shared energy reached the ledger and Sprout growth/cooperative quest completion were recorded. A Gemini course and real short-answer grade succeeded after earlier generation failures. Full release acceptance remains incomplete: replay/network disruption, later stages, synchronized celebrations and live unauthorized/revoked access tests remain. See backend-staging-setup.md for evidence and limitations. No production database changes or dev/main merges were made.
 
 ### Integration completed
 
@@ -30,7 +30,7 @@ Daily flashcard/focus counters and timer state remain account-scoped device-loca
 
 - TypeScript and production build passed; static `/`, `/game`, `/learn` remain available.
 - Frontend/auth suite: **50 tests** passed.
-- Backend suite: **28 tests** passed using cryptographic JWT fixtures and embedded PostgreSQL. This covers migrations, actor isolation, private solutions, membership/visit/owner policies, anonymous denial, channel access/epoch, capacity, takeover, movement concurrency, shared reactions, generation idempotency and reward replay/quest invariants.
+- Backend suite: **29 tests** passed using cryptographic JWT fixtures and embedded PostgreSQL. This covers migrations, actor isolation, private solutions, membership/visit/owner policies, anonymous denial, channel access/epoch, capacity, takeover, movement concurrency, shared reactions, generation idempotency and reward replay/quest invariants.
 - Existing Python CLI dependencies install in an isolated temporary environment; **4 offline tests** passed and `pip check` found no broken requirements. No paid/live provider call was made.
 - Teammate authentication suite: **52 tests** passed across the standalone UI and both adapter copies.
 - Supabase Edge Function passed Deno type checking against pinned dependencies.

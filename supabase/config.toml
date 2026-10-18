@@ -11,10 +11,12 @@ enabled = true
 tenant = "dev-phu3idfk55gl1dkn"
 tenant_region = "us"
 
-# Gateway provider compatibility must be verified in staging. The handler also
-# cryptographically validates the exact Auth0 issuer, audience and signing key.
+# The hosted gateway rejects external Auth0 RS256 tokens (UNAUTHORIZED_ASYMMETRIC_JWT).
+# Authentication remains mandatory in game-api: verifyPlayerToken checks the
+# Auth0 JWKS signature, RS256, exact issuer/audience, expiry and authenticated role
+# before any action or privileged database access. Data API/RLS still verify Auth0.
 [functions.game-api]
-verify_jwt = true
+verify_jwt = false
 
 # Keep local background course jobs alive after the HTTP response.
 [edge_runtime]

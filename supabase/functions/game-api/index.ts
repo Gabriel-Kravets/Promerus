@@ -5,7 +5,7 @@ import {serverKeys} from '../../../src/lib/backend/server-keys.ts';
 import {readJsonBody,PayloadTooLarge} from '../../../src/lib/backend/request-body.ts';
 import {verifyPlayerToken} from '../../../src/lib/backend/verify-token.ts';
 import {positionSchema} from '../../../src/lib/backend/contracts.ts';
-import {generatedCourse,generationInput,courseInstructions,gradingInstructions,geminiJson} from '../../../src/lib/backend/generation.ts';
+import {generatedCourse,generationInput,courseInstructions,gradingInstructions,geminiJson,generationFailureCode} from '../../../src/lib/backend/generation.ts';
 import {studyStations} from '../../../src/lib/world-layout.ts';
 import {validMovement} from '../../../src/lib/backend/movement-validation.ts';
 import {distance} from '../../../src/lib/movement.ts';
@@ -71,7 +71,7 @@ Deno.serve(async(req:Request)=>{
      const path=await rpc<string>(admin,'publish_generation',{p_job:job.id,p_title:course.title,p_topic:input.topic,p_difficulty:input.difficulty,p_source:input.source,p_lessons:course.lessons});
      // Publishing commits the course and job result in one database transaction.
      void path;
-    }catch{await rpc(admin,'finish_generation',{p_job:job.id,p_path:null,p_error:'generation_unavailable'});}
+    }catch(error){const code=generationFailureCode(error);console.warn('Course generation failed',code);await rpc(admin,'finish_generation',{p_job:job.id,p_path:null,p_error:code});}
    };
    EdgeRuntime.waitUntil(work());return reply(job,202);
   }

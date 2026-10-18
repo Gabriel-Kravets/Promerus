@@ -22,5 +22,6 @@ __pycache__/
 *.py[cod]
 
 .pnpm-store/
+/supabase/.temp/
 .env*
 !.env.example
