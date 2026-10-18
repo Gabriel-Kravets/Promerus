@@ -16,10 +16,11 @@ const gardenFrames=[[0,0,768,480],[768,0,768,480],[0,480,768,544],[768,480,768,5
 const typeLabels:Record<ItemType,string>={desk:'Desk',tree:'Tree',carpet:'Carpet','botanical-desk':'Desk',lantern:'Lighting',armchair:'Chair',stove:'Stove',telescope:'Curio'};
 
 export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
-  const {initialized,items,tutorialSeen,markTutorialSeen,placements,returnItem,theme,fixturePositions,storedFixtures}=useInventory();
-  const collectionItems=[...items,...roomFixtures.map(f=>fixtureItem(f.id,theme,fixturePositions?.[f.id]?.mirrored)!)];
-  const available=items.length-placements.length+(storedFixtures?.length??0);
+  const {initialized,items,tutorialSeen,markTutorialSeen,placements,returnItem,theme,fixturePositions,storedFixtures,unusedDesks}=useInventory();
   const isPlaced=(item:InventoryItem)=>roomFixture(item.id)?!storedFixtures?.includes(item.id):placements.some(p=>p.itemId===item.id);
+  // Starting desks are the room's own desk spots, one per person; older per-member desk grants only show once placed.
+  const collectionItems=[...items.filter(item=>item.type!=='desk'||item.grantedTo===undefined||isPlaced(item)),...roomFixtures.filter(f=>!unusedDesks.includes(f.id)).map(f=>fixtureItem(f.id,theme,fixturePositions?.[f.id]?.mirrored)!)];
+  const available=collectionItems.filter(item=>!isPlaced(item)).length;
   const desks=collectionItems.filter(item=>item.type==='desk'),others=collectionItems.filter(item=>item.type!=='desk');
   const stage=useGame(state=>stageFor(state.energy));
   const [showTutorial,setShowTutorial]=useState(()=>!tutorialSeen);
@@ -36,7 +37,7 @@ export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
       {showTutorial&&<section className="collection-tutorial" aria-labelledby="collection-tutorial-title">
         <Sparkles size={24} aria-hidden="true"/>
         <div><h2 id="collection-tutorial-title">Your greenhouse starts here</h2>
-          <p>A desk for every gardener, and the shared garden at the heart of the room. Your starting pieces are highlighted below. When someone new joins, a matching desk joins your collection.</p>
+          <p>A desk for every gardener, and the shared garden at the heart of the room. Your starting pieces are highlighted below. You start with one desk for each person in the room, and another appears when someone new joins.</p>
           <button type="button" className="secondary" onClick={()=>setShowTutorial(false)}>Got it</button>
         </div>
       </section>}
@@ -45,13 +46,14 @@ export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
         {desks.length>0&&(()=>{
           // Desks are grouped into one card: one per gardener, no per-desk names.
           const placedDesks=desks.filter(isPlaced).length,next=desks.find(desk=>!isPlaced(desk)),label=`${desks.length} ${desks.length===1?'desk':'desks'}`;
-          const themes=[...new Set(desks.map(desk=>desk.theme))],starter=showTutorial&&desks.some(desk=>desk.grantedTo!==undefined);
+          const themes=[...new Set(desks.map(desk=>desk.theme))],starter=showTutorial;
           const shown=next??desks[0];
           return <li key="desks" className={`collection-item${starter?' is-starter':''}`} data-item-type="desk">
-            <div className={`collection-item-art collection-art-${shown.theme.toLowerCase()}`}>
+            <div className="collection-item-art">
               <svg className="collection-study-desk" viewBox={`0 0 ${studyDeskSprite.frameWidth} ${studyDeskSprite.frameHeight}`} aria-hidden="true" style={{transform:deskChairSide(shown.id,!!shown.mirrored)===-1?'scaleX(-1)':undefined}}>
                 <image href={studyDeskSprite.src} width={studyDeskSprite.frameWidth*2} height={studyDeskSprite.frameHeight*2}/>
               </svg>
+              <span className="collection-count-badge" aria-hidden="true">×{desks.length}</span>
             </div>
             <span className="collection-type">{typeLabels.desk}</span>
             <h2>{label}</h2>
@@ -66,7 +68,7 @@ export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
           const placed=isPlaced(item);
           const starter=showTutorial&&item.grantedTo!==undefined,garden=item.id==='fixture:garden';
           return <li key={item.id} className={`collection-item${starter?' is-starter':''}`} data-item-id={item.id}>
-            <div className={`collection-item-art collection-art-${item.theme.toLowerCase()}`}>{garden
+            <div className="collection-item-art">{garden
               ?<svg className="collection-garden" viewBox={gardenFrames[stage].join(' ')} role="img" aria-label={`${stages[stage]} stage tree`} style={{aspectRatio:`${gardenFrames[stage][2]}/${gardenFrames[stage][3]}`,transform:item.mirrored?'scaleX(-1)':undefined}}><image href="/assets/garden-stages.webp" width="1536" height="1024"/></svg>
               :itemSprites[item.type]?<img className="collection-sprite" src={itemSprites[item.type]!.src} alt="" style={{transform:item.mirrored?'scaleX(-1)':undefined}}/>:<Icon size={40} strokeWidth={1.5} style={{transform:item.mirrored?'scaleX(-1)':undefined}} aria-hidden="true"/>}</div>
             <span className="collection-type">{typeLabels[item.type]}</span>

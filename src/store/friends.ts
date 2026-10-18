@@ -5,9 +5,9 @@ import {presets,type Avatar} from './game';
 export type FriendProfile={id:string;name:string;avatar:Avatar;roomMember?:number};
 // The demo directory is independent from the greenhouse membership list.
 export const friendDirectory:FriendProfile[]=[
-  {id:'maya',name:'Maya',avatar:presets[1],roomMember:1},
-  {id:'kai',name:'Kai',avatar:presets[2],roomMember:2},
-  {id:'jules',name:'Jules',avatar:presets[3],roomMember:3},
+  {id:'maya',name:'Maya',avatar:presets[1]},
+  {id:'kai',name:'Kai',avatar:presets[2]},
+  {id:'jules',name:'Jules',avatar:presets[3]},
   {id:'rowan',name:'Rowan',avatar:{...presets[0],hair:'#86758d',outfit:'#577b60'}}
 ];
 export function validFriendIds(value:unknown):string[] {

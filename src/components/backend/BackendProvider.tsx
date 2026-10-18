@@ -62,7 +62,7 @@ export default function BackendProvider({children}:{children:ReactNode}){
   void(async()=>{
    try{
     const saved=await bootstrap(client);if(cancelled)return;
-    setPlayerStorageScope(saved.profile.player_id);let preferences;try{const cached=JSON.parse(localStorage.getItem(scopedStorageKey('sproutbound-v1'))||'null');const parsed=z.object({motion:z.boolean(),audio:z.boolean(),scale:z.enum(['Comfortable','Large']),graphics:z.enum(['Full','Simple']),theme:z.enum(['Classic','Stardew']).default('Stardew')}).safeParse(cached?.state?.settings);if(parsed.success)preferences=parsed.data;}catch{}useGame.getState().reset();
+    setPlayerStorageScope(saved.profile.player_id);let preferences;try{const cached=JSON.parse(localStorage.getItem(scopedStorageKey('sproutbound-v1'))||'null');const parsed=z.object({motion:z.boolean(),audio:z.boolean(),scale:z.enum(['Comfortable','Large']),graphics:z.enum(['Full','Simple']),theme:z.enum(['Classic','Stardew']).default('Classic')}).safeParse(cached?.state?.settings);if(parsed.success)preferences=parsed.data;}catch{}useGame.getState().reset();
     useGame.getState().set({cloud:true,...(preferences?{settings:preferences}:{}),name:saved.profile.name,avatar:saved.appearance.avatar,created:saved.profile.onboarding_complete,level:saved.profile.level,goal:saved.profile.goal,minutes:saved.profile.minutes});
     appearanceVersion.current=saved.appearance.version;current.current.profile=saved.profile;setProfile(saved.profile);
     if(!window.name.startsWith('sproutbound-controller:'))window.name=`sproutbound-controller:${crypto.randomUUID()}`;controller.current=window.name;

@@ -7,6 +7,7 @@ import {verifyPlayerToken} from '../../../src/lib/backend/verify-token.ts';
 import {positionSchema} from '../../../src/lib/backend/contracts.ts';
 import {generatedCourse,generationInput,courseInstructions,gradingInstructions,geminiJson,generationFailureCode} from '../../../src/lib/backend/generation.ts';
 import {studyStations} from '../../../src/lib/world-layout.ts';
+import {unusedDesks} from '../../../src/lib/room-fixtures.ts';
 import {validMovement} from '../../../src/lib/backend/movement-validation.ts';
 import {applyLayoutCommand,parseRoomLayout,withRoomGeometry,layoutCommand} from '../../../src/lib/backend/room-layout.ts';
 import {distance} from '../../../src/lib/movement.ts';
@@ -60,13 +61,15 @@ Deno.serve(async(req:Request)=>{
    const {data:s,error}=await admin.from('room_sessions').select('id,player_id,greenhouse_id,x,y,sequence,moved_at').eq('id',session).eq('player_id',actor).maybeSingle();
    if(error||!s)return reply({error:'Session unavailable'},403);
    if(movement.sequence<=s.sequence)return reply(s);
-   const {data:layoutWorld,error:layoutError}=await admin.from('greenhouses').select('room_layout,room_layout_version').eq('id',s.greenhouse_id).maybeSingle();
-   if(layoutError||!layoutWorld)return reply({error:'Session unavailable'},403);
+   const [{data:layoutWorld,error:layoutError},{count:memberCount,error:countError}]=await Promise.all([
+    admin.from('greenhouses').select('room_layout,room_layout_version').eq('id',s.greenhouse_id).maybeSingle(),
+    admin.from('greenhouse_memberships').select('player_id',{count:'exact',head:true}).eq('greenhouse_id',s.greenhouse_id)]);
+   if(layoutError||countError||!layoutWorld)return reply({error:'Session unavailable'},403);
    if(layoutWorld.room_layout&&movement.layoutVersion!==layoutWorld.room_layout_version)return reply({error:'Room layout changed; reload before editing',position:{x:s.x,y:s.y}},409);
-   const layout=layoutWorld.room_layout?parseRoomLayout(layoutWorld.room_layout,[]):null;
+   const layout=layoutWorld.room_layout?parseRoomLayout(layoutWorld.room_layout,[]):null,unused=unusedDesks(memberCount??0);
    const valid=()=>validMovement({x:s.x,y:s.y},movement,(Date.now()-Date.parse(s.moved_at))/1000);
-   if(!(layout?withRoomGeometry(layout,valid):valid()))return reply({error:'Please choose a clear floor destination',position:{x:s.x,y:s.y}},409);
-   if(movement.seat>=0&&!(()=>{const station=studyStations[movement.seat],id=`fixture:${station.id}`,at=layout?.fixturePositions[id]??station.position;if(layout?.storedFixtures.includes(id))return false;return [station.seat,...station.alternatives].map(p=>{const dx=p.x-station.position.x,dy=p.y-station.position.y;return {x:at.x+('mirrored' in at&&at.mirrored?dy:dx),y:at.y+('mirrored' in at&&at.mirrored?dx:dy)};}).some(p=>distance(p,movement)<30);})())return reply({error:'Choose an accessible chair',position:{x:s.x,y:s.y}},409);
+   if(!(layout?withRoomGeometry(layout,valid,unused):valid()))return reply({error:'Please choose a clear floor destination',position:{x:s.x,y:s.y}},409);
+   if(movement.seat>=0&&!(()=>{const station=studyStations[movement.seat],id=`fixture:${station.id}`,at=layout?.fixturePositions[id]??station.position;if(layout?.storedFixtures.includes(id)||unused.includes(id))return false;return [station.seat,...station.alternatives].map(p=>{const dx=p.x-station.position.x,dy=p.y-station.position.y;return {x:at.x+('mirrored' in at&&at.mirrored?dy:dx),y:at.y+('mirrored' in at&&at.mirrored?dx:dy)};}).some(p=>distance(p,movement)<30);})())return reply({error:'Choose an accessible chair',position:{x:s.x,y:s.y}},409);
    try{return reply(await rpc(admin,'apply_movement',{p_player:actor,p_session:session,p_x:movement.x,p_y:movement.y,p_facing:movement.facing,p_sequence:movement.sequence,p_activity:movement.activity,p_seat:movement.seat,p_previous_sequence:s.sequence}));}
    catch{return reply({error:'Movement could not be accepted',position:{x:s.x,y:s.y}},409);}
   }

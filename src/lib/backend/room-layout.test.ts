@@ -29,3 +29,9 @@ test('worker collision state is reset after each world validation, including exc
  assert.throws(()=>withRoomGeometry(layout,()=>{throw new Error('fixture');}));
  assert.equal(blocked(5.5,5.5),true);
 });
+test('server keeps desk spots beyond the member count out of the room',()=>{
+ const layout=parseRoomLayout(null,['alice']);
+ assert.throws(()=>applyLayoutCommand(layout,['alice'],{kind:'place',id:'fixture:desk-1',position:{x:8,y:8},mirrored:false}),/unavailable/);
+ assert.throws(()=>applyLayoutCommand(layout,['alice'],{kind:'return',id:'fixture:desk-3'}),/unavailable/);
+ assert.doesNotThrow(()=>applyLayoutCommand(layout,['alice','bob'],{kind:'return',id:'fixture:desk-1'}));
+});
