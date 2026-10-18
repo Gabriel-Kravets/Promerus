@@ -1,4 +1,5 @@
--- PROPOSAL ONLY. Requires approval before execution; deliberately outside migrations/.
+-- Applied manually by the user to staging via Query 26 on 2026-10-18.
+-- Verified against hosted catalogs; migration history reconciled without re-execution.
 -- Supabase SQL Editor query: 26_Sproutbound_Four_Permanent_Members
 begin;
 

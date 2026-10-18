@@ -108,3 +108,9 @@ Staging only, localhost:3000, two different real Auth0 accounts in regular Edge 
 - Checks: TypeScript, production build, Edge Deno type-check, 50 frontend + 52 auth + 29 backend + 4 Python tests passed (135 total). No separate lint target exists.
 
 Keep PR #3 open. Before release, repeat the remaining live checks with uninterrupted browser access, resolve generated-content/reliability concerns and remediate the dependency advisories. The safest dependency path is a separately reviewed upgrade to supported Next 16.4.2 (bundled PostCSS 8.5.23), respecting Node >=20.9 and rerunning the complete regression/audit suite. Do not force npm audit fixes or override framework internals. No framework upgrade was performed during staging setup.
+
+## Query 26 reconciliation — 2026-10-18
+
+The user subsequently installed the four-permanent-member guard manually in staging. Its function body, enabled membership trigger, SECURITY DEFINER/empty search_path and restricted execute ACL were verified read-only; no room exceeded four permanent memberships. The approved SQL now resides in `supabase/migrations/202610180005_four_permanent_members.sql`. Migration history was marked applied using `migration repair`, without re-executing SQL or changing application data. See main-worlds-integration.md for the command and evidence. Do not run Query 26 again on this project.
+
+Post-repair verification: migration list shows all five local/remote versions matched. `db push --dry-run` returned `upToDate: true`, with no migrations, seeds or roles pending. No migration SQL ran during that verification.

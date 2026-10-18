@@ -17,6 +17,7 @@ before(async()=>{
  await db.exec(await readFile(new URL('../migrations/202610170002_learning_rewards.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../migrations/202610170003_live_sessions.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../migrations/202610170004_membership_lifecycle.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../migrations/202610180005_four_permanent_members.sql',import.meta.url),'utf8'));
 });
 after(async()=>{await db.close();});
 let alice:string,bob:string,world:string,invite:string;
@@ -194,9 +195,7 @@ test('Sproutling reactions require an active actor-bound session and never grant
  await as('auth0|bob',async()=>{await assert.rejects(()=>scalar("react_sproutling(gen_random_uuid(),'happy')"),/Session expired/);});
 });
 
-test('proposed permanent-member limit includes offline members and preserves existing membership on rejection',async()=>{
- // Execute the pending proposal only in this embedded database, never hosted staging.
- await db.exec(await readFile(new URL('../proposed-migrations/202610180005_four_permanent_members.sql',import.meta.url),'utf8'));
+test('permanent-member limit includes offline members and preserves existing membership on rejection',async()=>{
  let limited='',code='';
  await as('auth0|limit-owner',async()=>{await scalar('bootstrap_player()');limited=await scalar<string>("create_greenhouse('Permanent limit test')");code=await scalar<string>('issue_invite($1)',[limited]);});
  for(let i=0;i<3;i++)await as(`auth0|limit-member-${i}`,async()=>{await scalar('bootstrap_player()');assert.equal(await scalar('join_greenhouse($1)',[code]),limited);});

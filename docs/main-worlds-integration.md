@@ -20,21 +20,27 @@ Main's shop and editable furniture are device-local prototypes; the existing 21-
 
 The new introduction/returning-player routing and token renewal have automated coverage. A returning real account was refreshed at localhost:3000, loaded actual memberships and the four requested world sections, then continued its saved greenhouse. The live room showed two real customized avatars, 100 shared energy through the Sprout/Bloom progress display, saved +20 contribution rows, Sprout tree and active Sproutling. No fresh real account onboarding or new invite/create workflow was repeated during this timebox; previous hosted verification is recorded separately in backend-staging-setup.md. Full two-account movement/replay/reconnection/adversarial/celebration acceptance remains incomplete. Gemini reliability/content-quality issues from the previous pass remain outstanding.
 
-## Four permanent members — approval required
+## Four permanent members — installed and history reconciled
 
-Current join_greenhouse admits permanent members without a four-member count; enter_greenhouse limits only active leases. The owner is already a permanent member. Prepared exact SQL: `supabase/proposed-migrations/202610180005_four_permanent_members.sql`.
+The user applied **26_Sproutbound_Four_Permanent_Members** to staging after the original report. On 2026-10-18, read-only catalog verification confirmed the installed function body matches Query 26, the BEFORE INSERT / UPDATE OF greenhouse_id trigger is enabled on greenhouse_memberships, SECURITY DEFINER and empty search_path are set, and neither anon nor authenticated has direct execute permission. No greenhouse currently has more than four permanent members.
 
-Supabase SQL Editor query name: **26_Sproutbound_Four_Permanent_Members**.
+The guard serializes admission on the greenhouse row, counts the owner and offline memberships, rejects a fifth member, and leaves visit/lease rules unchanged. Existing members can rejoin without consuming an invitation use. The preflight rejects an installation over preexisting oversized rooms without deleting memberships.
 
-Expected result after approved execution: **Four-permanent-member admission guard installed; existing memberships preserved**. The guard serializes admission on the greenhouse row, counts owner and offline memberships, rejects a fifth member, and leaves visit/lease rules unchanged. A preflight aborts without changes if any existing room exceeds four members. Local PostgreSQL testing verified the rejection, unchanged invitation-use count and idempotent rejoin by an existing member.
+Canonical file: `supabase/migrations/202610180005_four_permanent_members.sql`, moved from proposed-migrations with executable SQL unchanged. Query 26 returned **Four-permanent-member admission guard installed; existing memberships preserved** according to the user; installation was then independently verified through the database catalogs.
 
-**Not deployed.** The proposal deliberately lives outside supabase/migrations so normal db push will not silently apply it. Obtain approval, inspect current staging migration history, and then move it into the versioned migrations directory/apply the exact reviewed SQL. No SQL audit queries were repeated here.
+Remote history initially contained only the four original versions. Reconciled only its bookkeeping with:
+
+```sh
+npx --yes supabase@2.121.0 migration repair 202610180005 --status applied --linked --project-ref llrrlwuwygkxftgnvvsa
+```
+
+**The migration SQL was not reapplied.** No application rows, trigger definitions, policies or production data were changed during reconciliation. Backend tests now apply all five canonical migrations to embedded PostgreSQL and all 32 pass, including the offline-member capacity and unchanged invitation-use assertions.
 
 ## Checks and deployment gates
 
 - TypeScript passed.
 - Frontend/gameplay/Auth0 tests: 149 passed, including Gabriel's furniture/gameplay regression tests and account-bound token renewal.
-- Backend/PostgreSQL tests: 32 passed, including onboarding routing and the proposal tested only in embedded PostgreSQL.
+- Backend/PostgreSQL tests: 32 passed, including onboarding routing and all five canonical migrations in embedded PostgreSQL. Hosted guard installation was separately verified read-only.
 - Production static build passed; /, /game and /learn exported.
 - Edge Function Deno type check passed. No hosted deployment was performed.
 - No standalone lint target exists. Python tests were not rerun in this timebox.
@@ -44,3 +50,5 @@ Known npm findings remain: one high and one moderate affected package through Ne
 Before a hosted frontend deployment, set both public Supabase variables plus existing public Auth0 identifiers in that hosting environment and rebuild. Add its exact frontend origin to the existing game-api APP_ORIGINS configuration and Auth0 allowed callback/logout/web origins through the approved configuration workflow. localhost staging success does not verify a Vercel/production origin. Keep privileged Supabase and Gemini keys server-only.
 
 Review this PR against main. PR #3 remains the prior backend candidate; do not merge both blindly, since this branch selectively carries its backend into the newer UI. No merges or force-pushes are authorized by this report.
+
+Post-repair verification: migration list shows all five local/remote versions matched. `db push --dry-run` returned `upToDate: true`, with no migrations, seeds or roles pending. No migration SQL ran during that verification.
