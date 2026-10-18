@@ -9,6 +9,7 @@ type AuthAdapter = {
   login: () => Promise<User | undefined>;
   signup: () => Promise<User | undefined>;
   logout: () => Promise<void>;
+  getToken: (expectedSubject?:string) => Promise<string>;
 };
 declare global { interface Window { SproutboundAuth?: AuthAdapter } }
 
@@ -38,7 +39,7 @@ export function authError(error: unknown) {
   return e?.message || 'Sign-in could not be completed. Please try again.';
 }
 
-const AuthContext = createContext<{user: User; logout: () => void; busy: boolean; error: string} | null>(null);
+const AuthContext = createContext<{user: User; logout: () => void; getToken: () => Promise<string>; busy: boolean; error: string} | null>(null);
 export const useAuth = () => useContext(AuthContext);
 
 export default function AuthGate({children}: {children: React.ReactNode}) {
@@ -72,7 +73,7 @@ export default function AuthGate({children}: {children: React.ReactNode}) {
     catch (e) { setError(authError(e)); }
     finally { setBusy(false); }
   }
-  if (user) return <AuthContext.Provider value={{user, logout, busy, error}}>{children}</AuthContext.Provider>;
+  if (user) return <AuthContext.Provider value={{user, logout, getToken:async()=>{if(!adapter)throw new Error("Sign-in is unavailable");return adapter.getToken(user.sub);}, busy, error}}>{children}</AuthContext.Provider>;
   return <main className="auth-scene"><section className="auth-card" aria-labelledby="auth-title" aria-busy={busy}>
     <img className="auth-mascot" src="/auth/sprout-mascot.png" alt="A smiling sprout"/>
     <span className="auth-sprig" aria-hidden="true">❧</span>

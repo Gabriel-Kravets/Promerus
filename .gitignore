@@ -16,3 +16,7 @@ out/
 # Local visual QA captures
 /greenhouse-preview.png
 /study-room-preview.png
+
+# Python runtime caches
+__pycache__/
+*.py[cod]

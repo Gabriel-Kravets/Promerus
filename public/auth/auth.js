@@ -83,10 +83,19 @@ window.SproutboundAuth = (() => {
     return authenticate({ screen_hint: "signup", prompt: "login" });
   }
 
+  async function getToken(expectedSubject) {
+    const client = await getClient();
+    await client.getTokenSilently();
+    const claims = await client.getIdTokenClaims();
+    if (expectedSubject && claims?.sub !== expectedSubject) throw new Error('This browser’s account changed. Sign out and sign in again.');
+    if (!claims?.__raw) throw new Error('Your sign-in expired. Please sign in again.');
+    return claims.__raw;
+  }
+
   async function logout() {
     const client = await getClient();
     await client.logout({ logoutParams: { returnTo: pageUrl() } });
   }
 
-  return { isConfigured, initialize, login, signup, logout };
+  return { isConfigured, initialize, login, signup, logout, getToken };
 })();

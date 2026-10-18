@@ -1,4 +1,5 @@
 'use client';
+import {scopedStorageKey} from '@/lib/backend/storage-scope';
 import {useEffect,useState} from 'react';
 import {Check,Leaf} from 'lucide-react';
 import {useGame} from '@/store/game';
@@ -11,7 +12,7 @@ export default function QuestPanel({onStudy}:{onStudy:()=>void}) {
   const [save,setSave]=useState(()=>defaultStudySave(lessons));
   useEffect(()=>{
     const refresh=()=>{const next=readStudySave(lessons);setSave(previous=>previous.date===next.date&&JSON.stringify(dailyQuests(previous,lessons))===JSON.stringify(dailyQuests(next,lessons))?previous:next);};
-    const storage=(event:StorageEvent)=>{if(event.key===null||event.key===STUDY_STORAGE_KEY)refresh();};
+    const storage=(event:StorageEvent)=>{if(event.key===null||event.key===scopedStorageKey(STUDY_STORAGE_KEY))refresh();};
     refresh();
     window.addEventListener(STUDY_PROGRESS_EVENT,refresh);
     window.addEventListener('storage',storage);

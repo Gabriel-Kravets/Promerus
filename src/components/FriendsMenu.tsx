@@ -1,4 +1,6 @@
 'use client';
+import {useBackend} from './backend/BackendProvider';
+import LiveFriends from './backend/LiveFriends';
 import {useState} from 'react';
 import FriendsList from './FriendsList';
 import {Check,Copy,Flower2,ArrowRight} from 'lucide-react';
@@ -7,9 +9,11 @@ import {memberStatus} from '@/lib/party';
 import {getCourse} from '@/lib/courses';
 import {PlayerPortrait,GamePanelHeader,GameBadge,ProgressMeter} from './ui/GamePrimitives';
 export default function FriendsMenu({selected,onSelect,onCustomize}:{selected:number|null;onSelect:(index:number|null)=>void;onCustomize:()=>void}){
+ const backend=useBackend();
  const [tab,setTab]=useState('members');
  const state=useGame(),[copied,setCopied]=useState(false),[copyMessage,setCopyMessage]=useState(''),names=[state.name,'Maya','Kai','Jules'],subjects=[state.course?getCourse(state.course).title:'Your learning journey','College Algebra','Spanish Basics','Creative Writing'];
  const contributors=[...new Set(state.completions.map(c=>c.player))],complete=contributors.length>=2;
+ if(backend.enabled)return <LiveFriends/>;
  return <><GamePanelHeader eyebrow="YOUR LITTLE CIRCLE" title="Your study circle">Different journeys. The same little greenhouse.</GamePanelHeader><GameBadge muted>Local demo · simulated classmates</GameBadge>
  <div className="social-tabs" aria-label="Social views"><button className="secondary" aria-pressed={tab==='members'} onClick={()=>setTab('members')}>Room members</button><button className="secondary" aria-pressed={tab==='friends'} onClick={()=>setTab('friends')}>Friends List</button></div>{tab==='friends'?<FriendsList/>:<><div className="friend-list botanical-friends">{names.map((name,index)=>{const status=memberStatus(state,index);return <button className={`${state.online[index]?'online':'offline'} ${selected===index?'selected':''}`} key={index} onClick={()=>onSelect(selected===index?null:index)} aria-expanded={selected===index} aria-controls="friend-detail"><PlayerPortrait avatar={index===0?state.avatar:presets[index]} name={name} offline={!state.online[index]}/><span className="friend-copy"><strong>{name}{index===0&&<small> · YOU</small>}</strong><small>{subjects[index]}</small></span><span className="friend-status"><GameBadge muted={!state.online[index]}>{status}</GameBadge><small>{state.completions.filter(c=>c.player===index).length*20} energy</small></span></button>;})}</div>
  {selected!==null&&<section className="friend-detail" id="friend-detail" aria-label={`${names[selected]} details`}><div><span className="eyebrow">{selected===0?'YOUR JOURNEY':'FELLOW GARDENER · SIMULATED'}</span><h2>{names[selected]}</h2><p>{selected===0?'Every little discovery helps our garden grow.':state.online[selected]?'A warm lantern and a little company for the next chapter.':'Offline for now. Their study station is waiting for another visit.'}</p><small>{state.completions.filter(c=>c.player===selected).length} lessons completed</small></div>{selected===0?<button className="secondary" onClick={onCustomize}>Customize character <ArrowRight size={14}/></button>:<button className="secondary" disabled={!state.online[selected]} onClick={()=>{state.set({activity:[`You waved to ${names[selected]}. They waved back.`,...state.activity].slice(0,8)});setCopyMessage(`${names[selected]} waves back. A little company makes all the difference.`);}}>Give a little wave</button>}</section>}

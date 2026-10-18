@@ -1,6 +1,6 @@
 # Phase 1 — Supabase multiplayer architecture proposal
 
-Status: **awaiting database/security approval; no backend implementation or database changes applied**.
+Status: **database/security architecture approved by the user on 2026-10-17 for development/staging implementation only**. Hosted project/access configuration is pending. No production database changes are authorized.
 Repository: Sproutbound/Promerus. Backend branch: `feat/supabase-multiplayer`.
 Approved frontend base: `3a18fd8998b197354230e811df094da7684f8cbf` (PR #2 merge).
 
@@ -13,6 +13,8 @@ PR #1 remains open from dev into main. Its head now includes Gate B. Its descrip
 **Phase 2: end-to-end testing and release.** Use two real Auth0 accounts in separate browser sessions/devices, fix defects, push verified backend changes and open/review the backend PR into dev. Merge only after team approval. Validate the combined dev again. Update the existing dev→main PR if it remains open; otherwise create the final release PR. Main always requires team approval against its actual final head. No automatic main merge.
 
 ## Existing implementation audit
+
+This audit describes the approved `3a18fd8` baseline before backend implementation. See `backend-staging-setup.md` for the implemented staging setup and remaining live verification gates.
 
 | Area | Current evidence and implication |
 | --- | --- |
@@ -109,7 +111,7 @@ Add the missing personalized course orchestrator: validate topic, difficulty, go
 
 Structured AI output still requires factual/schema checks, nonempty/distinct choices, bounded strings and safe display; it is not inherently reliable grading. Short-answer grading uses the saved rubric/reference and rejects prompt-injection instructions in submitted text. Provider failures leave the answer pending, expose a retryable status and award nothing; do not silently mark it correct. MC evaluation is deterministic. The student receives the established explanation/feedback after a submission, not a pre-submission solution object.
 
-Default resource bounds for review: five new course requests/player/day and thirty model-graded submissions/player/hour, configurable server-side; fixed maximum output, request timeouts, bounded retries and cached idempotent jobs. Credentials and quota are required before a live generation claim can be made. The app can still study authored material when the provider is unavailable. Model-assisted grading cannot prove unaided human learning; server verification means trusted content, actor-bound evaluated answers and an idempotent reward transaction.
+Default resource bounds for review: five AI course requests/player/day (authored courses are cached separately and remain available) and thirty model-graded submissions/player/hour, configurable server-side; fixed maximum output, request timeouts, bounded retries and cached idempotent jobs. Credentials and quota are required before a live generation claim can be made. The app can still study authored material when the provider is unavailable. Model-assisted grading cannot prove unaided human learning; server verification means trusted content, actor-bound evaluated answers and an idempotent reward transaction.
 
 References: [Gemini structured output](https://ai.google.dev/gemini-api/docs/generate-content/structured-output), [configured model](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash).
 

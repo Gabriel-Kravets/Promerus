@@ -1,5 +1,5 @@
-import {contains,floorShape,gardenFootprint} from './world-geometry';
-import {desks} from './world-layout';
+import {contains,floorShape,gardenFootprint} from './world-geometry.ts';
+import {desks} from './world-layout.ts';
 export type Point={x:number;y:number};
 export const iso=(x:number,y:number):Point=>({x:660+(x-y)*36,y:200+(x+y)*18});
 export const uniso=(x:number,y:number):Point=>({x:((x-660)/36+(y-200)/18)/2,y:((y-200)/18-(x-660)/36)/2});
