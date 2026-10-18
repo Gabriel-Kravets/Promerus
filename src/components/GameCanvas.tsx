@@ -1,7 +1,11 @@
 'use client';
+import {useBackend} from './backend/BackendProvider';
+import {rpc} from '@/lib/backend/client';
+import {sharedSproutlingAt,sproutlingClock} from '@/lib/backend/shared-sproutling';
+import {BackendError} from '@/lib/backend/contracts';
 import {useEffect,useRef,useState} from 'react';
 import {Application,Container,Graphics,Sprite,Texture,Rectangle,Text,FederatedPointerEvent} from 'pixi.js';
-import {useGame,presets} from '@/store/game';
+import {useGame,presets,type MemberActivity} from '@/store/game';
 import {avatarCanvas,loadImage} from '@/lib/sprite-assets';
 import {createWalkCycle} from '@/lib/walk-cycle';
 import {RUN_FRAME_COUNT} from '@/lib/sprite-locomotion';
@@ -23,12 +27,13 @@ import {createItemArt,createItemPreview,registerItemTextures} from '@/lib/item-p
 import {occupantShape,planPlacementNudges,type PlacementOccupant} from '@/lib/placement-occupants';
 import sceneAssets from '@/lib/scene-assets.json';
 
-type Props={suspended?:boolean;onOpen:(panel:string,player?:number)=>void;onHint:(text:string)=>void};
+type Props={suspended?:boolean;activityOverride?:MemberActivity;onOpen:(panel:string,player?:number)=>void;onHint:(text:string)=>void};
 type Interaction={id:string;name:string;action:string;symbol:string;priority:number;contains:(p:Point)=>boolean;shape:Shape;approaches:Point[];activate:()=>void;lookAt?:Point;preferFirst?:boolean;tooltipShape?:Shape;instant?:boolean};
 const drawShape=(g:Graphics,shape:Shape)=>shape.kind==='ellipse'?g.ellipse(shape.x,shape.y,shape.rx,shape.ry):g.poly(shape.points);
 
-export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
- const host=useRef<HTMLDivElement>(null),handlers=useRef({onOpen,onHint,suspended});handlers.current={onOpen,onHint,suspended};
+export default function GameCanvas({onOpen,onHint,suspended=false,activityOverride}:Props){
+ const backend=useBackend();
+ const host=useRef<HTMLDivElement>(null),handlers=useRef({onOpen,onHint,suspended,activityOverride,backend});handlers.current={onOpen,onHint,suspended,activityOverride,backend};
  const [error,setError]=useState(false);
  useEffect(()=>{if(suspended)useItemDrag.getState().cancel();},[suspended]);
  useEffect(()=>{
@@ -63,6 +68,10 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const sprite=(t:Texture,x:number,y:number,width:number)=>{const s=new Sprite(t);s.anchor.set(.5,1);s.width=width;s.height=width*t.height/t.width;s.position.set(x,y);s.zIndex=y;s.eventMode='none';world.addChild(s);return s;};
    let state=useGame.getState(),position:Point={x:8.5,y:8.5},route:Point[]=[],pending:Interaction|undefined,selected:Interaction|undefined,hovered:Interaction|undefined;
    let seconds=0,reactionStart=-10,speed=0,facing=1,selectionTime=0,confirmation=0,highlightAlpha=0,displayed:Interaction|undefined,seated=false,seatedStation:number|undefined=undefined,cursorMode='var(--leaf-default)',pressedUntil=0,pointer:Point|undefined,treeAlpha=1;
+   let networkSignature='',networkGeneration=0,networkSent='',networkAt=0,networkBusy=false,networkSequence=0,networkSession='',networkWorld='';
+   const remotePeers=()=>handlers.current.backend.snapshot?.members.filter(m=>m.player_id!==handlers.current.backend.profile?.player_id&&m.online).sort((a,b)=>(a.slot??0)-(b.slot??0)).slice(0,3)??[];
+   const remotePositions:Point[]=[];
+   const remoteCycles:ReturnType<typeof createWalkCycle>[]=[],remoteStrides:Texture[][]=[];
    const reduced=matchMedia('(prefers-reduced-motion: reduce)');
    const interactions:Interaction[]=[];
    const marker=new Graphics().ellipse(0,0,12,5).stroke({color:0xc9e9ad,width:1.5}).moveTo(-4,0).lineTo(4,0).moveTo(0,-2).lineTo(0,2).stroke({color:0xe1edc3,width:1});marker.visible=false;ground.addChild(marker);
@@ -150,17 +159,18 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const friendShapes:({kind:'ellipse';x:number;y:number;rx:number;ry:number}|undefined)[]=[];
    const friendPositions:(Point|undefined)[]=[];
    // Online classmates use tight body ellipses, not their atlas cell bounds.
-   players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,name:['', 'Maya','Kai','Jules'][i],action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>state.online[i]&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen('profile',i)});});
+   players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,name:['', 'Maya','Kai','Jules'][i],action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>(handlers.current.backend.enabled?!!remotePeers()[i-1]?.online:state.online[i])&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen(handlers.current.backend.enabled?'friends':'profile',i)});});
    let wander=createSproutlingWander();const petPoint=iso(8,4),pet=sprite(petTextures[state.energy>=100?1:0],petPoint.x,petPoint.y,125);pet.zIndex=petPoint.y+6;
    const petRuns=[0,1].map(stage=>Array.from({length:sceneAssets.run.frames},(_,frame)=>new Texture({source:petRunSheet.source,frame:new Rectangle(frame*sceneAssets.run.width,stage*sceneAssets.run.height,sceneAssets.run.width,sceneAssets.run.height)})));
    let petHitTexture=petTextures[state.energy>=100?1:0];
    const petCycle=createWalkCycle(petPoint);
+   let sharedPet={position:{x:8,y:4},moving:false,facing:1};
    const petShape={kind:'ellipse' as const,x:pet.x+5,y:pet.y-32,rx:25,ry:29};
-   const petInteraction=add({id:'pet',name:'Sproutling',action:'Interact with Sproutling',symbol:'♡',priority:50,shape:petShape,contains:p=>spriteContains(pet,p,petHitTexture),approaches:[{x:8,y:4}],activate:()=>{reactionStart=seconds;useGame.getState().set({reaction:['happy','watering','sleeping'][Math.floor(Math.random()*3)]});handlers.current.onHint('A happy little Sproutling. Every lesson helps it grow.');}});
+   const petInteraction=add({id:'pet',name:'Sproutling',action:'Interact with Sproutling',symbol:'♡',priority:50,shape:petShape,contains:p=>spriteContains(pet,p,petHitTexture),approaches:[{x:8,y:4}],activate:()=>{const net=handlers.current.backend;const reaction=['happy','watering','sleeping'][Math.floor(Math.random()*3)];if(net.enabled&&net.client&&net.lease){void rpc(net.client,'react_sproutling',{p_session:net.lease.id,p_reaction:reaction}).catch(()=>handlers.current.onHint('Sproutling is reconnecting. Try again in a moment.'));}else{reactionStart=seconds;useGame.getState().set({reaction});}handlers.current.onHint('A happy little Sproutling. Every lesson helps it grow.');}});
    const sleep=new Text({text:'z z',style:{fontFamily:'Georgia',fontSize:14,fill:0xeee4c4}});sleep.position.set(petPoint.x+18,petPoint.y-75);sleep.visible=false;feedback.addChild(sleep);
    const cues=interactions.filter(i=>i.id.startsWith('desk-')||['garden','board','pet'].includes(i.id)).map(item=>{const g=new Text({text:item.symbol,style:{fontFamily:'Georgia',fontSize:17,fill:0xd8e6ac,stroke:{color:0x30372a,width:3}}});g.anchor.set(.5);feedback.addChild(g);return {item,g};});
-   const setActivity=(activity:'Exploring'|'Idle'|'Studying')=>{if(useGame.getState().localActivity!==activity)useGame.getState().set({localActivity:activity});};
-   const reportPosition=()=>{if(host.current){host.current.dataset.playerTile=`${position.x.toFixed(2)},${position.y.toFixed(2)}`;host.current.dataset.destination=route.length?`${route[route.length-1].x},${route[route.length-1].y}`:'';host.current.dataset.facing=String(facing);host.current.dataset.selected=selected?.id??'';host.current.dataset.seatedAt=seatedStation===undefined?'':studyStations[seatedStation].id;host.current.dataset.onlineAvatars=String(state.online.filter(Boolean).length);}};
+   const setActivity=(activity:MemberActivity)=>{if(useGame.getState().localActivity!==activity)useGame.getState().set({localActivity:activity});};
+   const reportPosition=()=>{if(host.current){host.current.dataset.playerTile=`${position.x.toFixed(2)},${position.y.toFixed(2)}`;host.current.dataset.destination=route.length?`${route[route.length-1].x},${route[route.length-1].y}`:'';host.current.dataset.facing=String(facing);host.current.dataset.selected=selected?.id??'';host.current.dataset.seatedAt=seatedStation===undefined?'':studyStations[seatedStation].id;host.current.dataset.onlineAvatars=String(handlers.current.backend.enabled?1+remotePeers().length:state.online.filter(Boolean).length);}};
    const sitAt=(item:Interaction)=>{const index=studyStations.findIndex(station=>station.id===item.id);if(index<0)return;seatedStation=index;seated=true;facing=chairPose(index).facing;confirmation=.65;setActivity('Studying');};
    const beginMove=(path:Point[],destination:Point,item?:Interaction)=>{route=path;pending=item;selected=item;selectionTime=seconds;confirmation=0;seated=false;seatedStation=undefined;setActivity(path.length?'Exploring':'Idle');
     const p=iso(destination.x,destination.y);marker.position.set(p.x,p.y);marker.visible=path.length>0;reportPosition();
@@ -321,14 +331,14 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     const plan=planRoute(position,uniso(point.x,point.y),true);if(!plan)return;beginMove(plan.path,plan.destination);resetHint();
    }
    scene.on('pointertap',(event:FederatedPointerEvent)=>activatePoint(scene.toLocal(event.global)));
-   const updateGarden=()=>{garden.texture=gardenTextures[stageFor(state.energy)];garden.width=treeWidth;garden.height=treeWidth*garden.texture.height/garden.texture.width;moonflower.visible=new Set(state.completions.map(c=>c.player)).size>=2;updateBranches();updateGardenOutline();};updateGarden();
+   const updateGarden=()=>{garden.texture=gardenTextures[stageFor(state.energy)];garden.width=treeWidth;garden.height=treeWidth*garden.texture.height/garden.texture.width;moonflower.visible=state.cloud?state.sharedBloom:new Set(state.completions.map(c=>c.player)).size>=2;updateBranches();updateGardenOutline();};updateGarden();
    unsubscribe=useGame.subscribe((next,previous)=>{state=next;if(next.online!==previous.online){
      reportPosition();
      if(useItemDrag.getState().preview)updatePreview();
      for(let i=1;i<avatars.length;i++)if(next.online[i]&&!previous.online[i]){
       void avatarCanvas(avatars[i],true).then(texture).then(t=>{if(!disposed)reading[i]=t;}).catch(console.error);
      }
-    }if(next.energy!==previous.energy||next.completions!==previous.completions)updateGarden();if(next.reaction!==previous.reaction)reactionStart=seconds;
+    }if(next.energy!==previous.energy||next.completions!==previous.completions||next.sharedBloom!==previous.sharedBloom)updateGarden();if(next.reaction!==previous.reaction)reactionStart=seconds;
     if(next.avatar!==previous.avatar){
      strides=[];strideGeneration++;
      Promise.all([avatarCanvas(next.avatar),avatarCanvas(next.avatar,true)]).then(async canvases=>{
@@ -340,7 +350,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    app.ticker.add(tick=>{
     if(previewArt)publishAnchor();
     const dt=Math.min(tick.deltaMS/1000,.05);seconds+=dt;const motion=state.settings.motion&&!reduced.matches;
-    if(roomInputBlocked()){if(route.length||pending){route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity('Idle');reportPosition();}hovered=undefined;floorHover.visible=false;}
+    if(roomInputBlocked()){if(route.length||pending){route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity(handlers.current.activityOverride??'Idle');reportPosition();}hovered=undefined;floorHover.visible=false;}
     scene.cursor=seconds<pressedUntil?'var(--leaf-pressed)':cursorMode;
     const walking=route.length>0;
     if(walking){const remaining=route.reduce((total,p,i)=>total+distance(i?route[i-1]:position,p),0),targetSpeed=Math.min(112,Math.sqrt(2*260*remaining));
@@ -354,16 +364,29 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     const seat=seated&&seatedStation!==undefined?chairPose(seatedStation,deskTextures[0].height/deskTextures[0].width,stationPositions[seatedStation],stationMirrors[seatedStation]):undefined;
     players[0].texture=seat?reading[0]:stride.frame>=0?(strides[stride.frame]??standing[0]):standing[0];players[0].anchor.set(seat?.anchorX??.5,seat?.anchorY??1);players[0].width=76;players[0].height=76*players[0].texture.height/players[0].texture.width;
     players[0].scale.x=Math.abs(players[0].scale.x)*(seat?.facing??facing);players[0].position.set(seat?.x??p.x,seat?.y??p.y+4+stride.bob);players[0].rotation=seat?0:stride.lean;players[0].zIndex=seat?.depth??p.y+6;
-    for(let i=1;i<4;i++){
-     const ground=friendPositions[i]??approaches[i];
-     if(state.online[i]&&blocked(ground.x,ground.y))friendPositions[i]={...nearestClear(ground)};
-     const at=friendPositions[i]??approaches[i],base=iso(at.x,at.y),sitting=!friendPositions[i]&&!stationStored[i]&&state.memberActivities[i]==='Studying',chair=sitting?chairPose(i,deskTextures[0].height/deskTextures[0].width,stationPositions[i],stationMirrors[i]):undefined;
-     const interaction=interactions.find(item=>item.id===`friend-${i}`);if(interaction)interaction.approaches=[at];
-     players[i].texture=sitting?reading[i]:standing[i];players[i].anchor.set(chair?.anchorX??.5,chair?.anchorY??1);players[i].width=i===2?88:72;players[i].height=players[i].width*players[i].texture.height/players[i].texture.width;players[i].scale.x=Math.abs(players[i].scale.x)*(chair?.facing??1);players[i].position.set(chair?.x??base.x,chair?.y??base.y+4);players[i].zIndex=chair?.depth??base.y+6;players[i].visible=state.online[i];
+    const net=handlers.current.backend,peers=remotePeers();
+    const signature=peers.map(p=>`${p.player_id}:${p.appearance_version}`).join('|');
+    if(net.enabled&&signature!==networkSignature){reportPosition();networkSignature=signature;const generation=++networkGeneration;peers.forEach((peer,j)=>{remoteCycles[j+1]=createWalkCycle(iso(peer.x,peer.y));remoteStrides[j+1]=[];void(async()=>{const [idle,study]=await Promise.all([avatarCanvas(peer.avatar),avatarCanvas(peer.avatar,true)].map(async canvas=>texture(await canvas)));if(disposed||generation!==networkGeneration)return;standing[j+1]=idle;reading[j+1]=study;const frames:Texture[]=[];for(let frame=0;frame<RUN_FRAME_COUNT;frame++){await new Promise<void>(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));if(disposed||generation!==networkGeneration)return;frames.push(await texture(await avatarCanvas(peer.avatar,false,frame)));}if(!disposed&&generation===networkGeneration)remoteStrides[j+1]=frames;})().catch(()=>handlers.current.onHint('A gardener’s portrait is still loading.'));});}
+    if(net.lease?.id!==networkSession){networkSession=net.lease?.id??'';networkSequence=net.lease?.sequence??0;networkSent='';const local=net.snapshot?.members.find(m=>m.player_id===net.profile?.player_id);if(local){position={x:local.x,y:local.y};facing=local.facing;route=[];pending=undefined;reportPosition();}}
+    if((net.snapshot?.world.id??'')!==networkWorld){networkWorld=net.snapshot?.world.id??'';remotePositions.length=0;if(net.snapshot)sharedPet=sharedSproutlingAt(net.snapshot.world.id,sproutlingClock(Date.now()+net.snapshot.clockOffset,net.snapshot.world.pet_pause_total,net.snapshot.world.pet_pause_until));}
+    for(let i=1;i<4;i++){const ground=friendPositions[i]??approaches[i];if(!net.enabled&&state.online[i]&&blocked(ground.x,ground.y))friendPositions[i]={...nearestClear(ground)};const at=friendPositions[i]??approaches[i];const peer=net.enabled?peers[i-1]:undefined,target=peer?iso(peer.x,peer.y):iso(at.x,at.y);if(!remotePositions[i])remotePositions[i]={...target};remotePositions[i].x+=(target.x-remotePositions[i].x)*Math.min(1,dt*12);remotePositions[i].y+=(target.y-remotePositions[i].y)*Math.min(1,dt*12);const base=net.enabled?remotePositions[i]:target,sitting=net.enabled?!!peer&&peer.seat>=0:!friendPositions[i]&&!stationStored[i]&&state.memberActivities[i]==='Studying',chair=sitting?chairPose(peer?.seat??i,deskTextures[0].height/deskTextures[0].width,stationPositions[peer?.seat??i],stationMirrors[peer?.seat??i]):undefined;
+     const gait=net.enabled&&!sitting?remoteCycles[i]?.(base):undefined;players[i].texture=sitting?reading[i]:gait&&gait.frame>=0?(remoteStrides[i]?.[gait.frame]??standing[i]):standing[i];players[i].rotation=gait?.lean??0;players[i].anchor.set(chair?.anchorX??.5,chair?.anchorY??1);players[i].width=net.enabled?(peer?.avatar.style===1?88:72):i===2?88:72;players[i].height=players[i].width*players[i].texture.height/players[i].texture.width;players[i].scale.x=Math.abs(players[i].scale.x)*(chair?.facing??peer?.facing??1);players[i].position.set(chair?.x??base.x,chair?.y??base.y+4+(gait?.bob??0));players[i].zIndex=chair?.depth??base.y+6;players[i].visible=net.enabled?!!peer?.online:state.online[i];if(peer){const target=interactions.find(item=>item.id===`friend-${i}`);if(target){target.name=peer.name;target.approaches=[{x:peer.x,y:peer.y}];}}
      const shape=friendShapes[i];if(shape){shape.x=players[i].x;shape.y=players[i].y-(sitting?22:28);}
     }
+    if(net.enabled&&net.lease&&seconds-networkAt>=.2&&!networkBusy){
+     const signature=`${net.lease.id}:${position.x.toFixed(3)}:${position.y.toFixed(3)}:${facing}:${state.localActivity}:${seatedStation??-1}`;
+     if(signature!==networkSent){networkAt=seconds;networkBusy=true;const session=net.lease.id;const sample={session,geometryVersion:'moonlit-v2',layoutVersion:net.snapshot?.world.room_layout_version??0,x:position.x,y:position.y,facing,sequence:++networkSequence,activity:state.localActivity,seat:seatedStation??-1};
+      void net.invoke('move',sample).then(()=>{if(handlers.current.backend.lease?.id===session)networkSent=signature;}).catch(e=>{
+       if(handlers.current.backend.lease?.id!==session)return;
+       if(e instanceof BackendError&&e.details?.position){position={...e.details.position};route=[];pending=undefined;seatedStation=undefined;seated=false;marker.visible=false;reportPosition();}
+       handlers.current.onHint(e instanceof BackendError?e.message:'Your movement is reconnecting. Please try that destination again.');
+      }).finally(()=>{networkBusy=false;});
+     }
+    }
     const active=seconds-reactionStart<4,celebrate=active&&['happy','celebrating','evolving'].includes(state.reaction);
-    const roaming=wander(dt,roomInputBlocked()||hovered===petInteraction||selected===petInteraction||active);
+    const petPaused=net.enabled?false:roomInputBlocked()||hovered===petInteraction||selected===petInteraction||active;
+    if(net.enabled&&net.snapshot&&!petPaused)sharedPet=sharedSproutlingAt(net.snapshot.world.id,sproutlingClock(Date.now()+net.snapshot.clockOffset,net.snapshot.world.pet_pause_total,net.snapshot.world.pet_pause_until));
+    const roaming=net.enabled?{...sharedPet,moving:!petPaused&&sharedPet.moving}:wander(dt,petPaused);
     const petFloor=iso(roaming.position.x,roaming.position.y),petStride=petCycle(petFloor);
     petInteraction.approaches=[roaming.position];
     const petStage=state.energy>=100||active&&state.reaction==='watering'?1:0;petHitTexture=petTextures[petStage];pet.texture=petStride.frame>=0?petRuns[petStage][petStride.frame]:petTextures[petStage];pet.width=125;pet.height=125*petTextures[0].height/petTextures[0].width;pet.x=petFloor.x;pet.y=petFloor.y+petStride.bob+(motion?(celebrate?-Math.abs(Math.sin(seconds*7))*9:roaming.moving?0:Math.sin(seconds*2)*1.2):0);pet.rotation=petStride.frame>=0?petStride.lean:motion&&active&&state.reaction==='watering'?Math.sin(seconds*4)*.06:0;sleep.visible=state.reaction==='sleeping'&&active;pet.alpha=sleep.visible?.8:1;

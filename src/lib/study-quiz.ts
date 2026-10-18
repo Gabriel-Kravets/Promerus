@@ -2,7 +2,7 @@ export const difficulties = ['Beginner', 'Intermediate', 'Advanced'] as const;
 export type Difficulty = typeof difficulties[number];
 export type QuizQuestion = {question:string; A:string; B:string; C:string; D:string; correct_answer:'A'|'B'|'C'|'D'; explanation:string};
 export type StudyQuiz = {multiple_choice:QuizQuestion[]; short_answer:{question:string;correct_answer:string;explanation:string;grading_criteria:string}};
-export type StudySession = {id:string;topic:string;difficulty:Difficulty;quiz:StudyQuiz;signature?:string;rewardId?:string};
+export type StudySession = {online?:import('./backend/topic-study').OnlineStudySession;id:string;topic:string;difficulty:Difficulty;quiz:StudyQuiz;signature?:string;rewardId?:string};
 export type QuizResult = {score:number;correct:boolean[];nutrients:number;coins:number};
 export function rewards(score:number,difficulty:Difficulty){const nutrients=score*({Beginner:10,Intermediate:20,Advanced:30}[difficulty]);return {nutrients,coins:Math.floor(nutrients/5)};}
 export function validQuiz(value:unknown):value is StudyQuiz {

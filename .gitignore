@@ -19,3 +19,8 @@ out/
 # Local visual QA captures
 /greenhouse-preview.png
 /study-room-preview.png
+
+# Backend machine state and Python generated files
+/supabase/.temp/
+__pycache__/
+*.py[cod]

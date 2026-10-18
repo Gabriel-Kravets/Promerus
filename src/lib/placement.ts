@@ -1,8 +1,8 @@
-import {getItemDefinition,type InventoryItem} from './items';
-import {iso,type Point} from './movement';
-import {contains,fenceFootprint,gardenFootprint,type Shape} from './world-geometry';
-import {studyStations} from './world-layout';
-import {fixtureShape,fixtureObstacles,roomFixture,type FixturePositions} from './room-fixtures';
+import {getItemDefinition,type InventoryItem} from './items.ts';
+import {iso,type Point} from './movement.ts';
+import {contains,fenceFootprint,gardenFootprint,type Shape} from './world-geometry.ts';
+import {studyStations} from './world-layout.ts';
+import {fixtureShape,fixtureObstacles,roomFixture,type FixturePositions} from './room-fixtures.ts';
 
 export type ItemPlacement={itemId:string;position:Point};
 export type PlacedItem={item:InventoryItem;position:Point};

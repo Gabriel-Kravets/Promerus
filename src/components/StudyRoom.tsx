@@ -47,7 +47,7 @@ export default function StudyRoom({onBack}:{onBack:()=>void}){
  const [generated,setGenerated]=useState<StudySession|null>(null);
  const [reviewingQuiz,setReviewingQuiz]=useState(false);
  const flashcardSession=reviewingQuiz?generated:null;
- const deck=flashcardSession?flashcardSession.quiz.multiple_choice.map(q=>({q:q.question,a:q[q.correct_answer]+' — '+q.explanation,symbol:'book'})).concat([{q:flashcardSession.quiz.short_answer.question,a:flashcardSession.quiz.short_answer.correct_answer+' — '+flashcardSession.quiz.short_answer.explanation,symbol:'book'}]):deckFor(subject),current=deck[card%deck.length],running=save.focusEnabled!==false&&save.endAt!==null;
+ const deck=flashcardSession?flashcardSession.quiz.multiple_choice.map(q=>({q:q.question,a:flashcardSession.online?(q.explanation||'Complete this question to reveal verified feedback.'):q[q.correct_answer]+' — '+q.explanation,symbol:'book'})).concat([{q:flashcardSession.quiz.short_answer.question,a:flashcardSession.quiz.short_answer.correct_answer+' — '+flashcardSession.quiz.short_answer.explanation,symbol:'book'}]):deckFor(subject),current=deck[card%deck.length],running=save.focusEnabled!==false&&save.endAt!==null;
  useEffect(()=>{setSave(readStudySave(useGame.getState().completions.filter(c=>c.player===0).length));setHydrated(true);},[]);
  useEffect(()=>{if(!hydrated)return;const current=currentStudyDay(save,useGame.getState().completions.filter(c=>c.player===0).length);if(current!==save)setStoredSave(current);else writeStudySave(save);},[save,hydrated]);
  useEffect(()=>{const timer=setInterval(()=>setStoredSave(previous=>currentStudyDay(previous,useGame.getState().completions.filter(c=>c.player===0).length)),60000);return()=>clearInterval(timer);},[]);
