@@ -7,14 +7,14 @@ Checked on October 17, 2026 (America/New_York). Candidate: `feat/supabase-multip
 | Remote branch | Fetched head | Finding and action |
 | --- | --- | --- |
 | main | f6fc248 | Four commits were unique in history, including uploads/deletions and release merges. Its tree matched dev. Preserved the full main ancestry with history-only merge `6854939`; no main changes were pushed. |
-| dev | 5bab818 | Already included in the candidate. Contains themes, demo weekly leaderboard, world boundaries/outlines, avatar palettes and locomotion updates. Preserved. |
+| dev | 0756b5f | Initial head 5bab818 was already included. A new 0756b5f commit arrived while PR #3 was being prepared; integrated its retro study-room styling and immediate central-tree/base/canopy interactions, preserving backend activity overrides. Themes, demo weekly leaderboard, world boundaries/outlines, avatar palettes and locomotion updates are retained. |
 | feat/supabase-multiplayer | 63b7bae before consolidation | Contains the approved staging backend and prior dev integration. Used as the release candidate. |
 | Jojo_dev_update | 3a18fd8 | Ancestor of the candidate. No missing commits; historical branch left unchanged. |
 | Jojo_test_frontend | 4f02f48 | Ancestor of the candidate. No missing commits; historical branch left unchanged. |
 | feature/sproutbound-auth | 16cc01b | One missing teammate commit. Integrated the branch and its standalone UI/docs/tests, and ported compatible adapter improvements to the served Next.js app. |
 | Questionnaire | 4ee4d41 | Separate Python scoring prototype adds global score tracking, nutrients and coins. Left on its branch: this is a different economy, runs reward output at module scope, and cannot replace verified server rewards. Its generation/grading foundation is already retained in the original CLI and backend. |
 
-No additional remote feature branches were present at this fetch. No teammate branch was deleted or rewritten.
+No additional remote feature branches were present at the fetch. PR #3 initially reported a conflict after dev advanced; the new dev commit was integrated and the complete check set rerun. No teammate branch was deleted or rewritten.
 
 ## Integration details
 

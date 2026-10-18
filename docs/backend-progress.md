@@ -9,7 +9,7 @@
 - PR #2 was merged into dev after explicit user approval, at `3a18fd8998b197354230e811df094da7684f8cbf`.
 - Local dev and Jojo_dev_update were fast-forwarded; origin/Jojo_dev_update was synchronized without force-pushing.
 - PR #1 was subsequently merged by Gabriel-Kravets on 2026-10-18 at 00:20:31 UTC, at `7bd0d23b2a36591b24e1376a2c4d6f25e485a994`. This agent did not merge it or modify main.
-- `feat/supabase-multiplayer` was created from the approved dev merge. All backend work stays on this branch. Latest teammate dev through `5bab818ee1fe32aff43001f7cbc4371e437bdc8e` was then integrated here without changing dev/main, preserving themes, leaderboard/demo behavior, outlines, railing boundaries and locomotion updates.
+- `feat/supabase-multiplayer` was created from the approved dev merge. All backend work stays on this branch. Latest teammate dev through `0756b5f53cd492950c227592e77c4f8ca986f95b` was then integrated here without changing dev/main, preserving themes, leaderboard/demo behavior, outlines, railing boundaries and locomotion updates.
 
 ### Source implementation
 
@@ -43,7 +43,7 @@ PostgreSQL tests emulate Supabase auth/Realtime primitives and execute real Post
 
 The original frontend had authored lessons plus a simulated generation delay; it did not call the Gemini CLI. The CLI's missing google-genai/python-dotenv requirements were corrected and generation/choice validation/short-answer/missing-key behavior was tested offline. Its original source is preserved.
 
-`origin/Questionnaire` contains a separate nutrients/coins scoring extension. It was inspected but not merged or used to replace the existing +20 economy. During this work, `origin/feature/sproutbound-auth` advanced to `16cc01b62ad1e6311e214edcc23e5abf7eaa57a2` with standalone login UX/tests. That unmerged branch was inspected and preserved. The final release consolidation integrates that branch, ports loginInTab/errorMessage, bounded SDK timeouts and callback cleanup into the served adapter, and retains the backend getToken extension. The root prototype and its tests are preserved. See release-integration.md for the branch audit and current review gate. A later fetch found four new dev commits through `5bab818`, which were integrated into the backend branch and rechecked. Online mode uses the teammate’s board styling for real, all-time greenhouse contributions; the demo weekly board remains unchanged. It does not present simulated weekly totals as live data.
+`origin/Questionnaire` contains a separate nutrients/coins scoring extension. It was inspected but not merged or used to replace the existing +20 economy. During this work, `origin/feature/sproutbound-auth` advanced to `16cc01b62ad1e6311e214edcc23e5abf7eaa57a2` with standalone login UX/tests. That unmerged branch was inspected and preserved. The final release consolidation integrates that branch, ports loginInTab/errorMessage, bounded SDK timeouts and callback cleanup into the served adapter, and retains the backend getToken extension. The root prototype and its tests are preserved. See release-integration.md for the branch audit and current review gate. Later fetches found dev commits through `0756b5f`, including retro study-room styling and immediate central-tree interactions, which were integrated into the backend branch and rechecked. Online mode uses the teammate’s board styling for real, all-time greenhouse contributions; the demo weekly board remains unchanged. It does not present simulated weekly totals as live data.
 
 ### Required before Phase 1 can be signed off
 

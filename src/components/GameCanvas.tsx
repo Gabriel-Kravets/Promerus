@@ -12,14 +12,14 @@ import {RUN_FRAME_COUNT} from '@/lib/sprite-locomotion';
 import {createSproutlingWander} from '@/lib/sproutling-wander';
 import {iso,uniso,planRoute,approachRoute,distance,stageFor,blocked,Point} from '@/lib/movement';
 import {studyStations,approaches,gardenApproaches,treeCenter} from '@/lib/world-layout';
-import {contains,floorShape,gardenHotspot,furnitureRegions,pickInteraction,Shape} from '@/lib/world-geometry';
+import {contains,floorShape,gardenHotspot,furnitureRegions,inGardenBase,pickInteraction,Shape} from '@/lib/world-geometry';
 import {chairPose} from '@/lib/avatar-seating';
 import {objectTooltipPosition} from '@/lib/tooltip-position';
 import {createWorldEffects} from '@/lib/world-effects';
 import sceneAssets from '@/lib/scene-assets.json';
 
 type Props={suspended?:boolean;activityOverride?:MemberActivity;onOpen:(panel:string,player?:number)=>void;onHint:(text:string)=>void};
-type Interaction={id:string;name:string;action:string;symbol:string;priority:number;contains:(p:Point)=>boolean;shape:Shape;approaches:Point[];activate:()=>void;lookAt?:Point;preferFirst?:boolean;tooltipShape?:Shape};
+type Interaction={id:string;name:string;action:string;symbol:string;priority:number;contains:(p:Point)=>boolean;shape:Shape;approaches:Point[];activate:()=>void;lookAt?:Point;preferFirst?:boolean;tooltipShape?:Shape;instant?:boolean};
 const drawShape=(g:Graphics,shape:Shape)=>shape.kind==='ellipse'?g.ellipse(shape.x,shape.y,shape.rx,shape.ry):g.poly(shape.points);
 
 export default function GameCanvas({onOpen,onHint,suspended=false,activityOverride}:Props){
@@ -101,7 +101,12 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
     gardenOutline.texture=hover.texture;gardenOutline.scale.set(1/density);gardenOutline.position.set(garden.x-garden.width/2-pad/density,garden.y-garden.height-pad/density);
     const left=gardenOutline.x+b.left/density,top=gardenOutline.y+b.top/density,right=gardenOutline.x+b.right/density,bottom=gardenOutline.y+b.bottom/density;gardenTooltip.points=[left,top,right,top,right,bottom,left,bottom];
    };
-   add({id:'garden',name:'Shared Garden',action:'View Garden Progress',symbol:'❧',priority:10,contains:p=>contains(gardenHotspot,p),shape:gardenHotspot,tooltipShape:gardenTooltip,approaches:gardenApproaches,activate:()=>handlers.current.onOpen('garden')});
+   // True where opaque tree pixels cover a scene point (scene coordinates).
+   const treeCovers=(p:Point)=>{const f=garden.texture.frame,local=garden.toLocal(scene.toGlobal(p)),x=Math.floor((local.x/garden.texture.width+.5)*f.width),y=Math.floor((local.y/garden.texture.height+1)*f.height);
+    return x>=0&&y>=0&&x<f.width&&y<f.height&&gardenAlpha[((Math.floor(f.y)+y)*gardenPixels.width+Math.floor(f.x)+x)*4+3]>90;};
+   // While the local character stands behind the see-through tree, the canopy above the bed is clickable too.
+   let playerBehindTree=false;
+   add({id:'garden',name:'Shared Garden',action:'View Garden Progress',symbol:'❧',priority:10,instant:true,contains:p=>inGardenBase(p)||(playerBehindTree&&p.y<gp.y&&treeCovers(p)),shape:gardenHotspot,tooltipShape:gardenTooltip,approaches:gardenApproaches,activate:()=>handlers.current.onOpen('garden')});
    // Animate only small outer leaf clusters, never scale the complete garden/tree.
    const branches=[-1,1].map(side=>{const c=new Container();c.eventMode='none';c.zIndex=garden.zIndex+1;world.addChild(c);const leaf=new Sprite(garden.texture);leaf.anchor.set(.5,1);leaf.width=365;leaf.height=365*leaf.texture.height/leaf.texture.width;leaf.position.set(garden.x,garden.y);c.addChild(leaf);const mask=new Graphics();c.addChild(mask);leaf.mask=mask;return {c,leaf,mask,side};});
    const updateBranches=()=>{const stage=stageFor(state.energy);branches.forEach(({leaf,mask,side})=>{leaf.texture=garden.texture;leaf.width=365;leaf.height=365*leaf.texture.height/leaf.texture.width;
@@ -155,6 +160,8 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
    scene.on('pointerleave',()=>{hovered=undefined;pointer=undefined;floorHover.visible=false;cursorMode='var(--leaf-default)';resetHint();});
    scene.on('pointertap',(event:FederatedPointerEvent)=>{
     if(handlers.current.suspended)return;const point=scene.toLocal(event.global),item=pickInteraction(interactions,point);
+    // Instant objects open from anywhere; the character stays put.
+    if(item?.instant){item.activate();return;}
     if(item){if(selected===item&&(pending||seconds-selectionTime<.6))return;const plan=approachRoute(position,item.approaches,item.preferFirst);
      if(!plan){handlers.current.onHint('There’s no clear approach to that object.');return;}
      beginMove(plan.path,plan.destination,item);handlers.current.onHint(`${item.name} · on my way`);return;
@@ -222,15 +229,15 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
     pet.scale.x=Math.abs(pet.scale.x)*roaming.facing;pet.zIndex=petFloor.y+6;
     petShape.x=pet.x+5*roaming.facing;petShape.y=pet.y-32;sleep.position.set(pet.x+18,pet.y-75);
     garden.tint=active&&state.reaction==='evolving'?0xedffd2:0xffffff;
-    // See-through canopy: fade the tree while the cursor is over it or a character is standing behind it. Visual only: walking and click targets are unchanged.
-    {const [cl,ct,cr,,,cb]=gardenTooltip.points,over=!!pointer&&pointer.x>cl&&pointer.x<cr&&pointer.y>ct&&pointer.y<cb;
+    // See-through canopy: fade the tree while the cursor is over it or a character is standing behind it. Visual only; the garden click target reads playerBehindTree.
+    {// Cursor must be over the tree's actual silhouette, not just its bounding box.
+     const over=!!pointer&&treeCovers(pointer);
      // Only the local character, and only where opaque tree pixels actually cover its body.
-     const me=players[0],f=garden.texture.frame,treeCovers=(p:Point)=>{const local=garden.toLocal(scene.toGlobal(p)),x=Math.floor((local.x/garden.texture.width+.5)*f.width),y=Math.floor((local.y/garden.texture.height+1)*f.height);
-      return x>=0&&y>=0&&x<f.width&&y<f.height&&gardenAlpha[((Math.floor(f.y)+y)*gardenPixels.width+Math.floor(f.x)+x)*4+3]>90;};
-     const behind=me.zIndex<garden.zIndex&&[[0,.25],[0,.5],[0,.75],[-.2,.5],[.2,.5]].some(([dx,dy])=>treeCovers({x:me.x+dx*me.width,y:me.y-dy*me.height}));
+     const me=players[0],behind=me.zIndex<garden.zIndex&&[[0,.25],[0,.5],[0,.75],[-.2,.5],[.2,.5]].some(([dx,dy])=>treeCovers({x:me.x+dx*me.width,y:me.y-dy*me.height}));
+     playerBehindTree=behind;
      const target=handlers.current.suspended?1:over||behind?.25:1;treeAlpha+=(target-treeAlpha)*Math.min(1,dt/.12);garden.alpha=treeAlpha;}
     // Frame-rate independent 150ms fade. Only one object owns hover/selected feedback.
-    const wanted=handlers.current.suspended?undefined:hovered??selected;if(wanted!==displayed){highlightAlpha=Math.max(0,highlightAlpha-dt/.15);if(highlightAlpha===0){displayed=wanted;highlight.clear();contour.clear();if(displayed){const dest=approachRoute(position,displayed.approaches,displayed.preferFirst)?.destination;
+    const wanted=handlers.current.suspended?undefined:hovered??selected;if(wanted!==displayed){highlightAlpha=Math.max(0,highlightAlpha-dt/.15);if(highlightAlpha===0){displayed=wanted;highlight.clear();contour.clear();if(displayed){const dest=displayed.instant?undefined:approachRoute(position,displayed.approaches,displayed.preferFirst)?.destination;
        if(dest){const a=iso(dest.x,dest.y);highlight.poly([a.x,a.y-8,a.x+16,a.y,a.x,a.y+8,a.x-16,a.y]).fill({color:0xbae5bf,alpha:.14}).stroke({color:0xbcebd7,width:1});}
        // Room-art objects get the same soft glow edge as the sprite outlines on desks and the tree.
        if(!outlines.has(displayed.id)){drawShape(contour,displayed.shape).fill({color:0xc9e4af,alpha:.05}).stroke({color:0xc9e6bf,width:5,alpha:.18,join:'round'});drawShape(contour,displayed.shape).stroke({color:0xc9e6bf,width:1.5,alpha:.85,join:'round'});}tooltipText.text=`${displayed.symbol}  ${displayed.name}\n${displayed.action}`;
