@@ -50,6 +50,7 @@ Deno.serve(async(req:Request)=>{
    try{
     const layout=applyLayoutCommand(world.room_layout,members.map(m=>m.player_id),p.command,occupants??[]);
     if(p.command.kind==='initialize'&&JSON.stringify(layout)===JSON.stringify(world.room_layout))return reply({layout,layout_version:world.room_layout_version});
+    if(p.command.kind==='buy')return reply(await rpc(admin,'commit_purchased_layout',{p_player:actor,p_world:session.greenhouse_id,p_expected_version:p.expectedVersion,p_layout:layout,p_item:p.command.type,p_key:crypto.randomUUID()}));
     return reply(await rpc(admin,'commit_room_layout',{p_player:actor,p_world:session.greenhouse_id,p_expected_version:p.expectedVersion,p_layout:layout}));
    }catch(error){
     const known=['Room collection is full','Room item unavailable','Keep the whole item inside the greenhouse.','This spot overlaps solid furniture. Drag to a clear spot.','Leave space around gardeners and the Sproutling.','Keep the carpet clear of built-in fixtures and the garden bed.'];
@@ -123,7 +124,7 @@ Deno.serve(async(req:Request)=>{
   if(error instanceof PayloadTooLarge)return reply({error:'Request is too large'},413);
   if(error instanceof z.ZodError)return reply({error:'Please check the supplied fields'},400);
   const message=error instanceof Error?error.message:'Request unavailable';
-  const safe=['All answers must be verified correct','Membership revoked; study answers remain saved','Session expired','Movement is too fast','Request limit reached'];
+  const safe=['All answers must be verified correct','Membership revoked; study answers remain saved','Session expired','Movement is too fast','Request limit reached','Insufficient balance','Room item unavailable','Gardener not found','Friend request unavailable'];
   return reply({error:safe.includes(message)?message:'This request could not be completed. Please retry.'},400);
  }
 });
