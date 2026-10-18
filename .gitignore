@@ -1,13 +1,15 @@
+# Dependencies and generated output
 node_modules/
+.pnpm-store/
 .next/
+.next-production/
 out/
 *.tsbuildinfo
-
-.next-production/
 
 # Local secrets and machine-specific files
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 .DS_Store

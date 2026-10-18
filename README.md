@@ -1,35 +1,59 @@
-# Sproutbound development branch
+# SproutBound
 
-The Next.js greenhouse now uses the Auth0 popup login from `feature/sproutbound-auth`. All game routes wait for authentication. Login and signup open Auth0 Universal Login; a restored session opens the game on refresh. Use **Settings ? Sign out** to end the session.
-
-## Integrated authentication setup
-
-Run `npm install`, then `npm run dev`, and open `http://localhost:3000/`. Use the Auth0 settings below for both the integrated app and standalone prototype. The running app serves its Auth0 SDK, adapter, public configuration, and mascot from `public/auth/`. Edit `public/auth/config.js` for the integrated app. No client secret belongs in this file. The root HTML/JS files remain the original standalone prototype.
-
-Add these values in your Auth0 SPA application dashboard (both hostname variants if you use both):
-
-| Setting | Values |
-| --- | --- |
-| Allowed Callback URLs | `http://localhost:3000/` |
-| Allowed Logout URLs | `http://localhost:3000/` |
-| Allowed Web Origins | `http://localhost:3000` |
-
-The default server uses `http://localhost:3000/`. Add the port 3000 URLs above in Auth0 before signing in. Production needs the matching HTTPS origin and root callback/logout URL. The app always uses the origin root as its callback, including visits to `/game` and `/learn`.
-
-Verify login, signup, popup cancellation, refresh, direct `/game` and `/learn` visits, and Settings ? Sign out with a test account. This is a client-side SPA login gate; future server APIs must validate access tokens themselves. Progress still uses browser-local storage and is shared by accounts using that browser; this integration does not add account-specific or cloud saves.
-
-# Sproutbound
-
-A frontend-only, locally saved learning game built with Next.js App Router, TypeScript, React, PixiJS, Zustand, Motion, and Tailwind CSS.
+A cozy study game built with Next.js App Router, TypeScript, React, PixiJS, Zustand, Motion, and Tailwind CSS. Auth0 handles identity through Universal Login; gameplay and progress remain local to this browser. Supabase is deferred.
 
 ## Run
 
 ```sh
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000/. `npm run build` creates a static export in `out/`; authentication uses Auth0, while gameplay has no server APIs or external AI calls.
+If `.env.local` already exists, add the two public Auth0 values to it rather than replacing it. Open `http://localhost:3000/`. `.env.example` contains the existing hackathon SPA's public Domain and Client ID. Use your environment's application values as needed. No client secret is used or permitted in browser configuration.
+
+`NEXT_PUBLIC_AUTH0_DOMAIN` is the bare tenant hostname, without `https://` or a trailing slash. `NEXT_PUBLIC_AUTH0_CLIENT_ID` identifies the SPA. Restart development after edits. For Vercel, set both variables for the relevant Preview/Production environment before building; public variables are embedded at build time, so rebuild after changes. See [Next.js environment variables](https://nextjs.org/docs/pages/guides/environment-variables).
+
+`npm run build` produces the static application in `out/`, including `/`, `/game`, and `/learn`. Deploy using Vercel's Next.js preset. For a local production smoke test, run `python3 -m http.server 3000 --bind localhost --directory out` and use `/game.html` or `/learn.html` when testing that simple server's nested pages. Next's `npm start` is not supported with this project's `output: 'export'`; use `npm run dev` for normal local testing.
+
+## Authentication
+
+The root layout's `AuthGate` withholds all game routes until the Auth0 SPA SDK restores or establishes a session. Login and signup open Universal Login in a popup directly from the click. **Need a hand signing in? → Continue sign-in in this tab** offers an explicit redirect fallback and retains the last attempted signup intent. It returns to `/`; popup login retains the current route. **Settings → Sign out** ends the Auth0 session and returns to the login screen.
+
+A single loader (`src/lib/auth-client.ts`) loads the vendored official SDK 2.27.0 and the adapter (`public/auth/auth.js`). Concurrent startup checks share initialization so redirect callbacks are consumed once. Loading, request states, retries, safe errors, popup cleanup, and bounded timeouts are integrated into the ivy-framed parchment screen, with a quiet forest-green background and reduced-motion-aware ambient fireflies. The separate HTML prototype and its duplicate SDK/configuration have been retired; run only the Next.js app. See the retained SDK license in `public/auth/LICENSE.auth0-spa-js`.
+
+In the existing Auth0 **Single Page Application**, keep teammates' URLs and add:
+
+| Dashboard setting | Local value | Production value |
+| --- | --- | --- |
+| Allowed Callback URLs | `http://localhost:3000/` | Actual HTTPS origin plus `/` |
+| Allowed Logout URLs | `http://localhost:3000/` | Actual HTTPS origin plus `/` |
+| Allowed Web Origins | `http://localhost:3000` | Actual HTTPS origin |
+
+If you use `127.0.0.1` or another port, allowlist its matching URLs separately. Callback/logout always use the current origin root, including from `/game` and `/learn`. For Vercel previews, add each trusted preview origin explicitly or use a stable preview hostname; do not use wildcard callbacks.
+
+Keep the database connection and signup enabled as appropriate. **Google, passkeys, and hosted branding remain unverified** and require dashboard configuration. Both buttons leave provider selection to Universal Login. Follow [the Auth0 dashboard, Google, passkey, and branding guide](docs/auth0-setup.md).
+
+This static application has a client-side login gate. Future APIs must validate tokens and enforce ownership themselves. Auth0 `sub` is preserved unchanged for a future backend; email is not an account key. The SDK retains its existing localStorage token cache for refresh restoration, with the associated exposure to successful XSS. Game saves are still browser-local and shared by accounts on the same browser/origin. Signing out does not erase them. No Supabase, cloud saves, or account-specific persistence is implemented.
+
+## Verify authentication locally
+
+```sh
+npm run typecheck
+npm test
+npm run build
+```
+
+Automated tests mock Auth0; they do not verify live credentials, dashboard configuration, Google, or passkeys.
+
+1. In a signed-out browser, open `/`, `/game`, and `/learn`. Each should show sign-in and withhold the game.
+2. Choose **Enter the Greenhouse** and sign in with a test account. The popup should close and show avatar creation or your saved greenhouse. Refresh to check session restoration.
+3. Use **Settings → Sign out**. Confirm the login screen returns; direct game URLs should remain gated.
+4. Choose **Create an account** and complete Universal Login signup with a disposable test account. The game should open afterward.
+5. Close or block a login/signup popup. Check the safe message and enabled retry controls. Expand the help and choose **Continue sign-in in this tab**; after signup failure it should retain signup intent. Complete login and confirm a clean root callback URL without code/state.
+6. Cancel the Auth0 redirect and check recovery without raw provider details. Simulate offline/failed `/auth/` script requests, reconnect, then use **Retry connection**.
+7. Check Google and database passkey enrollment/login only after enabling them in the tenant. Use a real supported browser/device and approve its prompts yourself.
+8. Enter the greenhouse, walk, study, earn energy, and refresh. Confirm existing browser saves remain intact, including after logout/login. Repeat with a real HTTPS deployment and its configured allowlists.
 
 ## Play
 
@@ -95,50 +119,6 @@ A compact party roster crops customized standing sprites to head portraits witho
 
 Shared UI primitives provide icon tooltips, head portraits, panel headings, status badges, and progress meters. The Friends menu retains its demo code, Copy action, contributions, activity feed, and Moonlight Bloom objective, now using the same walnut, bronze, parchment, and botanical framing as the greenhouse. No networking or powerups are implemented.
 
----
-
-# Sproutbound authentication prototype
-
-This is the existing Sproutbound login page with Auth0 popup authentication. Its artwork, typography, colors, and layout remain local to Sproutbound. Auth0 Universal Login opens in a separate window to collect credentials; the original page stays visible. The page does not collect a password.
-
-## Auth0 application settings
-
-The Domain and Client ID for the hackathon Single Page Application are already in `config.js`. These identifiers are public; never add a Client Secret to browser code. Confirm these settings in the Auth0 application's dashboard:
-
-| Auth0 setting | Local value |
-| --- | --- |
-| Allowed Callback URLs | `http://localhost:3000/` |
-| Allowed Logout URLs | `http://localhost:3000/` |
-| Allowed Web Origins | `http://localhost:3000` |
-
-Enable the database and/or social connections you want players to use. Auth0's hosted login screen includes its own **Reset password** link for database users; the old local Forgot password link was removed because the page no longer asks for an email. When deployed, add the matching HTTPS callback, logout URL, and web origin for the final host.
-
-The current Auth0 popup says **SwampHacks Study Tool**. To keep the player experience consistent, update the application name and Universal Login branding in the Auth0 dashboard when your team is ready.
-
-## Run and test
-
-Continue serving this folder at `http://localhost:3000/`. If that server is stopped, run `python3 -m http.server 3000` from this folder. No framework or package install is required.
-
-1. Open `http://localhost:3000/` in a regular browser tab. Select **Enter the Greenhouse**. Auth0 should open in a popup while the Sproutbound page stays visible.
-2. Sign in with a test account. The popup should close and Sproutbound should show the temporary welcome panel with the account's name or email.
-3. Refresh the Sproutbound tab. The welcome panel should return while the SDK's cached session is valid.
-4. Select **Sign out**. Auth0 clears the session and returns to the login page.
-5. Select **Create an account**. The popup should open Auth0's signup screen. Complete this with a disposable test account if you want to verify the whole flow.
-6. To check password recovery, open the login popup and choose **Reset password** inside Auth0.
-
-The SDK uses `loginWithPopup()` for both login and signup. It opens the popup directly from the button click to avoid browser popup blocking and uses `screen_hint: "signup"` for account creation. If your browser still blocks the window, allow popups for `localhost:3000`. Closing the popup before finishing shows a gentle cancellation message on Sproutbound. Logout uses Auth0's hosted logout and returns to the same page.
-
-The Auth0 SDK's local storage cache restores a valid token after refresh. For the final game, the team should review the cache choice and any API authorization with its production security model. Expired sessions may need an Auth0 silent session check, which can depend on browser privacy settings.
-
-## Files for integration
-
-- `index.html` and `styles.css`: existing fantasy-themed page and temporary welcome panel.
-- `config.js`: public Auth0 application settings.
-- `auth.js`: reusable Auth0 adapter (`initialize`, `login`, `signup`, `logout`). It leaves protocol handling to the official SDK.
-- `app.js`: button interactions, errors, and signed-in rendering.
-- `auth0-spa-js.production.js`: official Auth0 SPA SDK browser bundle, version 2.27, from `https://cdn.auth0.com/js/auth0-spa-js/2.27/auth0-spa-js.production.js`; its license is in `LICENSE.auth0-spa-js`.
-
-The prototype contains no database, game dashboard, or progression system. The welcome panel can be replaced by the game's authenticated route when the team integrates it.
 
 ## Room updates
 

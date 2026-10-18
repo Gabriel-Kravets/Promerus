@@ -1,1 +1,187 @@
-.auth-scene{min-height:100dvh;display:grid;place-items:center;padding:125px 20px 45px;background:#111d30;color:#382318}.auth-card{position:relative;width:min(100%,500px);padding:85px 48px 35px;text-align:center;border:2px solid #8d6238;border-radius:8px;background:linear-gradient(135deg,#f5dcb5,#efd0a1 58%,#e7c28b);box-shadow:0 22px 65px #01060db8,inset 0 0 0 5px #fae8c38f}.auth-mascot{position:absolute;top:-96px;left:50%;width:180px;transform:translateX(-50%);filter:drop-shadow(0 7px 6px #49301955)}.auth-sprig{font-size:44px;color:#456d36}.auth-card h1{font:56px Georgia,serif;margin:0;color:#382318}.auth-tagline{font:19px Georgia,serif;margin:18px 0 38px;color:#573c28}.auth-enter{width:100%;min-height:54px;padding:12px;border:2px solid #192d17;border-radius:8px;background:linear-gradient(#456d36,#284a27);color:#f6eac8;font:19px Georgia,serif;box-shadow:0 4px 0 #754e2c}.auth-link{display:block;margin:22px auto 0;padding:6px;background:none;border:0;text-decoration:underline;color:#63462e}.auth-status{font-size:13px;line-height:1.6;margin:24px 0 0;color:#633e2b}.auth-card button:disabled{opacity:.6;cursor:wait}.auth-card button:focus-visible{outline:3px solid #254f22;outline-offset:4px}.account-status{overflow-wrap:anywhere}.account-status p{margin:10px 0}.account-status [role=alert]{color:#f3b3a3}@media(max-width:600px){.auth-card{padding:75px 24px 28px}.auth-card h1{font-size:44px}}
+@import url('https://fonts.googleapis.com/css2?family=Berkshire+Swash&family=IM+Fell+English&display=swap');
+
+/* Login-only styles. The shared game account panel keeps its existing rules. */
+.auth-scene {
+  --auth-ink: #3b281b;
+  --auth-gold: #a97b37;
+  --auth-font: 'IM Fell English', Georgia, 'Times New Roman', serif;
+  --auth-title-font: 'Berkshire Swash', 'IM Fell English', Georgia, serif;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  padding: 24px 18px;
+  overflow: clip;
+  color: var(--auth-ink);
+  background: #142c24 url('/assets/login_background.png') center / cover no-repeat;
+  font-family: var(--auth-font);
+}
+
+.auth-atmosphere {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.auth-card {
+  position: relative;
+  width: min(560px, 100%);
+  container-type: inline-size;
+  text-align: center;
+}
+
+.auth-card-art {
+  /* This unchanged image supplies all parchment, wood, vines, and flowers.
+     Its intrinsic 1122:1402 dimensions determine the card's height. */
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.auth-card-content { position: absolute; inset: 0; z-index: 2; }
+.auth-card-heading { position: absolute; top: 21%; left: 19%; right: 19%; }
+.auth-brand-mark { width: 5.5cqw; height: 5.5cqw; margin: 0 auto .5cqw; }
+.auth-brand-mark svg {
+  width: 100%; height: 100%; fill: #93b652; stroke: #293e25;
+  stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round;
+  filter: drop-shadow(0 2px 0 #d4ad69);
+}
+.auth-card h1 {
+  margin: 0 -2.3333cqw;
+  color: #332112;
+  font: 400 clamp(26px, 9.4cqw, 54px)/1.12 var(--auth-title-font);
+  letter-spacing: normal;
+  white-space: nowrap;
+  text-shadow: 0 1px #fff0ca;
+}
+.auth-card h1 > span { display: inline-block; }
+.auth-title-ending { margin-left: .055em; }
+.auth-ornament { display: flex; justify-content: center; align-items: center; gap: .8333cqw; height: 2.6667cqw; margin-top: .6667cqw; color: #9d6f31; }
+.auth-ornament span { width: 10.5cqw; height: 1px; background: linear-gradient(90deg, transparent, #a67739); }
+.auth-ornament span:last-child { transform: scaleX(-1); }
+.auth-ornament svg { width: 2.3333cqw; height: 2.3333cqw; fill: #6d4927; }
+.auth-ornament svg path:last-child { fill: #eac38a; }
+.auth-tagline { margin: 2cqw -2cqw 0; color: #432c1b; font-size: clamp(11px, 3.1cqw, 18px); line-height: 1.5; }
+
+.auth-actions { position: absolute; left: 19%; right: 19%; bottom: 17%; }
+
+.auth-enter {
+  position: absolute;
+  top: 54%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.3333cqw;
+  width: 62%;
+  min-height: max(44px, 10.6667cqw);
+  padding: 1.6667cqw 3.1667cqw;
+  border: 2px solid #293719;
+  border-radius: 7px 3px 7px 3px;
+  background: linear-gradient(#44612d, #304f26 52%, #243f21);
+  color: #fff0cc;
+  box-shadow: inset 0 0 0 1px #a0a65d, inset 0 0 0 3px #3d5a2a, 0 3px 0 #9b713b, 0 5px 7px #30291828;
+  font: 400 clamp(15px, 3.6667cqw, 22px)/1.3 var(--auth-font);
+  text-shadow: 0 1px 1px #122c1e;
+  transition: background .2s, transform .2s, box-shadow .2s;
+}
+.auth-enter:hover:not(:disabled) { background: linear-gradient(#426c45, #2b5635 52%, #20452e); box-shadow: inset 0 1px #adba7a, inset 0 0 0 2px #567848, 0 3px 0 #7c5b31, 0 8px 15px #30291840; transform: translate(-50%, calc(-50% - 1px)); }
+.auth-enter:active:not(:disabled) { transform: translate(-50%, calc(-50% + 2px)); }
+.auth-button-leaf { width: 3.8333cqw; height: 3.8333cqw; flex-shrink: 0; fill: #b9c96b; stroke: #a7be60; stroke-width: 1.2; }
+.auth-button-leaf:last-child { transform: scaleX(-1); }
+.auth-small-ornament { display: flex; align-items: center; justify-content: center; gap: 1.6667cqw; margin: 2.3333cqw 0 0; height: 2.6667cqw; }
+.auth-small-ornament span { width: 5cqw; height: 1px; background: #b99b5f66; }
+.auth-small-ornament svg { width: 2.8333cqw; height: 2.8333cqw; fill: #6d8c38; stroke: #4f652a; stroke-width: 1.2; }
+.auth-account-links { display: flex; align-items: center; justify-content: center; gap: clamp(8px, 3.6667cqw, 22px); }
+.auth-account-links > span { height: 14px; width: 1px; background: #947140; }
+.auth-link {
+  display: block;
+  margin: 0 auto;
+  padding: 6px 1px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: #60401f;
+  font: 400 clamp(12px, 2.3333cqw, 14px)/1.5 var(--auth-font);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.auth-link:hover:not(:disabled) { color: #284b29; }
+.auth-account-links .auth-link { margin: 0; white-space: nowrap; }
+.auth-feedback {
+  position: absolute;
+  top: calc(54% + max(22px, 5.3333cqw) + 12px);
+  left: 19%;
+  right: 19%;
+  bottom: calc(17% + 44px + 5cqw + 8px);
+  padding: 4px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.auth-status {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #675035;
+  font: clamp(11px, 2cqw, 12px)/1.5 var(--auth-font);
+}
+.auth-feedback .auth-link { min-height: 36px; font-size: 12px; }
+.auth-vine {
+  position: absolute;
+  top: 65%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 34%;
+  height: auto;
+  image-rendering: pixelated;
+  pointer-events: none;
+  user-select: none;
+}
+.auth-card button:disabled { opacity: .72; cursor: wait; }
+.auth-card button:focus-visible { outline: 3px solid #35552c; outline-offset: 4px; }
+.auth-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* These styles also serve the existing account section inside game settings. */
+.account-status { overflow-wrap: anywhere; }
+.account-status p { margin: 10px 0; }
+.account-status [role=alert] { color: #f3b3a3; }
+
+.auth-firefly { position: absolute; width: 3px; height: 3px; background: #f4c76d; color: #f4c76d; opacity: .48; box-shadow: 0 0 9px 2px #eebc5b66; animation: auth-glow var(--glow-duration) ease-in-out var(--glow-delay) infinite, auth-drift 30s ease-in-out var(--glow-delay) infinite alternate; }
+.auth-firefly-cross::before, .auth-firefly-cross::after { content: ''; position: absolute; inset: -2px 1px; background: currentColor; }
+.auth-firefly-cross::after { inset: 1px -2px; }
+.auth-dust { position: absolute; width: 220px; height: 165px; color: #b4a86a; opacity: .18; }
+.auth-dust-left { left: 6%; top: 55%; animation: auth-swirl 42s ease-in-out -8s infinite; }
+.auth-dust-right { right: 5%; top: 21%; transform: rotate(165deg); animation: auth-swirl-right 53s ease-in-out -21s infinite; }
+.auth-floating-leaf { position: absolute; left: 13%; top: 43%; width: 19px; height: 19px; opacity: .2; animation: auth-leaf-drift 48s ease-in-out -15s infinite; }
+@keyframes auth-glow { 0%, 100% { opacity: .28; } 43% { opacity: .86; } 72% { opacity: .43; } }
+@keyframes auth-drift { from { transform: translate3d(-6px, 3px, 0); } to { transform: translate3d(9px, -13px, 0); } }
+@keyframes auth-swirl { 0%, 100% { opacity: .06; transform: translate3d(-14px, 12px, 0) rotate(-15deg); } 40%, 60% { opacity: .28; } 90% { transform: translate3d(20px, -16px, 0) rotate(25deg); } }
+@keyframes auth-swirl-right { 0%, 100% { opacity: .05; transform: translate3d(12px, -10px, 0) rotate(160deg); } 40%, 60% { opacity: .25; } 90% { transform: translate3d(-16px, 16px, 0) rotate(205deg); } }
+@keyframes auth-leaf-drift { 0%, 100% { opacity: 0; transform: translate3d(0, -10px, 0) rotate(-20deg); } 25%, 65% { opacity: .22; } 90% { opacity: 0; transform: translate3d(65px, 70px, 0) rotate(70deg); } }
+
+@media (max-width: 600px) {
+  .auth-scene { padding: 20px 12px; }
+  .auth-dust { width: 150px; }
+  .auth-dust-left { left: -20%; }
+  .auth-dust-right { right: -20%; }
+}
+@media (max-width: 420px) {
+  .auth-account-links .auth-link { flex: 1; white-space: normal; }
+  .auth-enter { padding-inline: 2cqw; }
+  .auth-feedback { padding: 2px; }
+}
+@media (max-width: 360px) {
+  .auth-enter { font-size: 14px; gap: 1cqw; }
+  .auth-button-leaf { width: 3cqw; height: 3cqw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-atmosphere *, .auth-card button { animation: none; transition: none; }
+  .auth-firefly { opacity: .28; }
+  .auth-dust, .auth-floating-leaf { display: none; }
+}
