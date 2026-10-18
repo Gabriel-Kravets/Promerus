@@ -5,6 +5,7 @@ import Learning from './Learning';
 import {useGame} from '@/store/game';
 import {getCourse} from '@/lib/courses';
 import './study-room.css';
+import './study-retro.css';
 import {type RoomSave,defaultStudySave,readStudySave,writeStudySave,currentStudyDay} from '@/lib/study-progress';
 
 type Subject='Science'|'History'|'Math'|'English'|'Python'|'Spanish';

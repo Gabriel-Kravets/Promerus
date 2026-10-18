@@ -13,6 +13,9 @@ export const fenceFootprint:Shape={kind:'polygon',points:[360,487,400,503,450,52
 export const gardenFootprint:Shape={kind:'ellipse',x:660,y:380,rx:102,ry:50};
 // The canopy is decorative. Only the stone bed/trunk area opens the garden panel.
 export const gardenHotspot:Shape={kind:'ellipse',x:660,y:433,rx:104,ry:43};
+// The rest of the base: the walk-blocking bed footprint plus the trunk column, so clicks there open the panel instead of walking.
+export const gardenTrunk:Shape={kind:'ellipse',x:660,y:322,rx:30,ry:38};
+export const inGardenBase=(p:XY)=>contains(gardenHotspot,p)||contains(gardenFootprint,p)||contains(gardenTrunk,p);
 export const furnitureRegions=[
  {id:'library',name:'Bookshelf',action:'View Learning Journey',symbol:'▤',panel:'learn',shape:{kind:'polygon',points:[720,46,853,72,853,215,820,222,800,272,765,262,763,220,722,197]} as Shape,approaches:[{x:3,y:1.5},{x:3.5,y:1.5}]},
  {id:'board',name:'Quest Board',action:'View Group Goals',symbol:'✧',panel:'quests',shape:{kind:'polygon',points:[850,113,1002,165,1002,268,985,272,850,216]} as Shape,approaches:[{x:8,y:.5},{x:8.5,y:1}]},
