@@ -10,14 +10,14 @@ const inventory=()=>useInventory.getState();
 const ofType=(type:ItemType)=>inventory().items.filter(item=>item.type===type);
 afterEach(()=>{useGame.getState().reset();inventory().reset();});
 
-test('room initialization grants exactly N distinct desks and one tree, including an empty room',()=>{
+test('room initialization grants exactly N distinct desks and no starter tree, including an empty room',()=>{
   for(const count of [0,1,4,12]){
     inventory().reset();
     inventory().initializeRoom(count,'Stardew');
     assert.equal(ofType('desk').length,count);
-    assert.equal(ofType('tree').length,1);
-    assert.equal(inventory().items.length,count+1);
-    assert.equal(new Set(inventory().items.map(item=>item.id)).size,count+1);
+    assert.equal(ofType('tree').length,0);
+    assert.equal(inventory().items.length,count);
+    assert.equal(new Set(inventory().items.map(item=>item.id)).size,count);
     assert.ok(inventory().items.every(item=>item.theme==='Stardew'));
   }
 });
@@ -30,7 +30,7 @@ test('initialization and participant grants are idempotent and independent of in
   assert.equal(inventory().items,items);
   inventory().personJoined('kai');
   assert.equal(ofType('desk').length,3);
-  assert.equal(ofType('tree').length,1);
+  assert.equal(ofType('tree').length,0);
   assert.ok(inventory().items.every(item=>item.theme==='Classic'));
 });
 
@@ -74,7 +74,7 @@ test('presence listener catches joins even when population is unchanged and does
   // Remount reconciles participants who joined while the listener was detached.
   const stopAgain=listenForRoomJoins();t.after(stopAgain);
   assert.equal(ofType('desk').length,4);
-  assert.equal(ofType('tree').length,1);
+  assert.equal(ofType('tree').length,0);
 });
 
 test('a simultaneous theme change and join grants the new theme without changing existing pieces',t=>{
@@ -92,7 +92,7 @@ test('resetting a created greenhouse starts a fresh inventory',t=>{
   assert.equal(ofType('desk').length,4);
   useGame.getState().reset();
   assert.equal(ofType('desk').length,1);
-  assert.equal(ofType('tree').length,1);
+  assert.equal(ofType('tree').length,0);
 });
 
 test('save validation rejects malformed and duplicate items and only restores data fields',()=>{
@@ -100,7 +100,7 @@ test('save validation rejects malformed and duplicate items and only restores da
   const saved={initialized:true,theme:inventory().theme,items:inventory().items,tutorialSeen:false,placements:[]};
   assert.deepEqual(readRoomInventory({...saved,personJoined:'untrusted',extra:42}),saved);
   for(const malformed of [
-    null,{}, {...saved,theme:'unknown'}, {...saved,items:[]}, {...saved,tutorialSeen:'true'},
+    null,{}, {...saved,theme:'unknown'}, {...saved,tutorialSeen:'true'},
     {...saved,items:[...saved.items,saved.items[0]]},
     {...saved,items:[{id:'bad',type:'unknown',theme:'Classic'}]},
     {...saved,items:[...saved.items,{id:'duplicate-owner',type:'desk',theme:'Classic',grantedTo:'member-0'}]},
@@ -154,4 +154,13 @@ test('Step 1 saves retain their items and receive the new tutorial',()=>{
   assert.ok(restored);
   assert.deepEqual(restored.items,legacy.items);
   assert.equal(restored.tutorialSeen,false);
+});
+
+test('saves with the retired starter tree drop it and its placement',()=>{
+  inventory().initializeRoom(1,'Classic');
+  const tree={id:'starter:tree',type:'tree',theme:'Classic'};
+  const restored=readRoomInventory({initialized:true,theme:'Classic',items:[tree,...inventory().items],tutorialSeen:true,placements:[{itemId:tree.id,position:{x:9,y:6}}]});
+  assert.ok(restored);
+  assert.deepEqual(restored.items,inventory().items);
+  assert.deepEqual(restored.placements,[]);
 });

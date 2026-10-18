@@ -20,3 +20,8 @@
 .party-roster .party-gold{display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 5px 1px 3px;font-weight:700;font-size:12px;color:#f3d27a;background:#00000033;border:1px solid #c9a24b88;border-radius:3px}.party-gold svg{flex-shrink:0;color:#f0c24f}
 .presence-controls .presence-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;color:#d6c7ad}.presence-controls .presence-row>span{min-width:130px}.presence-controls .presence-row select{min-width:130px;margin-left:auto}.botanical-friends .friend-copy strong small{display:inline;margin:0}
 .room-sprout{pointer-events:auto;margin-top:6px;padding:7px 9px 8px;background:linear-gradient(110deg,#38342df0,#272c2cdd);border:1px solid #a88b5b88;border-radius:3px;box-shadow:inset 0 0 0 2px #262826}.room-sprout-title{display:block;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#e8d5b8;margin-bottom:5px}.room-sprout-bar{height:8px;background:#192720;border:1px solid #9ca76c66;border-radius:2px;overflow:hidden}.room-sprout-bar>span{display:block;height:100%;background:linear-gradient(90deg,#718a59,#c3d795);transition:width .4s}.room-sprout-next{display:block;margin-top:4px;font-size:10px;color:#c7c8ad;text-align:right}
+.game .game-icon-control>:is(button[data-quiet]:not(:hover),button[data-quiet-hover])+.game-tooltip{opacity:0;visibility:hidden}
+/* Small roster labels: big enough to read. */
+.game .party-caption b{font-size:12px;letter-spacing:.5px}
+.game .room-sprout-next{font-size:11px}
+.game.theme-classic .party-roster .party-gold{font-size:13px;color:#ffe08a;background:#00000066}

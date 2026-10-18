@@ -99,6 +99,10 @@ export const useItemDrag=create<ItemDragState>((set,get)=>({
   },
 }));
 
+/** While the tour teaches moving furniture, a quick tap on a piece is counted
+ * instead of walking over to use it, so the lesson can explain hold-and-drag. */
+export const useMoveLesson=create<{active:boolean;taps:number}>(()=>({active:false,taps:0}));
+
 /** Viewport position of the preview art, published by the canvas so the
  * placement controls can sit beside the piece being moved. */
 export type PreviewAnchor={x:number;top:number;bottom:number};

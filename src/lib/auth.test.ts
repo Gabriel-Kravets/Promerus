@@ -52,3 +52,15 @@ test('blocked popup surfaces an actionable error', () => {
   f.window.open = () => null;
   assert.throws(() => f.auth.login(), /Allow popups/);
 });
+
+test('backend token retrieval renews through Auth0 and rejects changed or missing identities',async()=>{
+ let renewed=0;
+ let claims:{sub:string;__raw?:string}={sub:'fixture-account',__raw:'fixture-token'};
+ const window:any={SPROUTBOUND_AUTH:{domain:'example.auth0.com',clientId:'public-id'},location:{origin:'http://localhost:3000',pathname:'/'},auth0:{createAuth0Client:async()=>({getTokenSilently:async()=>{renewed++;},getIdTokenClaims:async()=>claims})}};
+ runInNewContext(readFileSync('public/auth/auth.js','utf8'),{window,URLSearchParams});
+ assert.equal(await window.SproutboundAuth.getToken('fixture-account'),'fixture-token');
+ assert.equal(renewed,1);
+ await assert.rejects(()=>window.SproutboundAuth.getToken('another-account'),/account changed/);
+ claims={sub:'fixture-account'};
+ await assert.rejects(()=>window.SproutboundAuth.getToken('fixture-account'),/sign-in expired/);
+});

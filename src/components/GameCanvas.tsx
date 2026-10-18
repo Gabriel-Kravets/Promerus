@@ -1,7 +1,11 @@
 'use client';
+import {useBackend} from './backend/BackendProvider';
+import {rpc} from '@/lib/backend/client';
+import {sharedSproutlingAt,sproutlingClock} from '@/lib/backend/shared-sproutling';
+import {BackendError} from '@/lib/backend/contracts';
 import {useEffect,useRef,useState} from 'react';
 import {Application,Container,Graphics,Sprite,Texture,Rectangle,Text,FederatedPointerEvent} from 'pixi.js';
-import {useGame,presets} from '@/store/game';
+import {useGame,presets,type MemberActivity} from '@/store/game';
 import {avatarCanvas,loadImage} from '@/lib/sprite-assets';
 import {createWalkCycle} from '@/lib/walk-cycle';
 import {RUN_FRAME_COUNT} from '@/lib/sprite-locomotion';
@@ -9,26 +13,29 @@ import {createSproutlingWander} from '@/lib/sproutling-wander';
 import {iso,uniso,planRoute,approachRoute,distance,stageFor,blocked,setMovementObstacles,walkableTiles,Point} from '@/lib/movement';
 import {studyStations,gardenApproaches,treeCenter} from '@/lib/world-layout';
 import {contains,floorShape,gardenHotspot,furnitureRegions,inGardenBase,pickInteraction,Shape} from '@/lib/world-geometry';
-import {chairPose} from '@/lib/avatar-seating';
+import {chairPose,placedChairPose} from '@/lib/avatar-seating';
 import {objectTooltipPosition} from '@/lib/tooltip-position';
 import {createWorldEffects} from '@/lib/world-effects';
-import {useItemDrag,checkItemPreview,attachPlacementOccupants,setPreviewAnchor,type PlacementOccupantPlan} from '@/store/item-drag';
+import {createPuffs,stoveSmoke} from '@/lib/ambient-puffs';
+import {useItemDrag,useMoveLesson,checkItemPreview,attachPlacementOccupants,setPreviewAnchor,type PlacementOccupantPlan} from '@/store/item-drag';
 import {useInventory} from '@/store/inventory';
-import {getItemDefinition,itemInteractions,itemSprites,type ItemType} from '@/lib/items';
+import {getItemDefinition,itemInteractions,itemSprites,stovePipeMouth,studyDeskSprite,type ItemType} from '@/lib/items';
 import {permanentRoomObstacles,itemFootprint,itemRenderOrder,resolvePlacements} from '@/lib/placement';
 import {fixtureObstacles,roomFixture,translateShape} from '@/lib/room-fixtures';
 import {pointerRoomPosition} from '@/lib/item-drag';
 import {attachItemDragInput} from '@/lib/item-drag-input';
-import {createItemArt,createItemPreview,registerItemTextures} from '@/lib/item-preview';
+import {createItemArt,createItemFront,createItemPreview,registerItemTextures} from '@/lib/item-preview';
+import {createItemHover,itemHoverContains,type ItemHover} from '@/lib/item-hover';
 import {occupantShape,planPlacementNudges,type PlacementOccupant} from '@/lib/placement-occupants';
 import sceneAssets from '@/lib/scene-assets.json';
 
-type Props={suspended?:boolean;onOpen:(panel:string,player?:number)=>void;onHint:(text:string)=>void};
-type Interaction={id:string;name:string;action:string;symbol:string;priority:number;contains:(p:Point)=>boolean;shape:Shape;approaches:Point[];activate:()=>void;lookAt?:Point;preferFirst?:boolean;tooltipShape?:Shape;instant?:boolean};
+type Props={suspended?:boolean;activityOverride?:MemberActivity;onOpen:(panel:string,player?:number)=>void;onHint:(text:string)=>void};
+type Interaction={id:string;name:string;action:string;symbol:string;priority:number;contains:(p:Point)=>boolean;shape:Shape;approaches:Point[];activate:()=>void;lookAt?:Point;preferFirst?:boolean;tooltipShape?:Shape;instant?:boolean;seat?:ReturnType<typeof chairPose>};
 const drawShape=(g:Graphics,shape:Shape)=>shape.kind==='ellipse'?g.ellipse(shape.x,shape.y,shape.rx,shape.ry):g.poly(shape.points);
 
-export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
- const host=useRef<HTMLDivElement>(null),handlers=useRef({onOpen,onHint,suspended});handlers.current={onOpen,onHint,suspended};
+export default function GameCanvas({onOpen,onHint,suspended=false,activityOverride}:Props){
+ const backend=useBackend();
+ const host=useRef<HTMLDivElement>(null),handlers=useRef({onOpen,onHint,suspended,activityOverride,backend});handlers.current={onOpen,onHint,suspended,activityOverride,backend};
  const [error,setError]=useState(false);
  useEffect(()=>{if(suspended)useItemDrag.getState().cancel();},[suspended]);
  useEffect(()=>{
@@ -57,12 +64,18 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const spriteEntries=Object.entries(itemSprites) as [ItemType,{src:string}][];
    const spriteTextures=await Promise.all(spriteEntries.map(async([,art])=>{const t=await texture(art.src);t.source.scaleMode='linear';return t;}));
    if(disposed)return;
-   registerItemTextures(new Map(spriteEntries.map(([type],i)=>[type,spriteTextures[i]])));
+   const itemTextures=new Map<ItemType,Texture>(spriteEntries.map(([type],i)=>[type,spriteTextures[i]]));
+   itemTextures.set('desk',deskTextures[0]);
+   registerItemTextures(itemTextures);
    const effects=createWorldEffects(scene,room);destroyEffects=effects.destroy;
    const feedback=new Container();feedback.eventMode='none';scene.addChild(feedback);
    const sprite=(t:Texture,x:number,y:number,width:number)=>{const s=new Sprite(t);s.anchor.set(.5,1);s.width=width;s.height=width*t.height/t.width;s.position.set(x,y);s.zIndex=y;s.eventMode='none';world.addChild(s);return s;};
    let state=useGame.getState(),position:Point={x:8.5,y:8.5},route:Point[]=[],pending:Interaction|undefined,selected:Interaction|undefined,hovered:Interaction|undefined;
-   let seconds=0,reactionStart=-10,speed=0,facing=1,selectionTime=0,confirmation=0,highlightAlpha=0,displayed:Interaction|undefined,seated=false,seatedStation:number|undefined=undefined,cursorMode='var(--leaf-default)',pressedUntil=0,pointer:Point|undefined,treeAlpha=1;
+   let seconds=0,reactionStart=-10,speed=0,facing=1,selectionTime=0,confirmation=0,highlightAlpha=0,displayed:Interaction|undefined,seated=false,seatedStation:number|undefined=undefined,seatedItem:Interaction|undefined=undefined,seatActivity:'Studying'|'Idle'='Studying',cursorMode='var(--leaf-default)',pressedUntil=0,pointer:Point|undefined,treeAlpha=1;
+   let networkSignature='',networkGeneration=0,networkSent='',networkAt=0,networkBusy=false,networkSequence=0,networkSession='',networkWorld='';
+   const remotePeers=()=>handlers.current.backend.snapshot?.members.filter(m=>m.player_id!==handlers.current.backend.profile?.player_id&&m.online).sort((a,b)=>(a.slot??0)-(b.slot??0)).slice(0,3)??[];
+   const remotePositions:Point[]=[];
+   const remoteCycles:ReturnType<typeof createWalkCycle>[]=[],remoteStrides:Texture[][]=[];
    const reduced=matchMedia('(prefers-reduced-motion: reduce)');
    const interactions:Interaction[]=[];
    const marker=new Graphics().ellipse(0,0,12,5).stroke({color:0xc9e9ad,width:1.5}).moveTo(-4,0).lineTo(4,0).moveTo(0,-2).lineTo(0,2).stroke({color:0xe1edc3,width:1});marker.visible=false;ground.addChild(marker);
@@ -88,6 +101,12 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const add=(item:Interaction)=>{interactions.push(item);return item;};
    // Pixel outlines that hug sprite artwork instead of drawing a hit-shape contour.
    const outlines=new Map<string,Sprite>();
+   const ownedMasks=new Map<Container,ItemHover>(),itemHoverCache=new Map<string,ItemHover>();
+   const getItemHover=(item:Parameters<typeof createItemHover>[1])=>{
+    const key=`${item.type}:${item.theme}`;let mask=itemHoverCache.get(key);
+    if(!mask){mask=createItemHover(app.renderer,item);itemHoverCache.set(key,mask);hoverTextures.push(mask.texture);}
+    return mask;
+   };
    const fixtureArt=new Map<string,Sprite>();
    const stationPositions=studyStations.map(station=>({...station.position}));
    const stationMirrors=studyStations.map(()=>false),stationStored=studyStations.map(()=>false);
@@ -96,7 +115,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const stationAlternatives=studyStations.map(station=>station.alternatives.map(p=>({...p})));
    const deskHover=sceneAssets.desk.bounds.map((bounds,col)=>({
     texture:new Texture({source:deskHoverSheet.source,frame:new Rectangle(col*sceneAssets.desk.width,0,sceneAssets.desk.width,sceneAssets.desk.height)}),
-    bounds,pad:sceneAssets.desk.pad,density:sceneAssets.desk.density
+    bounds,pad:sceneAssets.desk.pad,density:sceneAssets.desk.density/studyDeskSprite.scale
    }));
    studyStations.forEach((station,index)=>{const p=iso(station.position.x,station.position.y),desk=sprite(deskTextures[station.atlasColumn],p.x,p.y+36,station.width);desk.zIndex=p.y;fixtureArt.set(`fixture:${station.id}`,desk);const hover=deskHover[station.atlasColumn],outline=new Sprite(hover.texture);
     outline.scale.set(1/hover.density);outline.position.set(desk.x-desk.width/2-hover.pad/hover.density,desk.y-desk.height-hover.pad/hover.density);
@@ -150,27 +169,30 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const friendShapes:({kind:'ellipse';x:number;y:number;rx:number;ry:number}|undefined)[]=[];
    const friendPositions:(Point|undefined)[]=[];
    // Online classmates use tight body ellipses, not their atlas cell bounds.
-   players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,name:['', 'Maya','Kai','Jules'][i],action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>state.online[i]&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen('profile',i)});});
+   players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,name:['', 'Maya','Kai','Jules'][i],action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>(handlers.current.backend.enabled?!!remotePeers()[i-1]?.online:state.online[i])&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen(handlers.current.backend.enabled?'friends':'profile',i)});});
    let wander=createSproutlingWander();const petPoint=iso(8,4),pet=sprite(petTextures[state.energy>=100?1:0],petPoint.x,petPoint.y,125);pet.zIndex=petPoint.y+6;
    const petRuns=[0,1].map(stage=>Array.from({length:sceneAssets.run.frames},(_,frame)=>new Texture({source:petRunSheet.source,frame:new Rectangle(frame*sceneAssets.run.width,stage*sceneAssets.run.height,sceneAssets.run.width,sceneAssets.run.height)})));
    let petHitTexture=petTextures[state.energy>=100?1:0];
    const petCycle=createWalkCycle(petPoint);
+   let sharedPet={position:{x:8,y:4},moving:false,facing:1};
    const petShape={kind:'ellipse' as const,x:pet.x+5,y:pet.y-32,rx:25,ry:29};
-   const petInteraction=add({id:'pet',name:'Sproutling',action:'Interact with Sproutling',symbol:'♡',priority:50,shape:petShape,contains:p=>spriteContains(pet,p,petHitTexture),approaches:[{x:8,y:4}],activate:()=>{reactionStart=seconds;useGame.getState().set({reaction:['happy','watering','sleeping'][Math.floor(Math.random()*3)]});handlers.current.onHint('A happy little Sproutling. Every lesson helps it grow.');}});
+   const petInteraction=add({id:'pet',name:'Sproutling',action:'Interact with Sproutling',symbol:'♡',priority:50,shape:petShape,contains:p=>spriteContains(pet,p,petHitTexture),approaches:[{x:8,y:4}],activate:()=>{const net=handlers.current.backend;const reaction=['happy','watering','sleeping'][Math.floor(Math.random()*3)];if(net.enabled&&net.client&&net.lease){void rpc(net.client,'react_sproutling',{p_session:net.lease.id,p_reaction:reaction}).catch(()=>handlers.current.onHint('Sproutling is reconnecting. Try again in a moment.'));}else{reactionStart=seconds;useGame.getState().set({reaction});}handlers.current.onHint('A happy little Sproutling. Every lesson helps it grow.');}});
    const sleep=new Text({text:'z z',style:{fontFamily:'Georgia',fontSize:14,fill:0xeee4c4}});sleep.position.set(petPoint.x+18,petPoint.y-75);sleep.visible=false;feedback.addChild(sleep);
    const cues=interactions.filter(i=>i.id.startsWith('desk-')||['garden','board','pet'].includes(i.id)).map(item=>{const g=new Text({text:item.symbol,style:{fontFamily:'Georgia',fontSize:17,fill:0xd8e6ac,stroke:{color:0x30372a,width:3}}});g.anchor.set(.5);feedback.addChild(g);return {item,g};});
-   const setActivity=(activity:'Exploring'|'Idle'|'Studying')=>{if(useGame.getState().localActivity!==activity)useGame.getState().set({localActivity:activity});};
-   const reportPosition=()=>{if(host.current){host.current.dataset.playerTile=`${position.x.toFixed(2)},${position.y.toFixed(2)}`;host.current.dataset.destination=route.length?`${route[route.length-1].x},${route[route.length-1].y}`:'';host.current.dataset.facing=String(facing);host.current.dataset.selected=selected?.id??'';host.current.dataset.seatedAt=seatedStation===undefined?'':studyStations[seatedStation].id;host.current.dataset.onlineAvatars=String(state.online.filter(Boolean).length);}};
-   const sitAt=(item:Interaction)=>{const index=studyStations.findIndex(station=>station.id===item.id);if(index<0)return;seatedStation=index;seated=true;facing=chairPose(index).facing;confirmation=.65;setActivity('Studying');};
-   const beginMove=(path:Point[],destination:Point,item?:Interaction)=>{route=path;pending=item;selected=item;selectionTime=seconds;confirmation=0;seated=false;seatedStation=undefined;setActivity(path.length?'Exploring':'Idle');
+   const setActivity=(activity:MemberActivity)=>{if(useGame.getState().localActivity!==activity)useGame.getState().set({localActivity:activity});};
+   const reportPosition=()=>{if(host.current){host.current.dataset.playerTile=`${position.x.toFixed(2)},${position.y.toFixed(2)}`;host.current.dataset.destination=route.length?`${route[route.length-1].x},${route[route.length-1].y}`:'';host.current.dataset.facing=String(facing);host.current.dataset.selected=selected?.id??'';host.current.dataset.seatedAt=seatedItem?.id??(seatedStation===undefined?'':studyStations[seatedStation].id);host.current.dataset.onlineAvatars=String(handlers.current.backend.enabled?1+remotePeers().length:state.online.filter(Boolean).length);}};
+   const sitAt=(item:Interaction)=>{
+    if(item.seat){seatedItem=item;seated=true;facing=item.seat.facing;seatActivity=itemInteractions.desk?.action===item.action?'Studying':'Idle';confirmation=.65;setActivity(seatActivity);return;}
+    const index=studyStations.findIndex(station=>station.id===item.id);if(index<0)return;seatedStation=index;seated=true;seatActivity='Studying';facing=chairPose(index).facing;confirmation=.65;setActivity('Studying');};
+   const beginMove=(path:Point[],destination:Point,item?:Interaction)=>{route=path;pending=item;selected=item;selectionTime=seconds;confirmation=0;seated=false;seatedStation=undefined;seatedItem=undefined;setActivity(path.length?'Exploring':'Idle');
     const p=iso(destination.x,destination.y);marker.position.set(p.x,p.y);marker.visible=path.length>0;reportPosition();
-    if(!path.length&&item){confirmation=.3;if(item.lookAt){const look=item.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}if(item.id.startsWith('desk-'))sitAt(item);}
+    if(!path.length&&item){confirmation=.3;if(item.lookAt){const look=item.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}sitAt(item);}
    };
    const resetHint=()=>handlers.current.onHint('Click the floor to wander · choose a desk to learn');
    const roomInputBlocked=()=>handlers.current.suspended||!!useItemDrag.getState().preview;
-   const stopRoomMove=()=>{route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity(seated?'Studying':'Idle');reportPosition();};
-   const placedArt=new Map<string,Container>();
-   const artContains=(art:Container,at:Point)=>{const local=art.toLocal(scene.toGlobal(at));return art.getLocalBounds().containsPoint(local.x,local.y);};
+   const stopRoomMove=()=>{route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity(seated?seatActivity:'Idle');reportPosition();};
+   const placedArt=new Map<string,Container>(),placedFronts=new Map<string,Container>(),stoveSmokes:ReturnType<typeof createPuffs>[]=[];
+   const artContains=(art:Container,at:Point)=>{const local=art.toLocal(scene.toGlobal(at)),mask=ownedMasks.get(art);return mask?itemHoverContains(mask,local):art.getLocalBounds().containsPoint(local.x,local.y);};
    const syncFixtures=()=>{
     const inventory=useInventory.getState(),positions=inventory.fixturePositions??{};
     studyStations.forEach((station,index)=>{
@@ -199,7 +221,8 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const nearestClear=(point:Point)=>[...walkableTiles].filter(p=>!blocked(p.x,p.y)).sort((a,b)=>distance(a,point)-distance(b,point))[0]??point;
    const syncPlacements=()=>{
     syncFixtures();
-    placedArt.forEach(art=>art.destroy({children:true}));placedArt.clear();
+    placedArt.forEach((art,id)=>{outlines.delete(`owned:${id}`);ownedMasks.delete(art);art.destroy({children:true});});placedArt.clear();
+    placedFronts.forEach(front=>front.destroy({children:true}));placedFronts.clear();stoveSmokes.length=0;
     for(let i=interactions.length-1;i>=0;i--)if(interactions[i].id.startsWith('owned:'))interactions.splice(i,1);
     const inventory=useInventory.getState(),placed=resolvePlacements(inventory.items,inventory.placements);
     setMovementObstacles([...permanentRoomObstacles,...fixtureObstacles(inventory.fixturePositions,undefined,inventory.storedFixtures,true),...placed.filter(p=>getItemDefinition(p.item.type,p.item.theme).solid).map(p=>itemFootprint(p.item,p.position))],true);
@@ -213,12 +236,20 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     for(const {item,position:tile} of placed){
      const art=createItemArt(item),at=iso(tile.x,tile.y),order=itemRenderOrder(item,tile);art.position.set(at.x,at.y);art.zIndex=order.depth;
      (order.layer==='floor'?floorItems:world).addChild(art);placedArt.set(item.id,art);
-     if(getItemDefinition(item.type,item.theme).solid){
-      const bounds=art.getLocalBounds(),sign=item.mirrored?-1:1,left=at.x+Math.min(sign*bounds.minX,sign*bounds.maxX),right=at.x+Math.max(sign*bounds.minX,sign*bounds.maxX),shape:Shape={kind:'polygon',points:[left,at.y+bounds.minY,right,at.y+bounds.minY,right,at.y+bounds.maxY,left,at.y+bounds.maxY]};
+     // Above a seated avatar (depth +2) so the armrest covers its legs.
+     const front=createItemFront(item);if(front){front.position.set(at.x,at.y);front.zIndex=at.y+2.5;world.addChild(front);placedFronts.set(item.id,front);}
+     if(item.type==='stove'){const smoke=createPuffs(stoveSmoke,item.id.length);smoke.root.position.set(stovePipeMouth.x,stovePipeMouth.y);art.addChild(smoke.root);stoveSmokes.push(smoke);}
+     const interaction=itemInteractions[item.type];
+     if(interaction&&getItemDefinition(item.type,item.theme).solid){
+      const mask=getItemHover(item),bounds=mask.bounds,outline=new Sprite(mask.texture);
+      outline.scale.set(1/mask.resolution);outline.position.set(mask.left,mask.top);outline.alpha=0;outline.eventMode='none';
+      art.addChild(outline);ownedMasks.set(art,mask);outlines.set(`owned:${item.id}`,outline);
+      const sign=item.mirrored?-1:1,left=at.x+Math.min(sign*bounds.left,sign*bounds.right),right=at.x+Math.max(sign*bounds.left,sign*bounds.right),shape:Shape={kind:'polygon',points:[left,at.y+bounds.top,right,at.y+bounds.top,right,at.y+bounds.bottom,left,at.y+bounds.bottom]};
       const options=walkableTiles.filter(p=>!blocked(p.x,p.y)&&distance(p,tile)<150).sort((a,b)=>distance(a,tile)-distance(b,tile)).slice(0,8);
-      add({id:`owned:${item.id}`,name:getItemDefinition(item.type,item.theme).name,action:itemInteractions[item.type].action,symbol:'✧',priority:35,shape,contains:p=>art.visible&&artContains(art,p),approaches:options,activate:()=>handlers.current.onOpen(itemInteractions[item.type].panel)});
+      add({id:`owned:${item.id}`,name:getItemDefinition(item.type,item.theme).name,action:interaction.action,symbol:'✧',priority:35,shape,contains:p=>art.visible&&artContains(art,p),approaches:options,seat:placedChairPose(item,tile,(itemTextures.get(item.type)?.height??1)/(itemTextures.get(item.type)?.width??1)),activate:()=>handlers.current.onOpen(interaction.panel)});
      }
     }
+    if(seatedItem){const id=seatedItem.id;seatedItem=interactions.find(item=>item.id===id&&!!item.seat);if(!seatedItem){seated=false;setActivity('Idle');}}
     if(host.current)host.current.dataset.placedItems=String(placed.length);reportPosition();
    };
    syncPlacements();
@@ -243,7 +274,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     cachedPlan={obstacles:occupants.map(actor=>occupantShape({...actor,position:destinations.get(actor.id)??actor.position})),apply:()=>{
      for(const move of moves){
       if(move.id==='local'){
-       stopRoomMove();seated=false;seatedStation=undefined;position={...move.position};setActivity('Idle');
+       stopRoomMove();seated=false;seatedStation=undefined;seatedItem=undefined;position={...move.position};setActivity('Idle');
       }else if(move.id==='pet'){
        wander=createSproutlingWander(move.position);petInteraction.approaches=[{...move.position}];
       }else{
@@ -258,7 +289,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    let previewArt:Container|undefined,previewItem:object|undefined,wasPreviewing=false;
    const updatePreview=()=>{
     const {preview}=useItemDrag.getState();
-    placedArt.forEach((art,id)=>{art.visible=!(preview?.originalPosition&&preview.item.id===id);});
+    placedArt.forEach((art,id)=>{art.visible=!(preview?.originalPosition&&preview.item.id===id);const front=placedFronts.get(id);if(front)front.visible=art.visible;});
     if(preview?.item!==previewItem){previewArt?.destroy({children:true});previewArt=undefined;previewItem=preview?.item;
      if(preview){
       const original=fixtureArt.get(preview.item.id);
@@ -272,7 +303,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
      previewArt.zIndex=fixture?at.y+(fixture.type==='tree'?40:0):itemRenderOrder(preview.item,preview.position).depth;
      const valid=checkItemPreview().valid;previewArt.tint=valid?0xffffff:0xffa7a0;
      previewOutline.clear().poly(itemFootprint(preview.item,preview.position).points).fill({color:valid?0xaedc97:0xf49286,alpha:.15}).stroke({color:valid?0xaedc97:0xf49286,width:2});
-     if(!wasPreviewing){route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity(seated?'Studying':'Idle');reportPosition();}
+     if(!wasPreviewing){route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity(seated?seatActivity:'Idle');reportPosition();}
      hovered=undefined;pointer=undefined;floorHover.visible=false;tooltip.visible=false;pressedUntil=0;
      highlightAlpha=0;highlight.alpha=contour.alpha=0;outlines.forEach(outline=>outline.alpha=0);
      cursorMode=preview.phase==='idle'?'grab':'grabbing';scene.cursor=cursorMode;app.canvas.style.cursor=cursorMode;
@@ -299,7 +330,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     hits.sort((a,b)=>Number(b[1].parent===world)-Number(a[1].parent===world)||b[1].zIndex-a[1].zIndex);
     return hits[0]?.[0];
    };
-   cleanupPreviewInput=attachItemDragInput(app.canvas,{point:roomPoint,hitTest:overPreview,suspended:()=>handlers.current.suspended,pickItem:pickPlacedItem,onTap:point=>activatePoint(iso(point.x,point.y)),onHoldStart:stopRoomMove});
+   cleanupPreviewInput=attachItemDragInput(app.canvas,{point:roomPoint,hitTest:overPreview,suspended:()=>handlers.current.suspended,pickItem:pickPlacedItem,onTap:point=>{if(useMoveLesson.getState().active){useMoveLesson.setState(s=>({taps:s.taps+1}));return;}activatePoint(iso(point.x,point.y));},onHoldStart:stopRoomMove});
    scene.on('pointermove',(event:FederatedPointerEvent)=>{if(roomInputBlocked())return;const point=scene.toLocal(event.global),next=pickInteraction(interactions,point);pointer=point;
     if(next!==hovered){hovered=next;if(next)handlers.current.onHint(`${next.name} · ${next.action}`);else resetHint();}
     const tile=uniso(point.x,point.y),snapped={x:Math.round(tile.x*2)/2,y:Math.round(tile.y*2)/2},inFloor=contains(floorShape,point),valid=!blocked(snapped.x,snapped.y),center=iso(snapped.x,snapped.y);
@@ -321,14 +352,14 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     const plan=planRoute(position,uniso(point.x,point.y),true);if(!plan)return;beginMove(plan.path,plan.destination);resetHint();
    }
    scene.on('pointertap',(event:FederatedPointerEvent)=>activatePoint(scene.toLocal(event.global)));
-   const updateGarden=()=>{garden.texture=gardenTextures[stageFor(state.energy)];garden.width=treeWidth;garden.height=treeWidth*garden.texture.height/garden.texture.width;moonflower.visible=new Set(state.completions.map(c=>c.player)).size>=2;updateBranches();updateGardenOutline();};updateGarden();
+   const updateGarden=()=>{garden.texture=gardenTextures[stageFor(state.energy)];garden.width=treeWidth;garden.height=treeWidth*garden.texture.height/garden.texture.width;moonflower.visible=state.cloud?state.sharedBloom:new Set(state.completions.map(c=>c.player)).size>=2;updateBranches();updateGardenOutline();};updateGarden();
    unsubscribe=useGame.subscribe((next,previous)=>{state=next;if(next.online!==previous.online){
      reportPosition();
      if(useItemDrag.getState().preview)updatePreview();
      for(let i=1;i<avatars.length;i++)if(next.online[i]&&!previous.online[i]){
       void avatarCanvas(avatars[i],true).then(texture).then(t=>{if(!disposed)reading[i]=t;}).catch(console.error);
      }
-    }if(next.energy!==previous.energy||next.completions!==previous.completions)updateGarden();if(next.reaction!==previous.reaction)reactionStart=seconds;
+    }if(next.energy!==previous.energy||next.completions!==previous.completions||next.sharedBloom!==previous.sharedBloom)updateGarden();if(next.reaction!==previous.reaction)reactionStart=seconds;
     if(next.avatar!==previous.avatar){
      strides=[];strideGeneration++;
      Promise.all([avatarCanvas(next.avatar),avatarCanvas(next.avatar,true)]).then(async canvases=>{
@@ -340,30 +371,43 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    app.ticker.add(tick=>{
     if(previewArt)publishAnchor();
     const dt=Math.min(tick.deltaMS/1000,.05);seconds+=dt;const motion=state.settings.motion&&!reduced.matches;
-    if(roomInputBlocked()){if(route.length||pending){route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity('Idle');reportPosition();}hovered=undefined;floorHover.visible=false;}
+    if(roomInputBlocked()){if(route.length||pending){route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity(handlers.current.activityOverride??'Idle');reportPosition();}hovered=undefined;floorHover.visible=false;}
     scene.cursor=seconds<pressedUntil?'var(--leaf-pressed)':cursorMode;
     const walking=route.length>0;
     if(walking){const remaining=route.reduce((total,p,i)=>total+distance(i?route[i-1]:position,p),0),targetSpeed=Math.min(112,Math.sqrt(2*260*remaining));
      speed+=Math.max(-260*dt,Math.min(260*dt,targetSpeed-speed));let travel=speed*dt;
      while(route.length&&travel>0){const next=route[0],d=distance(position,next);const projected=iso(next.x,next.y),current=iso(position.x,position.y);if(Math.abs(projected.x-current.x)>.1)facing=projected.x<current.x?1:-1;
       if(d<=travel+.05){position={...next};route.shift();travel-=d;}else{position.x+=(next.x-position.x)*travel/d;position.y+=(next.y-position.y)*travel/d;travel=0;}}
-     if(!route.length){speed=0;marker.visible=false;confirmation=pending?.3:0;setActivity('Idle');if(pending?.lookAt){const look=pending.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}if(pending?.id.startsWith('desk-'))sitAt(pending);reportPosition();}
+     if(!route.length){speed=0;marker.visible=false;confirmation=pending?.3:0;setActivity('Idle');if(pending?.lookAt){const look=pending.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}if(pending)sitAt(pending);reportPosition();}
     }
     if(confirmation>0){confirmation-=dt;if(confirmation<=0&&pending){const done=pending;pending=undefined;selected=undefined;done.activate();}}
     const p=iso(position.x,position.y),stride=cycle(p);
-    const seat=seated&&seatedStation!==undefined?chairPose(seatedStation,deskTextures[0].height/deskTextures[0].width,stationPositions[seatedStation],stationMirrors[seatedStation]):undefined;
+    const seat=seated&&seatedStation!==undefined?chairPose(seatedStation,deskTextures[0].height/deskTextures[0].width,stationPositions[seatedStation],stationMirrors[seatedStation]):seated?seatedItem?.seat:undefined;
     players[0].texture=seat?reading[0]:stride.frame>=0?(strides[stride.frame]??standing[0]):standing[0];players[0].anchor.set(seat?.anchorX??.5,seat?.anchorY??1);players[0].width=76;players[0].height=76*players[0].texture.height/players[0].texture.width;
     players[0].scale.x=Math.abs(players[0].scale.x)*(seat?.facing??facing);players[0].position.set(seat?.x??p.x,seat?.y??p.y+4+stride.bob);players[0].rotation=seat?0:stride.lean;players[0].zIndex=seat?.depth??p.y+6;
-    for(let i=1;i<4;i++){
-     const ground=friendPositions[i]??approaches[i];
-     if(state.online[i]&&blocked(ground.x,ground.y))friendPositions[i]={...nearestClear(ground)};
-     const at=friendPositions[i]??approaches[i],base=iso(at.x,at.y),sitting=!friendPositions[i]&&!stationStored[i]&&state.memberActivities[i]==='Studying',chair=sitting?chairPose(i,deskTextures[0].height/deskTextures[0].width,stationPositions[i],stationMirrors[i]):undefined;
-     const interaction=interactions.find(item=>item.id===`friend-${i}`);if(interaction)interaction.approaches=[at];
-     players[i].texture=sitting?reading[i]:standing[i];players[i].anchor.set(chair?.anchorX??.5,chair?.anchorY??1);players[i].width=i===2?88:72;players[i].height=players[i].width*players[i].texture.height/players[i].texture.width;players[i].scale.x=Math.abs(players[i].scale.x)*(chair?.facing??1);players[i].position.set(chair?.x??base.x,chair?.y??base.y+4);players[i].zIndex=chair?.depth??base.y+6;players[i].visible=state.online[i];
+    const net=handlers.current.backend,peers=remotePeers();
+    const signature=peers.map(p=>`${p.player_id}:${p.appearance_version}`).join('|');
+    if(net.enabled&&signature!==networkSignature){reportPosition();networkSignature=signature;const generation=++networkGeneration;peers.forEach((peer,j)=>{remoteCycles[j+1]=createWalkCycle(iso(peer.x,peer.y));remoteStrides[j+1]=[];void(async()=>{const [idle,study]=await Promise.all([avatarCanvas(peer.avatar),avatarCanvas(peer.avatar,true)].map(async canvas=>texture(await canvas)));if(disposed||generation!==networkGeneration)return;standing[j+1]=idle;reading[j+1]=study;const frames:Texture[]=[];for(let frame=0;frame<RUN_FRAME_COUNT;frame++){await new Promise<void>(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));if(disposed||generation!==networkGeneration)return;frames.push(await texture(await avatarCanvas(peer.avatar,false,frame)));}if(!disposed&&generation===networkGeneration)remoteStrides[j+1]=frames;})().catch(()=>handlers.current.onHint('A gardener’s portrait is still loading.'));});}
+    if(net.lease?.id!==networkSession){networkSession=net.lease?.id??'';networkSequence=net.lease?.sequence??0;networkSent='';const local=net.snapshot?.members.find(m=>m.player_id===net.profile?.player_id);if(local){position={x:local.x,y:local.y};facing=local.facing;route=[];pending=undefined;reportPosition();}}
+    if((net.snapshot?.world.id??'')!==networkWorld){networkWorld=net.snapshot?.world.id??'';remotePositions.length=0;if(net.snapshot)sharedPet=sharedSproutlingAt(net.snapshot.world.id,sproutlingClock(Date.now()+net.snapshot.clockOffset,net.snapshot.world.pet_pause_total,net.snapshot.world.pet_pause_until));}
+    for(let i=1;i<4;i++){const ground=friendPositions[i]??approaches[i];if(!net.enabled&&state.online[i]&&blocked(ground.x,ground.y))friendPositions[i]={...nearestClear(ground)};const at=friendPositions[i]??approaches[i];const peer=net.enabled?peers[i-1]:undefined,target=peer?iso(peer.x,peer.y):iso(at.x,at.y);if(!remotePositions[i])remotePositions[i]={...target};remotePositions[i].x+=(target.x-remotePositions[i].x)*Math.min(1,dt*12);remotePositions[i].y+=(target.y-remotePositions[i].y)*Math.min(1,dt*12);const base=net.enabled?remotePositions[i]:target,sitting=net.enabled?!!peer&&peer.seat>=0:!friendPositions[i]&&!stationStored[i]&&state.memberActivities[i]==='Studying',chair=sitting?chairPose(peer?.seat??i,deskTextures[0].height/deskTextures[0].width,stationPositions[peer?.seat??i],stationMirrors[peer?.seat??i]):undefined;
+     const gait=net.enabled&&!sitting?remoteCycles[i]?.(base):undefined;players[i].texture=sitting?reading[i]:gait&&gait.frame>=0?(remoteStrides[i]?.[gait.frame]??standing[i]):standing[i];players[i].rotation=gait?.lean??0;players[i].anchor.set(chair?.anchorX??.5,chair?.anchorY??1);players[i].width=net.enabled?(peer?.avatar.style===1?88:72):i===2?88:72;players[i].height=players[i].width*players[i].texture.height/players[i].texture.width;players[i].scale.x=Math.abs(players[i].scale.x)*(chair?.facing??peer?.facing??1);players[i].position.set(chair?.x??base.x,chair?.y??base.y+4+(gait?.bob??0));players[i].zIndex=chair?.depth??base.y+6;players[i].visible=net.enabled?!!peer?.online:state.online[i];if(peer){const target=interactions.find(item=>item.id===`friend-${i}`);if(target){target.name=peer.name;target.approaches=[{x:peer.x,y:peer.y}];}}
      const shape=friendShapes[i];if(shape){shape.x=players[i].x;shape.y=players[i].y-(sitting?22:28);}
     }
+    if(net.enabled&&net.lease&&seconds-networkAt>=.2&&!networkBusy){
+     const signature=`${net.lease.id}:${position.x.toFixed(3)}:${position.y.toFixed(3)}:${facing}:${state.localActivity}:${seatedStation??-1}`;
+     if(signature!==networkSent){networkAt=seconds;networkBusy=true;const session=net.lease.id;const sample={session,geometryVersion:'moonlit-v2',layoutVersion:net.snapshot?.world.room_layout_version??0,x:position.x,y:position.y,facing,sequence:++networkSequence,activity:state.localActivity,seat:seatedStation??-1};
+      void net.invoke('move',sample).then(()=>{if(handlers.current.backend.lease?.id===session)networkSent=signature;}).catch(e=>{
+       if(handlers.current.backend.lease?.id!==session)return;
+       if(e instanceof BackendError&&e.details?.position){position={...e.details.position};route=[];pending=undefined;seatedStation=undefined;seated=false;marker.visible=false;reportPosition();}
+       handlers.current.onHint(e instanceof BackendError?e.message:'Your movement is reconnecting. Please try that destination again.');
+      }).finally(()=>{networkBusy=false;});
+     }
+    }
     const active=seconds-reactionStart<4,celebrate=active&&['happy','celebrating','evolving'].includes(state.reaction);
-    const roaming=wander(dt,roomInputBlocked()||hovered===petInteraction||selected===petInteraction||active);
+    const petPaused=net.enabled?false:roomInputBlocked()||hovered===petInteraction||selected===petInteraction||active;
+    if(net.enabled&&net.snapshot&&!petPaused)sharedPet=sharedSproutlingAt(net.snapshot.world.id,sproutlingClock(Date.now()+net.snapshot.clockOffset,net.snapshot.world.pet_pause_total,net.snapshot.world.pet_pause_until));
+    const roaming=net.enabled?{...sharedPet,moving:!petPaused&&sharedPet.moving}:wander(dt,petPaused);
     const petFloor=iso(roaming.position.x,roaming.position.y),petStride=petCycle(petFloor);
     petInteraction.approaches=[roaming.position];
     const petStage=state.energy>=100||active&&state.reaction==='watering'?1:0;petHitTexture=petTextures[petStage];pet.texture=petStride.frame>=0?petRuns[petStage][petStride.frame]:petTextures[petStage];pet.width=125;pet.height=125*petTextures[0].height/petTextures[0].width;pet.x=petFloor.x;pet.y=petFloor.y+petStride.bob+(motion?(celebrate?-Math.abs(Math.sin(seconds*7))*9:roaming.moving?0:Math.sin(seconds*2)*1.2):0);pet.rotation=petStride.frame>=0?petStride.lean:motion&&active&&state.reaction==='watering'?Math.sin(seconds*4)*.06:0;sleep.visible=state.reaction==='sleeping'&&active;pet.alpha=sleep.visible?.8:1;
@@ -398,12 +442,13 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     moonflower.visible=!movingGarden&&!gardenStored&&new Set(state.completions.map(c=>c.player)).size>=2;
     branches.forEach(({c,side})=>{c.visible=!movingGarden&&!gardenStored&&motion&&state.settings.graphics==='Full'&&stageFor(state.energy)>0;c.alpha=.7*treeAlpha;c.pivot.x=gp.x;c.scale.x=gardenMirrored?-1:1;c.x=gp.x+(motion?Math.sin(seconds*(side===1?.61:.43)+side)*1.3:0);c.y=motion?Math.sin(seconds*.37+side)*.45:0;});
     effects.update(seconds,dt,motion,state.settings.graphics==='Full',celebrate);
+    stoveSmokes.forEach(smoke=>smoke.update(seconds));
    });
    void warmStrides(state.avatar).catch(console.error);
    reportPosition();visibility=()=>{if(document.hidden)app.ticker.stop();else app.ticker.start();};document.addEventListener('visibilitychange',visibility);visibility();
   };
   run().catch(e=>{console.error(e);if(!disposed)setError(true);});
-  return()=>{disposed=true;unsubscribe();unsubscribePlacements();unsubscribePreview();cleanupOccupants();cleanupPreviewInput();setPreviewAnchor(null);setMovementObstacles([]);observer?.disconnect();document.removeEventListener('visibilitychange',visibility);if(app.renderer){destroyEffects();app.destroy(true,{children:true,texture:false});}};
+  return()=>{disposed=true;unsubscribe();unsubscribePlacements();unsubscribePreview();cleanupOccupants();cleanupPreviewInput();setPreviewAnchor(null);setMovementObstacles([]);observer?.disconnect();document.removeEventListener('visibilitychange',visibility);if(app.renderer){destroyEffects();app.destroy(true,{children:true,texture:false});}hoverTextures.forEach(texture=>texture.destroy(true));};
  },[]);
  return <div className="canvas-host reference-world" ref={host} role="application" aria-label="Interactive greenhouse. Click clear floor tiles to walk; use the navigation buttons to access every activity.">{error&&<div className="canvas-error">The world artwork couldn’t load. You can still use every lesson and garden control in the navigation.</div>}</div>;
 }

@@ -43,7 +43,7 @@ test('classmates start offline without changing progression',()=>{useGame.getSta
 
 test('station layout retains original desk cells and keeps chairs reachable',()=>{
  for(const [index,station] of studyStations.entries()){
-  assert.equal(station.width,178);assert.equal(station.atlasColumn,index%2);assert.deepEqual(desks[index],station.position);assert.deepEqual(approaches[index],station.seat);
+  assert.ok(Math.abs(station.width-168.21)<1e-8);assert.equal(station.atlasColumn,index%2);assert.deepEqual(desks[index],station.position);assert.deepEqual(approaches[index],station.seat);
   assert.ok(approachRoute({x:8,y:8},[station.seat,...station.alternatives],true));assert.equal(blocked(station.position.x,station.position.y),true);
  }
 });

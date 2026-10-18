@@ -1,7 +1,7 @@
 import {Container,Graphics,Sprite,type Texture} from 'pixi.js';
-import {getItemDefinition,itemSprites,type InventoryItem,type ItemType} from './items';
+import {getItemDefinition,itemSprites,studyDeskSprite,type InventoryItem,type ItemType} from './items';
 
-// The canvas loads shop sprites once and registers them before drawing items.
+// The canvas registers the study-desk atlas cell and shop sprites before drawing.
 const spriteTextures=new Map<ItemType,Texture>();
 export const registerItemTextures=(textures:ReadonlyMap<ItemType,Texture>)=>textures.forEach((texture,type)=>spriteTextures.set(type,texture));
 
@@ -18,7 +18,7 @@ export function createItemArt(item:InventoryItem,temporary=false):Container {
   const corners=[[-width/2,-height/2],[width/2,-height/2],[width/2,height/2],[-width/2,height/2]];
   const footprint=corners.flatMap(([x,y])=>[(x-y)*36,(x+y)*18]);
   if(temporary&&item.type!=='tree')g.poly(footprint).fill({color:ink,alpha:.12}).stroke({color:ink,width:1.5,alpha:.8});
-  const art=itemSprites[item.type],texture=spriteTextures.get(item.type);
+  const art=item.type==='desk'?studyDeskSprite:itemSprites[item.type],texture=spriteTextures.get(item.type);
   if(art&&texture){
     const sprite=new Sprite(texture);sprite.anchor.set(.5,1);sprite.width=art.width;sprite.height=art.width*texture.height/texture.width;sprite.y=art.offsetY;
     root.addChild(sprite);return root;
@@ -43,6 +43,16 @@ export function createItemArt(item:InventoryItem,temporary=false):Container {
     g.circle(-10,-124,18).circle(30,-106,16).fill(leafLight);
   }
   return root;
+}
+
+/** The near armrest of a seat, masked from its art so it can be layered over a seated avatar. */
+export function createItemFront(item:InventoryItem):Container|undefined {
+  const art=itemSprites[item.type],texture=spriteTextures.get(item.type);
+  if(!art?.front||!texture)return undefined;
+  const root=new Container();root.eventMode='none';root.scale.x=item.mirrored?-1:1;
+  const sprite=new Sprite(texture);sprite.anchor.set(.5,1);sprite.width=art.width;sprite.height=art.width*texture.height/texture.width;sprite.y=art.offsetY;
+  const scale=art.width/texture.width,mask=new Graphics().poly(art.front.map((v,i)=>i%2?art.offsetY-(texture.height-v)*scale:(v-texture.width/2)*scale)).fill(0xffffff);
+  sprite.mask=mask;root.addChild(sprite,mask);return root;
 }
 
 export const createItemPreview=(item:InventoryItem)=>createItemArt(item,true);

@@ -30,18 +30,18 @@
 .game :is(.weekly-board,.quest-menu,.party-roster,.botanical-friends,.saved-friend,.dialogue-box,.bloom-quest,.garden-unlock,.stage-gallery) :is(h1,h2,h3,strong,small,b,em){font-family:var(--ui-font)}
 
 /* ---------- Buttons: clean bevelled shape ---------- */
-.game :is(.modal,.welcome,.quest-widget,.world-hint) :is(.primary,.secondary),.game .quest-launcher,.game .quest-menu .quest-study{
+.game :is(.modal,.welcome,.quest-widget,.world-hint,.tour-card) :is(.primary,.secondary),.game .quest-launcher,.game .quest-menu .quest-study{
  display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:8px 18px;font-weight:600;font-size:13px;letter-spacing:.2px;
  color:var(--btn-ink);background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:3px;text-shadow:none;
  box-shadow:inset 0 0 0 2px var(--btn-inset),inset 0 0 0 3px var(--btn-bevel),0 3px 0 var(--btn-drop);
  transition:transform var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease),filter var(--t-fast) var(--ease),background-color var(--t-med) var(--ease);
 }
-.game :is(.modal,.welcome,.quest-widget,.world-hint) .secondary,.game .quest-launcher{background:var(--btn-bg-alt)}
+.game :is(.modal,.welcome,.quest-widget,.world-hint,.tour-card) .secondary,.game .quest-launcher{background:var(--btn-bg-alt)}
 .game .quest-widget>.quest-launcher{display:flex;margin-left:auto}
 .game .quest-menu .quest-study{width:100%;min-height:0;padding:9px;font-family:var(--ui-font)}
-.game :is(.modal,.welcome,.quest-widget,.world-hint) :is(.primary,.secondary):hover:not(:disabled),.game .quest-launcher:hover,.game .quest-menu .quest-study:hover{transform:translateY(-1px);filter:brightness(1.06)}
+.game :is(.modal,.welcome,.quest-widget,.world-hint,.tour-card) :is(.primary,.secondary):hover:not(:disabled),.game .quest-launcher:hover,.game .quest-menu .quest-study:hover{transform:translateY(-1px);filter:brightness(1.06)}
 /* Pressed: the newer push-in design, tinted from the same palette. */
-.game :is(.modal,.welcome,.quest-widget,.world-hint) :is(.primary,.secondary):active:not(:disabled),.game .quest-launcher:active,.game .quest-menu .quest-study:active{transform:translateY(2px);filter:none;box-shadow:inset 0 3px 0 var(--btn-press),inset 0 0 0 1px var(--btn-inset),0 1px 0 var(--btn-drop)}
+.game :is(.modal,.welcome,.quest-widget,.world-hint,.tour-card) :is(.primary,.secondary):active:not(:disabled),.game .quest-launcher:active,.game .quest-menu .quest-study:active{transform:translateY(2px);filter:none;box-shadow:inset 0 3px 0 var(--btn-press),inset 0 0 0 1px var(--btn-inset),0 1px 0 var(--btn-drop)}
 .game :is(.modal,.welcome,.quest-widget) :is(.primary,.secondary):disabled{opacity:.5;filter:saturate(.4);transform:none}
 .game .modal .secondary.accept{background:linear-gradient(#a8e06a,#5d9b2c);color:#163005;--btn-inset:#c9f59a;--btn-bevel:#3d7016;--btn-press:#3d7016}
 .game .modal .text-button{color:var(--ui-ink-soft);transition:color var(--t-fast) var(--ease)}

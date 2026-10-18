@@ -28,8 +28,9 @@
 .game.theme-stardew .party-copy strong{font-weight:700;font-size:13px;color:var(--sv-ink);max-width:none;white-space:nowrap;overflow:visible}
 .game.theme-stardew .party-copy strong small{font-weight:700;font-size:8px;color:#fff;background:var(--sv-green);padding:1px 3px;border-radius:2px;vertical-align:2px}
 .game.theme-stardew .party-copy>span,.game.theme-stardew .party-member.offline .party-copy>span{font-weight:600;font-size:11px;color:var(--sv-ink-soft)}
-.game.theme-stardew .party-roster .party-gold{color:#5a3d12;font-size:12px;background:linear-gradient(#ffe48a,#f2bd3f);border:2px solid var(--sv-outline);border-radius:3px}
-.game.theme-stardew .party-gold svg{color:#8a5a12}
+/* Dark ink on light parchment reads at a glance; the gold lives in the coin and trim. */
+.game.theme-stardew .party-roster .party-gold{gap:4px;padding:1px 6px 1px 4px;color:#2a1102;font-size:14px;font-weight:700;letter-spacing:.5px;background:#fff6dc;border:2px solid #c48a1c;border-radius:3px}
+.game.theme-stardew .party-gold svg{color:#c48a1c}
 .game.theme-stardew .party-roster .is-you .party-copy strong{font-size:17px}
 .game.theme-stardew .room-sprout{background:linear-gradient(#fde6ae,#f1c57c);border:3px solid var(--sv-outline);border-radius:4px;box-shadow:inset 0 0 0 2px var(--sv-wood-light),0 4px 0 #0000004d}
 .game.theme-stardew .room-sprout-title{color:var(--sv-ink)}
@@ -136,3 +137,8 @@
 /* ---------- Banner ---------- */
 .game.theme-stardew .achievement{font-weight:700;font-size:14px;color:var(--sv-ink);background:linear-gradient(var(--sv-paper),var(--sv-paper-deep));border:3px solid var(--sv-outline);border-radius:4px;box-shadow:inset 0 0 0 2px var(--sv-wood-light),0 5px 0 #0005}
 .game.theme-stardew .achievement svg{color:var(--sv-gold);filter:drop-shadow(1px 1px 0 var(--sv-outline))}
+/* Small roster labels read as dark ink on parchment, like the cards around them. */
+.game.theme-stardew .party-caption b{color:#ffd75e;font-size:12px}
+.game.theme-stardew .room-sprout-next{font-size:11px;color:var(--btn-ink)}
+/* Pixelify's 5 and 0 read as S and O at this size; VT323 keeps the pixel look with clear numerals. */
+.game .party-roster .party-gold{font-family:'VT323',monospace;font-size:19px;font-weight:400;line-height:1;letter-spacing:.5px}

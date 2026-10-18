@@ -1,7 +1,7 @@
-import type {InventoryItem} from './items';
-import {deskFootprint,deskPlacementFootprint,iso,type Point} from './movement';
-import {studyStations,treeCenter} from './world-layout';
-import {gardenFootprint,type Shape} from './world-geometry';
+import type {InventoryItem} from './items.ts';
+import {deskFootprint,deskPlacementFootprint,iso,type Point} from './movement.ts';
+import {studyStations,treeCenter} from './world-layout.ts';
+import {gardenFootprint,type Shape} from './world-geometry.ts';
 
 export type FixturePositions=Record<string,Point&{mirrored?:boolean}>;
 export const roomFixtures=[
