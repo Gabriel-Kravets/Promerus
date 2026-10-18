@@ -1,8 +1,12 @@
 # Login frame
 
-`botanical-frame-pixel.webp` is the active transparent decorative frame for the login card. It uses chunkier pixel clusters and is displayed with nearest-neighbor scaling. The earlier, more detailed `botanical-frame.webp` remains available as a source reference. Neither frame contains controls, text, parchment fill, or scenery. The center and the area outside the border retain alpha transparency. Real HTML renders the logo, title, button, signup/recovery links, help, and status messages above CSS parchment.
+`public/assets/login-card.png` is the active card artwork supplied by the user. The supplied file was found under `public/assets/Ivy-Bound Parchment Frame.png` and copied byte-for-byte to the requested path. Both are 1086 × 1448 PNGs (3:4 aspect ratio), with SHA-256 `9ad404f0ad156f6733f685ef05c39faaf1da482a3559d9a30dfddb27df158b2f`. The artwork has not been generated, cropped, recolored, filtered, re-encoded, or edited.
 
-Created with the built-in imagegen tool using the imagegen skill; losslessly encoded as WebP with the project's existing Sharp dependency. No package was added. Size: 1122 × 1402; 958,608 bytes. The generated PNG remains at its original Codex output location.
+The page displays this image at its intrinsic aspect ratio using a normal image element. It supplies the entire parchment, wooden frame, vines, and flowers. There is no CSS parchment, frame slicing, or additional floral artwork. The real HTML logo, title, subtitle, button, account links, and authentication feedback are positioned inside its parchment area. Earlier generated frame assets are inactive and retained for history.
+
+## Earlier artwork provenance (inactive)
+
+The original detailed frame was created with the built-in imagegen tool using the imagegen skill, then losslessly encoded as WebP with the project's existing Sharp dependency. No package was added. That source asset is 1122 × 1402 pixels and 958,608 bytes. Its generated PNG remains at its original Codex output location.
 
 ## Generation prompt
 
@@ -14,8 +18,15 @@ Use case: style-transfer. Edit target: attached transparent botanical wooden fra
 
 This revision was created by editing the original frame with the built-in imagegen tool, then losslessly encoding the result as WebP with the existing Sharp dependency. Original output: `exec-1195dcce-1600-4260-b835-14c2ecfab971.png` in the Codex generated-images directory. Alpha transparency is retained; the original frame has not been overwritten.
 
+## Cozy, wider revision prompt
+
+Use case: style-transfer. Asset type: transparent decorative border for the existing Sproutbound login card. Edit target: the attached pixel botanical wood frame. Recompose this SAME frame for a noticeably wider, shorter card, approximately 6:5 width-to-height, with a large clear rectangular center occupying at least 74% of width and 78% of height. Keep four continuous wooden rails, asymmetrical ivy vines, and the same small white five-petal flowers with gold centers around the border. Preserve the handcrafted pixel art: distinct square pixels and clustered shading, but gently soften the pitch-black-looking outlines into dark olive and warm deep brown, and slightly soften the very saturated leaf greens into a cozy forest/olive palette. Keep corners ornate, flowers visible, side vines reasonably spaced, and make rails/flowers proportionate in the wider, shorter frame; do not squash or simply stretch the portrait composition. True transparent alpha throughout both the center opening and outer area. Pixel edges crisp, no blur, no smooth vector gradients. No parchment fill, text, UI controls, buttons, icons, scenery, characters, or broad cast shadow.
+
+This inactive variant was made with the built-in imagegen tool by editing `botanical-frame-pixel.webp`, then losslessly encoded as WebP with the existing Sharp dependency. The output is 1374 × 1145 pixels and 698,312 bytes; its original PNG is `exec-014d7c92-6bea-450a-ab15-b4a1f4764c1d.png` in the Codex generated-images directory.
+
 ## Page implementation
 
-- `auth.css` defines the parchment, responsive content area, frame, button, typography, and reduced-motion rules. The Sproutbound logo/title uses Berkshire Swash as requested. IM Fell English is used for the tagline, primary button, and supporting/decorative login copy, with serif fallbacks; game typography is unchanged. Sparse 3px dither clusters, square corners, and stepped button colors complement the frame. Both fonts are loaded in one request from Google Fonts with display=swap, so text remains visible during loading.
+- The image element's intrinsic dimensions set the card's 3:4 proportions, with a maximum display width of 560px and proportional scaling on narrow viewports. It has no image filters or border slicing. The header and actions use percentage padding inside the parchment. Authentication feedback occupies a separate fixed region, empty when idle and scrollable for long errors. It cannot resize the image or card. There is no help dropdown. If an error occurs, existing retry and in-tab fallback handlers are available as plain controls in the feedback region.
+- The Sproutbound logo/title uses Berkshire Swash as requested. IM Fell English is used for the tagline, primary button, and supporting/decorative login copy, with serif fallbacks; game typography is unchanged. Both fonts are loaded in one request from Google Fonts with display=swap, so text remains visible during loading.
 - `LoginAtmosphere.tsx` defines fourteen sparse fireflies, two faint pixel spirals, and one occasional leaf. CSS animates only opacity and transforms, and the atmosphere cannot intercept input.
 - Auth0 continues to collect credentials in Universal Login. There are no local credential fields. The password recovery link opens the existing secure login flow, where the user selects Reset password.
