@@ -1,6 +1,6 @@
 import {RUN_FRAME_COUNT} from './sprite-locomotion';
 type Position={x:number;y:number};
-/** Locomotion always animates actual movement, independently of ambient preferences; system reduced motion can suppress the gait. */
+/** Locomotion always animates actual movement, independently of motion preferences; callers may pass animate=false to suppress the gait. */
 export function createWalkCycle(initial:Position){
  let previous={...initial},phase=0;
  return (position:Position,animate=true)=>{
