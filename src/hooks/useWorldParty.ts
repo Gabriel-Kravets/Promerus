@@ -4,13 +4,13 @@ import {useBackend} from '@/components/backend/BackendProvider';
 import {useGame,presets,type MemberActivity} from '@/store/game';
 import {memberStatus} from '@/lib/party';
 import {weekStart,weeklyLeaderboard,type LeaderboardRow} from '@/lib/leaderboard';
-import {orderedRoomMembers,rankContributions} from '@/lib/backend/party-view';
+import {orderedRoomMembers,rankContributions,partyNames} from '@/lib/backend/party-view';
 
 /** Data adapter for main's existing roster, leaderboard and social renderers. */
 export function useWorldParty(){
  const backend=useBackend(),state=useGame();
  const members=orderedRoomMembers(backend.snapshot?.members??[],backend.profile?.player_id);
- const names=backend.enabled?members.map(m=>m.name):[state.name,'Maya','Kai','Jules'];
+ const names=backend.enabled?partyNames(members,backend.profile?.name||state.name):[state.name,'Maya','Kai','Jules'];
  const online=backend.enabled?members.map(m=>m.online):state.online;
  return {backend,members,names,online,
   avatar:(i:number)=>backend.enabled?members[i]?.avatar??state.avatar:i===0?state.avatar:presets[i],

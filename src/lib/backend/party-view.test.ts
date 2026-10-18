@@ -12,3 +12,6 @@ test('main UI member indexes keep you first and use stable live slot ordering wi
 test('real weekly contributions have no simulated baseline and keep main competition ranks',()=>{
  assert.deepEqual(rankContributions([{index:0,name:'A',energy:0},{index:1,name:'B',energy:40},{index:2,name:'C',energy:40}]).map(r=>[r.index,r.rank,r.energy]),[[1,1,40],[2,1,40],[0,3,0]]);
 });
+
+import {partyNames} from './party-view';
+test('pre-world roster keeps its own player name while the member snapshot is empty',()=>{assert.deepEqual(partyNames([],'Alex'),['Alex']);assert.deepEqual(partyNames([],''),['Gardener']);});
