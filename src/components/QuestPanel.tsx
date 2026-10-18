@@ -1,4 +1,5 @@
 'use client';
+import {scopedStorageKey} from '@/lib/backend/storage-scope';
 import {useEffect,useRef,useState} from 'react';
 import {BookOpen,Check,ChevronRight,Hourglass,Leaf,ScrollText,Sparkles,Sprout} from 'lucide-react';
 import {useGame} from '@/store/game';
@@ -13,10 +14,16 @@ export default function QuestPanel({onStudy}:{onStudy:()=>void}) {
   const lessons=useGame(s=>s.completions.filter(c=>c.player===0).length);
   const [save,setSave]=useState(()=>defaultStudySave(lessons)),[reset,setReset]=useState(''),[bloomed,setBloomed]=useState<string[]>([]);
   const completed=useRef<Set<string>|null>(null);
-  // Focus time and flashcards are saved by the study room; keep the widget current while it stays open.
-  useEffect(()=>{const refresh=()=>{setSave(readStudySave(lessons));setReset(untilReset());};refresh();
-    const id=setInterval(refresh,5000);window.addEventListener('focus',refresh);window.addEventListener('storage',refresh);
-    return()=>{clearInterval(id);window.removeEventListener('focus',refresh);window.removeEventListener('storage',refresh);};
+  useEffect(()=>{
+    const refresh=()=>{const next=readStudySave(lessons);setReset(untilReset());setSave(previous=>previous.date===next.date&&JSON.stringify(dailyQuests(previous,lessons))===JSON.stringify(dailyQuests(next,lessons))?previous:next);};
+    const storage=(event:StorageEvent)=>{if(event.key===null||event.key===scopedStorageKey(STUDY_STORAGE_KEY))refresh();};
+    refresh();
+    window.addEventListener(STUDY_PROGRESS_EVENT,refresh);
+    window.addEventListener('storage',storage);
+    window.addEventListener('focus',refresh);
+    document.addEventListener('visibilitychange',refresh);
+    const midnightCheck=setInterval(refresh,60000);
+    return()=>{window.removeEventListener(STUDY_PROGRESS_EVENT,refresh);window.removeEventListener('storage',storage);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);clearInterval(midnightCheck);};
   },[lessons]);
   const quests=dailyQuests(save,lessons),done=quests.filter(q=>q.value>=q.max);
   // Celebrate quests that finish while the widget is open, not the ones already done on load.
@@ -25,7 +32,7 @@ export default function QuestPanel({onStudy}:{onStudy:()=>void}) {
     setBloomed(b=>[...b,...fresh]);const t=setTimeout(()=>setBloomed(b=>b.filter(text=>!fresh.includes(text))),1800);return()=>clearTimeout(t);
   },[done.map(q=>q.text).join('|')]);
   return <>
-    <header className="quest-head"><span className="quest-crest" aria-hidden="true"><ScrollText size={18}/></span><div><h2>Daily Quests</h2><small>{reset&&`Renews in ${reset}`}</small></div></header>
+    <header className="quest-head"><span className="quest-crest" aria-hidden="true"><ScrollText size={18}/></span><div><h2 id="daily-quests-title">Daily Quests</h2><small>{reset&&`Renews in ${reset}`}</small></div></header>
     <div className="quest-vine" role="img" aria-label={`${done.length} of ${quests.length} quests complete`}>
       {quests.map((q,i)=><span key={q.text} className={q.value>=q.max?'grown':''} style={{['--i' as string]:i}}><Leaf size={15}/></span>)}
       <em>{done.length}/{quests.length}</em>

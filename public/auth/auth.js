@@ -109,6 +109,15 @@ window.SproutboundAuth = (() => {
     });
   }
 
+  async function getToken(expectedSubject) {
+    const client = await getClient();
+    await client.getTokenSilently();
+    const claims = await client.getIdTokenClaims();
+    if (expectedSubject && claims?.sub !== expectedSubject) throw new Error('This browser’s account changed. Sign out and sign in again.');
+    if (!claims?.__raw) throw new Error('Your sign-in expired. Please sign in again.');
+    return claims.__raw;
+  }
+
   async function logout() {
     const client = await getClient();
     await client.logout({ logoutParams: { returnTo: pageUrl() } });
@@ -133,5 +142,5 @@ window.SproutboundAuth = (() => {
     return "We couldn't complete sign-in. Check your connection and try again.";
   }
 
-  return { isConfigured, initialize, login, signup, loginInTab, logout, errorMessage };
+  return { isConfigured, initialize, login, signup, loginInTab, logout, getToken, errorMessage };
 })();
