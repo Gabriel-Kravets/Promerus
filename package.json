@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test src/lib/*.test.ts",
     "assets:generate": "node scripts/build-scene-assets.cjs",
-    "test:backend": "node --import tsx --test src/lib/backend/*.test.ts supabase/tests/*.test.ts"
+    "test:backend": "node --import tsx --test src/lib/backend/*.test.ts supabase/tests/*.test.ts",
+    "test:auth": "node --test tests/*.test.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
