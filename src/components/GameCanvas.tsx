@@ -26,7 +26,6 @@ import {pointerRoomPosition} from '@/lib/item-drag';
 import {attachItemDragInput} from '@/lib/item-drag-input';
 import {createItemArt,createItemFront,createItemPreview,registerItemTextures} from '@/lib/item-preview';
 import {createItemHover,itemHoverContains,type ItemHover} from '@/lib/item-hover';
-import {fillEnclosedGaps,spriteHoverPixels} from '@/lib/sprite-hover';
 import {occupantShape,planPlacementNudges,type PlacementOccupant} from '@/lib/placement-occupants';
 import sceneAssets from '@/lib/scene-assets.json';
 
@@ -170,29 +169,13 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
    const friendShapes:({kind:'ellipse';x:number;y:number;rx:number;ry:number}|undefined)[]=[];
    const friendPositions:(Point|undefined)[]=[];
    // Online classmates use tight body ellipses, not their atlas cell bounds.
-   players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,get name(){return remotePeers()[i-1]?.name??'Gardener';},action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>(handlers.current.backend.enabled?!!remotePeers()[i-1]?.online:state.online[i])&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen(handlers.current.backend.enabled?'friends':'profile',i)});});
+   players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,name:['', 'Maya','Kai','Jules'][i],action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>(handlers.current.backend.enabled?!!remotePeers()[i-1]?.online:state.online[i])&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen(handlers.current.backend.enabled?'friends':'profile',i)});});
    let wander=createSproutlingWander();const petPoint=iso(8,4),pet=sprite(petTextures[state.energy>=100?1:0],petPoint.x,petPoint.y,125);pet.zIndex=petPoint.y+6;
    const petRuns=[0,1].map(stage=>Array.from({length:sceneAssets.run.frames},(_,frame)=>new Texture({source:petRunSheet.source,frame:new Rectangle(frame*sceneAssets.run.width,stage*sceneAssets.run.height,sceneAssets.run.width,sceneAssets.run.height)})));
    let petHitTexture=petTextures[state.energy>=100?1:0];
    const petCycle=createWalkCycle(petPoint);
    let sharedPet={position:{x:8,y:4},moving:false,facing:1};
    const petShape={kind:'ellipse' as const,x:pet.x+5,y:pet.y-32,rx:25,ry:29};
-   // Sproutling gets the same traced edge as the desks and tree. Its art changes as it
-   // walks and grows, so each frame's outline is traced on first use and cached.
-   const petOutline=new Sprite();petOutline.eventMode='none';petOutline.alpha=0;pet.addChild(petOutline);outlines.set('pet',petOutline);
-   const petOutlineTextures=new Map<Texture,{texture:Texture;pad:number;resolution:number}>();
-   const updatePetOutline=()=>{
-    const source=pet.texture;let traced=petOutlineTextures.get(source);
-    if(!traced){
-     const resolution=Math.min(1,250/source.width),pad=Math.ceil(6/resolution),art=new Sprite(source),frame=new Container();art.position.set(pad,pad);frame.addChild(art);
-     let data:ReturnType<typeof app.renderer.extract.pixels>;
-     try{data=app.renderer.extract.pixels({target:frame,frame:new Rectangle(0,0,source.width+pad*2,source.height+pad*2),resolution,antialias:true});}finally{frame.destroy({children:true});}
-     const hover=spriteHoverPixels(fillEnclosedGaps(data.pixels,data.width,data.height),data.width,data.height,3);
-     const canvas=document.createElement('canvas');canvas.width=data.width;canvas.height=data.height;canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(hover.pixels),data.width,data.height),0,0);
-     traced={texture:Texture.from(canvas),pad,resolution};traced.texture.source.scaleMode='linear';hoverTextures.push(traced.texture);petOutlineTextures.set(source,traced);
-    }
-    petOutline.texture=traced.texture;petOutline.scale.set(1/traced.resolution);petOutline.position.set(-source.width*pet.anchor.x-traced.pad,-source.height*pet.anchor.y-traced.pad);
-   };
    const petInteraction=add({id:'pet',name:'Sproutling',action:'Interact with Sproutling',symbol:'♡',priority:50,shape:petShape,contains:p=>spriteContains(pet,p,petHitTexture),approaches:[{x:8,y:4}],activate:()=>{const net=handlers.current.backend;const reaction=['happy','watering','sleeping'][Math.floor(Math.random()*3)];if(net.enabled&&net.client&&net.lease){void rpc(net.client,'react_sproutling',{p_session:net.lease.id,p_reaction:reaction}).catch(()=>handlers.current.onHint('Sproutling is reconnecting. Try again in a moment.'));}else{reactionStart=seconds;useGame.getState().set({reaction});}handlers.current.onHint('A happy little Sproutling. Every lesson helps it grow.');}});
    const sleep=new Text({text:'z z',style:{fontFamily:'Georgia',fontSize:14,fill:0xeee4c4}});sleep.position.set(petPoint.x+18,petPoint.y-75);sleep.visible=false;feedback.addChild(sleep);
    const cues=interactions.filter(i=>i.id.startsWith('desk-')||['garden','board','pet'].includes(i.id)).map(item=>{const g=new Text({text:item.symbol,style:{fontFamily:'Georgia',fontSize:17,fill:0xd8e6ac,stroke:{color:0x30372a,width:3}}});g.anchor.set(.5);feedback.addChild(g);return {item,g};});
@@ -428,7 +411,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
     const petFloor=iso(roaming.position.x,roaming.position.y),petStride=petCycle(petFloor);
     petInteraction.approaches=[roaming.position];
     const petStage=state.energy>=100||active&&state.reaction==='watering'?1:0;petHitTexture=petTextures[petStage];pet.texture=petStride.frame>=0?petRuns[petStage][petStride.frame]:petTextures[petStage];pet.width=125;pet.height=125*petTextures[0].height/petTextures[0].width;pet.x=petFloor.x;pet.y=petFloor.y+petStride.bob+(motion?(celebrate?-Math.abs(Math.sin(seconds*7))*9:roaming.moving?0:Math.sin(seconds*2)*1.2):0);pet.rotation=petStride.frame>=0?petStride.lean:motion&&active&&state.reaction==='watering'?Math.sin(seconds*4)*.06:0;sleep.visible=state.reaction==='sleeping'&&active;pet.alpha=sleep.visible?.8:1;
-    pet.scale.x=Math.abs(pet.scale.x)*roaming.facing;pet.zIndex=petFloor.y+6;if(displayed?.id==='pet'||petOutline.alpha>0)updatePetOutline();
+    pet.scale.x=Math.abs(pet.scale.x)*roaming.facing;pet.zIndex=petFloor.y+6;
     petShape.x=pet.x+5*roaming.facing;petShape.y=pet.y-32;sleep.position.set(pet.x+18,pet.y-75);
     garden.tint=active&&state.reaction==='evolving'?0xedffd2:0xffffff;
     // See-through canopy: fade the tree while the cursor is over it or a character is standing behind it. Visual only; the garden click target reads playerBehindTree.

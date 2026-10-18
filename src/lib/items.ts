@@ -48,16 +48,14 @@ export const studyDeskSprite={src:'/assets/study-and-companions.webp',width:178*
  * Sprite art for shop pieces: width in scene pixels, anchored bottom-centre
  * offsetY pixels below the footprint centre so the legs sit on the footprint.
  * front outlines, in texture pixels, the art drawn over a seated avatar.
- * footprint is where the piece meets the floor (legs, feet, base), traced from the
- * art in scene pixels around the footprint centre; collisions use it, not the canopy.
  */
-export const itemSprites:Partial<Record<ItemType,{src:string;width:number;offsetY:number;front?:readonly number[];footprint?:readonly number[]}>>={
-  'botanical-desk':{src:'/assets/items/botanical-desk.png',width:180*.85*.8,offsetY:56,footprint:[-56,23,-17,1,50,33,13,59]},
-  lantern:{src:'/assets/items/brass-lantern.png',width:40,offsetY:13,footprint:[-20,6,-4,-1,13,6,-4,14]},
+export const itemSprites:Partial<Record<ItemType,{src:string;width:number;offsetY:number;front?:readonly number[]}>>={
+  'botanical-desk':{src:'/assets/items/botanical-desk.png',width:180*.85*.8,offsetY:56},
+  lantern:{src:'/assets/items/brass-lantern.png',width:40,offsetY:13},
   armchair:{src:'/assets/items/lounge-chair.png',width:82*1.15*1.15,offsetY:25,
-    front:[91,143,99,134,112,131,128,127,150,114,168,103,186,100,190,100,190,175,160,195,128,221,91,221],footprint:[-46,2,-8,-21,45,2,6,25]},
-  stove:{src:'/assets/items/wood-stove.png',width:78*1.15*1.05,offsetY:27,footprint:[-46,9,-2,-9,47,9,3,28]},
-  telescope:{src:'/assets/items/brass-telescope.png',width:100,offsetY:30,footprint:[-19,23,5,11,27,27,22,33,-15,30]},
+    front:[91,143,99,134,112,131,128,127,150,114,168,103,186,100,190,100,190,175,160,195,128,221,91,221]},
+  stove:{src:'/assets/items/wood-stove.png',width:78*1.15*1.05,offsetY:27},
+  telescope:{src:'/assets/items/brass-telescope.png',width:100,offsetY:30},
 };
 
 /** Where the wood-stove pipe's elbow opens, in item-local pixels (art is 180 x 280, mouth at 174,18). */

@@ -53,15 +53,3 @@
 .bottom-hud{pointer-events:none}.bottom-hud>*{pointer-events:auto}
 
 .quest-menu .quest-penalty-note{font-size:11px;line-height:1.5;margin:10px 0;color:inherit;opacity:.9}
-/* Join a study room, at the top of the Friends panel. */
-.invite.join-room{flex-direction:column;align-items:stretch;gap:10px;margin-bottom:14px}
-.game .modal .join-room strong{letter-spacing:.5px}
-.join-room .fineprint{margin:6px 0 0}
-.join-room .form-row{align-items:stretch}
-.join-room .form-row>button{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px}
-.join-room input{width:100%;min-height:42px;padding:8px 10px;color:var(--ui-ink);background:var(--ui-page);border:1px solid var(--ui-line);border-radius:3px}
-.join-room-share{display:grid;gap:8px}
-.join-room-share button{display:inline-flex;align-items:center;justify-content:center;gap:6px}
-.join-room .text-button{align-self:flex-start;display:inline-flex;align-items:center;gap:4px}
-.join-room .copy-status:empty{display:none}
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}

@@ -9,28 +9,19 @@ import type {RoomLayout} from '@/lib/backend/room-layout';
  * serialized, checked by game-api, and reconciled into that same inventory store. */
 export function useSharedRoomLayout(onNotice:(message:string)=>void){
  const backend=useBackend(),latest=useRef(backend);latest.current=backend;
- const pending=useRef(false),confirmed=useRef<{layout:RoomLayout;version:number}|null>(null),roomSize=useRef(1);
- const apply=(layout:RoomLayout)=>{const state=useInventory.getState(),saved=readRoomInventory({...layout,initialized:true,theme:useGame.getState().settings.theme,tutorialSeen:state.tutorialSeen});if(saved)useInventory.setState({...saved,tutorialSeen:state.tutorialSeen});useInventory.getState().setRoomSize(roomSize.current);};
+ const pending=useRef(false),confirmed=useRef<{layout:RoomLayout;version:number}|null>(null);
+ const apply=(layout:RoomLayout)=>{const state=useInventory.getState(),saved=readRoomInventory({...layout,initialized:true,theme:useGame.getState().settings.theme,tutorialSeen:state.tutorialSeen});if(saved)useInventory.setState({...saved,tutorialSeen:state.tutorialSeen});};
  const world=backend.snapshot?.world;
  useEffect(()=>{
   if(!backend.enabled||!world?.room_layout||pending.current)return;
   confirmed.current={layout:world.room_layout,version:world.room_layout_version??0};apply(world.room_layout);
  },[backend.enabled,world?.id,world?.room_layout_version]);
  const members=(backend.snapshot?.members??[]).map(m=>m.player_id).sort().join('|');
- // Starting desks follow the room's permanent members, the same count game-api checks.
- useEffect(()=>{
-  if(!backend.enabled||!backend.client||!world?.id)return;let active=true;
-  roomSize.current=backend.snapshot?.members.length||1;useInventory.getState().setRoomSize(roomSize.current);
-  void backend.client.from('greenhouse_memberships').select('player_id',{count:'exact',head:true}).eq('greenhouse_id',world.id).then(({count,error})=>{
-   if(active&&!error&&count!==null){roomSize.current=count;useInventory.getState().setRoomSize(count);}
-  });
-  return()=>{active=false;};
- },[backend.enabled,backend.client,world?.id,members]);
  useEffect(()=>{
   if(!backend.enabled||!backend.lease)return;
   const session=backend.lease.id,original=useInventory.getState();let active=true;
   confirmed.current=world?.room_layout?{layout:world.room_layout,version:world.room_layout_version??0}:null;
-  if(confirmed.current)apply(confirmed.current.layout);else{original.reset();useInventory.getState().setRoomSize(roomSize.current);}
+  if(confirmed.current)apply(confirmed.current.layout);else original.reset();
   const save=async(command:unknown)=>{
    pending.current=true;
    try{

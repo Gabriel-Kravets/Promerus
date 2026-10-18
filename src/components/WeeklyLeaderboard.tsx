@@ -26,6 +26,6 @@ export default function WeeklyLeaderboard({onSelect}:{onSelect:(index:number)=>v
    <span className="board-copy"><strong>{row.name}{row.index===0&&<small> YOU</small>}</strong><span className="board-bar" aria-hidden="true"><span style={{width:`${row.energy/top*100}%`}}/></span></span>
    <span className="board-energy">{row.energy}</span>
   </button></li>)}</ol>
-  <p className="board-note">{party.backend.enabled?party.notice:'Your lessons this week'}</p>
+  <p className="board-note">{party.backend.enabled?party.notice:'Classmate totals are placeholder data'}</p>
  </section></div>;
 }

@@ -164,18 +164,3 @@ test('saves with the retired starter tree drop it and its placement',()=>{
   assert.deepEqual(restored.items,inventory().items);
   assert.deepEqual(restored.placements,[]);
 });
-
-test('starting desks match the room population, up to the four desk spots, and unused spots are never saved',()=>{
-  inventory().initializeRoom(1,'Classic');
-  const hidden=(people:number)=>{inventory().setRoomSize(people);return inventory().storedFixtures??[];};
-  assert.deepEqual(hidden(1),['fixture:desk-1','fixture:desk-2','fixture:desk-3']);
-  assert.deepEqual(hidden(3),['fixture:desk-3']);
-  assert.deepEqual(hidden(9),[]);
-  assert.deepEqual(hidden(0),['fixture:desk-1','fixture:desk-2','fixture:desk-3']);
-  assert.equal(inventory().moveFixture('fixture:desk-2',{x:8,y:8}).valid,false);
-  // A desk the room put away itself stays put away when the room grows.
-  inventory().setRoomSize(2);inventory().returnItem('fixture:desk-0');
-  assert.deepEqual(hidden(2),['fixture:desk-0','fixture:desk-2','fixture:desk-3']);
-  const saved=useInventory.persist.getOptions().partialize!(inventory()) as RoomInventory;
-  assert.deepEqual(saved.storedFixtures,['fixture:desk-0']);
-});

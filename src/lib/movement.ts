@@ -8,7 +8,7 @@ export const deskFootprint=(d:Point)=>({kind:'polygon' as const,points:[-64,-10,
 /** Placement reserves extra space around desk feet while keeping walking aisles open. */
 // The lobe on the chair side covers the stool's feet, which stand below the desk's diamond.
 // chairSide is 1 when the stool is drawn to the right of the desk and -1 when it is on the left.
-export const deskPlacementFootprint=(d:Point,chairSide:1|-1=1)=>({kind:'polygon' as const,points:[-44,8,26,-18,66,0,52,22,26,31,8,24,-12,26].map((v,i)=>i%2?v+iso(d.x,d.y).y:v*chairSide+iso(d.x,d.y).x)});
+export const deskPlacementFootprint=(d:Point,chairSide:1|-1=1)=>({kind:'polygon' as const,points:[-70,-4,0,-28,70,-4,60,20,30,35,0,26].map((v,i)=>i%2?v+iso(d.x,d.y).y:v*chairSide+iso(d.x,d.y).x)});
 const isolatedTiles=new Set<string>();
 let placedObstacles:readonly Shape[]=[];
 let replaceFixtures=false;

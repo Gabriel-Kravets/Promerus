@@ -6,16 +6,12 @@ import {isItemTheme,isItemType,type InventoryItem,type ItemType} from '../lib/it
 import {resolvePlacements,validatePlacement,type ItemPlacement,type PlacementCheck} from '../lib/placement';
 import type {Point} from '../lib/movement';
 import type {Shape} from '../lib/world-geometry';
-import {fixtureItem,roomFixture,roomFixtures,unusedDesks,type FixturePositions} from '../lib/room-fixtures';
+import {fixtureItem,roomFixture,roomFixtures,type FixturePositions} from '../lib/room-fixtures';
 
 export type {RoomInventory} from '../lib/room-inventory-data';
 import {readRoomInventory,type RoomInventory} from '../lib/room-inventory-data';
 export {readRoomInventory} from '../lib/room-inventory-data';
 type InventoryState=RoomInventory&{
-  /** Desk spots beyond the room's population. Kept in storedFixtures so the room hides them, but never saved or listed. */
-  unusedDesks:string[];
-  /** Matches the starting desks to the number of people in the room. */
-  setRoomSize:(people:number)=>void;
   /** A count uses member-0..member-(N-1); live rooms should supply stable IDs. */
   initializeRoom:(people:number|readonly string[],theme:Theme)=>void;
   personJoined:(memberId:string)=>void;
@@ -30,7 +26,7 @@ type InventoryState=RoomInventory&{
   reset:()=>void;
 };
 
-const emptyInventory=():RoomInventory=>({initialized:false,theme:'Classic',items:[],tutorialSeen:false,placements:[],fixturePositions:undefined,storedFixtures:undefined});
+const emptyInventory=():RoomInventory=>({initialized:false,theme:'Stardew',items:[],tutorialSeen:false,placements:[],fixturePositions:undefined,storedFixtures:undefined});
 const orient=(items:InventoryItem[],id:string,mirrored:boolean)=>items.some(item=>item.id===id&&!!item.mirrored!==mirrored)
   ?items.map(item=>item.id===id?{...item,mirrored}:item):items;
 
@@ -54,20 +50,6 @@ function addDesks(items:InventoryItem[],members:readonly string[],theme:Theme):I
 
 export const useInventory=create<InventoryState>()(persist<InventoryState,[],[],RoomInventory>((set,get)=>({
   ...emptyInventory(),
-  unusedDesks:[],
-  setRoomSize:people=>set(state=>{
-    const unused=unusedDesks(people),own=(state.storedFixtures??[]).filter(id=>!state.unusedDesks.includes(id));
-    // A desk that becomes available waits in the Collection if furniture now covers its spot.
-    const others=resolvePlacements(state.items,state.placements);
-    for(const id of state.unusedDesks)if(!unused.includes(id)&&!own.includes(id)){
-      const at=state.fixturePositions?.[id]??roomFixture(id)!.position,item=fixtureItem(id,state.theme,!!state.fixturePositions?.[id]?.mirrored)!;
-      if(!validatePlacement(item,at,others,[],state.fixturePositions,[...own,...unused]).valid)own.push(id);
-    }
-    const stored=roomFixtures.map(f=>f.id).filter(id=>own.includes(id)||unused.includes(id));
-    const same=(a:readonly string[],b:readonly string[])=>a.length===b.length&&a.every((id,i)=>id===b[i]);
-    if(same(unused,state.unusedDesks)&&same(stored,state.storedFixtures??[]))return state;
-    return {unusedDesks:unused,storedFixtures:stored.length||state.storedFixtures?stored:undefined};
-  }),
   initializeRoom:(people,theme)=>{
     const members=participantIds(people);
     if(!isItemTheme(theme))throw new TypeError('Unknown room theme.');
@@ -115,7 +97,6 @@ export const useInventory=create<InventoryState>()(persist<InventoryState,[],[],
   },
   moveFixture:(itemId,position,extraObstacles=[],mirrored)=>{
     const state=get(),reflected=mirrored??!!state.fixturePositions?.[itemId]?.mirrored;
-    if(state.unusedDesks.includes(itemId))return {valid:false,reason:'unavailable',message:'This room item is unavailable.'};
     // Validate the footprint the player sees, including a temporary flip.
     const item=fixtureItem(itemId,state.theme,reflected);
     if(!state.initialized||!item)return {valid:false,reason:'unavailable',message:'This room item is unavailable.'};
@@ -131,7 +112,7 @@ export const useInventory=create<InventoryState>()(persist<InventoryState,[],[],
     const item:InventoryItem={id:`shop:${type}:${n}`,type,theme:state.theme};
     set({items:[...state.items,item]});return item;
   },
-  reset:()=>set({...emptyInventory(),unusedDesks:[]}),
+  reset:()=>set(emptyInventory()),
 }),{
   name:'sproutbound-inventory-v1',
   version:1,
@@ -141,6 +122,6 @@ export const useInventory=create<InventoryState>()(persist<InventoryState,[],[],
     setItem:(key,value)=>{try{localStorage.setItem(scopedStorageKey(key),value);}catch{}},
     removeItem:key=>{try{localStorage.removeItem(scopedStorageKey(key));}catch{}},
   })),
-  partialize:({initialized,theme,items,tutorialSeen,placements,fixturePositions,storedFixtures,unusedDesks})=>({initialized,theme,items,tutorialSeen,placements,...(fixturePositions?{fixturePositions}:{}),...(storedFixtures?{storedFixtures:storedFixtures.filter(id=>!unusedDesks.includes(id))}:{})}),
+  partialize:({initialized,theme,items,tutorialSeen,placements,fixturePositions,storedFixtures})=>({initialized,theme,items,tutorialSeen,placements,...(fixturePositions?{fixturePositions}:{}),...(storedFixtures?{storedFixtures}:{})}),
   merge:(saved,current)=>({...current,fixturePositions:undefined,storedFixtures:undefined,...(readRoomInventory(saved)??emptyInventory())}),
 }));

@@ -34,7 +34,6 @@ const steps:Step[]=[
   {id:'pickup',wait:'pickup',title:'Move furniture',body:<p className="tour-gesture"><Hand size={22} aria-hidden="true"/><span><strong>Press and hold</strong> on a desk, then <strong>drag</strong> it to a new spot.</span></p>},
   {id:'place',wait:'place',target:'.item-placer',title:'Set it down',body:<><p>Hold and drag it again to adjust, then choose:</p><ul className="tour-chips">{actions.map(([Icon,name,text])=><li key={name}><Icon size={15} aria-hidden="true"/><strong>{name}</strong>{text}</li>)}</ul></>},
   {id:'collection',target:'.collection-launcher',title:'Collection',body:<p>Put-away and new furniture waits here.</p>},
-  {id:'join',target:'.friends-launcher',title:'Study with friends',body:<p>Open <strong>Friends</strong> and paste an invite code to join a friend’s study room. Own a room? Get a code there to invite others.</p>},
   {id:'done',title:'You’re all set!',body:<p>Sit at a desk to start learning.</p>},
 ];
 

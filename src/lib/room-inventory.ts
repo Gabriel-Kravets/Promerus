@@ -8,12 +8,10 @@ const activeMembers=(online:readonly boolean[])=>online.flatMap((present,index)=
 export function listenForRoomJoins():()=>void {
   const current=useGame.getState();
   useInventory.getState().initializeRoom(activeMembers(current.online),current.settings.theme);
-  useInventory.getState().setRoomSize(activeMembers(current.online).length);
   return useGame.subscribe((next,previous)=>{
     if(previous.created&&!next.created){
       useInventory.getState().reset();
       useInventory.getState().initializeRoom(activeMembers(next.online),next.settings.theme);
-      useInventory.getState().setRoomSize(activeMembers(next.online).length);
       return;
     }
     if(next.settings.theme!==previous.settings.theme)useInventory.getState().setTheme(next.settings.theme);
@@ -21,7 +19,6 @@ export function listenForRoomJoins():()=>void {
       for(const [index,present] of next.online.entries()){
         if(present&&!previous.online[index])useInventory.getState().personJoined(`member-${index}`);
       }
-      useInventory.getState().setRoomSize(activeMembers(next.online).length);
     }
   });
 }
