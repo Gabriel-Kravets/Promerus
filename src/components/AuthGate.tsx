@@ -9,6 +9,9 @@ type AuthAdapter = {
   login: () => Promise<User | undefined>;
   signup: () => Promise<User | undefined>;
   logout: () => Promise<void>;
+  loginInTab: (signup?:boolean) => Promise<void>;
+  errorMessage: (error:unknown) => string;
+  getToken: (expectedSubject?:string) => Promise<string>;
 };
 declare global { interface Window { SproutboundAuth?: AuthAdapter } }
 
@@ -31,14 +34,10 @@ function loadAuth() {
 }
 
 export function authError(error: unknown) {
-  const e = error as {error?: string; code?: string; name?: string; message?: string};
-  const code = e?.error || e?.code || e?.name;
-  if (code === 'PopupCancelledError' || code === 'popup_closed' || e?.message === 'Popup closed') return 'The sign-in window was closed. You can try again.';
-  if (code === 'TimeoutError' || code === 'timeout') return 'Sign-in timed out. Please try again.';
-  return e?.message || 'Sign-in could not be completed. Please try again.';
+  return window.SproutboundAuth?.errorMessage?.(error) || 'Sign-in could not load. Check your connection and retry.';
 }
 
-const AuthContext = createContext<{user: User; logout: () => void; busy: boolean; error: string} | null>(null);
+const AuthContext = createContext<{user: User; logout: () => void; getToken: () => Promise<string>; busy: boolean; error: string} | null>(null);
 export const useAuth = () => useContext(AuthContext);
 
 export default function AuthGate({children}: {children: React.ReactNode}) {
@@ -46,6 +45,7 @@ export default function AuthGate({children}: {children: React.ReactNode}) {
   const [user, setUser] = useState<User | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
+  const [signupRequested,setSignupRequested]=useState(false);
   async function initialize() {
     setBusy(true); setError('');
     try { const auth = await loadAuth(); setAdapter(auth); setUser(await auth.initialize()); }
@@ -55,7 +55,7 @@ export default function AuthGate({children}: {children: React.ReactNode}) {
   useEffect(() => { void initialize(); }, []);
   function authenticate(signup: boolean) {
     if (!adapter || busy) return;
-    setBusy(true); setError('');
+    setSignupRequested(signup); setBusy(true); setError('');
     // Invoke directly in the click handler so the adapter can open its popup immediately.
     try {
       const result = signup ? adapter.signup() : adapter.login();
@@ -65,6 +65,13 @@ export default function AuthGate({children}: {children: React.ReactNode}) {
       }).catch(e => setError(authError(e))).finally(() => setBusy(false));
     } catch (e) { setError(authError(e)); setBusy(false); }
   }
+  async function continueInTab() {
+    if(!adapter||busy)return;
+    setBusy(true);setError('');
+    try{await adapter.loginInTab(signupRequested);}
+    catch(e){setError(authError(e));}
+    finally{setBusy(false);}
+  }
   async function logout() {
     if (!adapter || busy) return;
     setBusy(true); setError('');
@@ -72,13 +79,14 @@ export default function AuthGate({children}: {children: React.ReactNode}) {
     catch (e) { setError(authError(e)); }
     finally { setBusy(false); }
   }
-  if (user) return <AuthContext.Provider value={{user, logout, busy, error}}>{children}</AuthContext.Provider>;
+  if (user) return <AuthContext.Provider value={{user, logout, getToken:async()=>{if(!adapter)throw new Error("Sign-in is unavailable");return adapter.getToken(user.sub);}, busy, error}}>{children}</AuthContext.Provider>;
   return <main className="auth-scene"><section className="auth-card" aria-labelledby="auth-title" aria-busy={busy}>
     <img className="auth-mascot" src="/auth/sprout-mascot.png" alt="A smiling sprout"/>
     <span className="auth-sprig" aria-hidden="true">❧</span>
     <h1 id="auth-title">Sproutbound</h1><p className="auth-tagline">Your journey of growth begins here.</p>
     <button className="auth-enter" disabled={busy || !adapter} onClick={() => authenticate(false)}>Enter the Greenhouse</button>
     <button className="auth-link" disabled={busy || !adapter} onClick={() => authenticate(true)}>Create an account</button>
+    <details className="auth-help"><summary>Need a hand signing in?</summary><p>Use any method offered by secure sign-in. If the popup does not work, continue in this tab.</p><button className="auth-link" disabled={busy||!adapter} onClick={()=>void continueInTab()}>Continue sign-in in this tab</button></details>
     <p className="auth-status" role="status">{error || (busy ? 'Checking your session…' : 'Sign in securely to enter your greenhouse.')}</p>
     {error && <button className="auth-link" disabled={busy} onClick={() => void initialize()}>Retry connection</button>}
   </section></main>;

@@ -1,3 +1,12 @@
+# Two-phase multiplayer roadmap
+
+1. **Frontend integration and complete multiplayer backend:** Gate B PR #2 is merged into dev. The approved architecture and local backend implementation are on `feat/supabase-multiplayer`; hosted staging configuration/verification is pending. Existing Auth0, art, sprites, cursor and the local demo are retained. Configured online mode adds account-backed profiles/onboarding, Greenhouses navigation, memberships/visits, session movement/presence, server grading and shared progression.
+2. **End-to-end testing and release:** two real accounts in separate sessions/devices, hosted security/reconnection/duplicate-reward checks, fixes, reviewed backend integration into dev, then review and validation of dev into main. PR #1 was merged by Gabriel-Kravets during backend development; future main promotion still requires team approval.
+
+Start with [the approved architecture](docs/backend-architecture-proposal.md) and [staging setup / outstanding gates](docs/backend-staging-setup.md). No production database change has been applied. With no public Supabase environment configured, the application continues its explicitly labeled browser-local demo. Auth0 is the only login system.
+
+The historical frontend and standalone-auth documentation below describes that local mode and the preserved prototypes.
+
 # Sproutbound development branch
 
 The Next.js greenhouse now uses the Auth0 popup login from `feature/sproutbound-auth`. All game routes wait for authentication. Login and signup open Auth0 Universal Login; a restored session opens the game on refresh. Use **Settings ? Sign out** to end the session.
@@ -97,53 +106,62 @@ Shared UI primitives provide icon tooltips, head portraits, panel headings, stat
 
 ---
 
-# Sproutbound authentication prototype
+# SproutBound authentication component
 
-This is the existing Sproutbound login page with Auth0 popup authentication. Its artwork, typography, colors, and layout remain local to Sproutbound. Auth0 Universal Login opens in a separate window to collect credentials; the original page stays visible. The page does not collect a password.
+This branch contains the standalone authentication component for the team's Next.js game. It keeps the existing parchment card, navy background, green entry button, fonts, and seated sprout mascot. The official Auth0 SPA SDK **2.27.0** still handles authentication through Universal Login.
 
-## Auth0 application settings
+## What is ready
 
-The Domain and Client ID for the hackathon Single Page Application are already in `config.js`. These identifiers are public; never add a Client Secret to browser code. Confirm these settings in the Auth0 application's dashboard:
+- Existing popup login, signup, logout, and SDK session restoration.
+- One Universal Login flow for every enabled method: email/password, Google, and database passkeys. No provider is forced, so email/password remains available. Google/passkey availability must be configured in Auth0; it cannot be inferred from the public Client ID.
+- Disabled controls during startup/requests, accessible status messages, retry, and safe error wording. Background SDK HTTP/authorization timeouts are 15 seconds; interactive popups retain their 120-second timeout.
+- An optional **Need a hand signing in? → Continue sign-in in this tab** fallback using the same SDK. It preserves signup intent after a failed signup popup and never redirects automatically.
+- A stable origin-root callback/logout URL, matching the integrated game on `dev`.
 
-| Auth0 setting | Local value |
+**Google, passkeys, and hosted branding are not enabled by these repository changes.** Complete [the dashboard setup and macOS test procedure](docs/auth0-setup.md). No Auth0 dashboard was accessed.
+
+## Run the component
+
+From this directory, with port 3000 free:
+
+```sh
+python3 -m http.server 3000 --bind localhost
+```
+
+Open `http://localhost:3000/` in Safari or Chrome for the standalone prototype. For the integrated Next.js game, use `npm run dev` instead. Run one server at a time on this port.
+
+In the existing Auth0 SPA application, add these values without removing teammates' valid URLs:
+
+| Setting | Local value |
 | --- | --- |
 | Allowed Callback URLs | `http://localhost:3000/` |
 | Allowed Logout URLs | `http://localhost:3000/` |
 | Allowed Web Origins | `http://localhost:3000` |
 
-Enable the database and/or social connections you want players to use. Auth0's hosted login screen includes its own **Reset password** link for database users; the old local Forgot password link was removed because the page no longer asks for an email. When deployed, add the matching HTTPS callback, logout URL, and web origin for the final host.
+If you still use port 4173 for the standalone component, add its matching root callback/logout URLs and origin too. Deployed applications need their actual HTTPS URLs. Configuration stays in `config.js`; only the Domain and public SPA Client ID belong there.
 
-The current Auth0 popup says **SwampHacks Study Tool**. To keep the player experience consistent, update the application name and Universal Login branding in the Auth0 dashboard when your team is ready.
+## Checks
 
-## Run and test
+Requires Node.js 18 or newer; no dependency installation is needed for these tests.
 
-Continue serving this folder at `http://localhost:3000/`. If that server is stopped, run `python3 -m http.server 3000` from this folder. No framework or package install is required.
+```sh
+node --test tests/*.test.cjs
+node --check auth.js
+node --check app.js
+node --check config.js
+```
 
-1. Open `http://localhost:3000/` in a regular browser tab. Select **Enter the Greenhouse**. Auth0 should open in a popup while the Sproutbound page stays visible.
-2. Sign in with a test account. The popup should close and Sproutbound should show the temporary welcome panel with the account's name or email.
-3. Refresh the Sproutbound tab. The welcome panel should return while the SDK's cached session is valid.
-4. Select **Sign out**. Auth0 clears the session and returns to the login page.
-5. Select **Create an account**. The popup should open Auth0's signup screen. Complete this with a disposable test account if you want to verify the whole flow.
-6. To check password recovery, open the login popup and choose **Reset password** inside Auth0.
+Tests mock the SDK and DOM to exercise provider-neutral profiles, popup timing/cleanup, failures, callback cleanup, retry, signup fallback, and logout. They do not authenticate against the tenant or prove passkey/Touch ID enrollment. Use the manual matrix in [the setup guide](docs/auth0-setup.md) for those checks.
 
-The SDK uses `loginWithPopup()` for both login and signup. It opens the popup directly from the button click to avoid browser popup blocking and uses `screen_hint: "signup"` for account creation. If your browser still blocks the window, allow popups for `localhost:3000`. Closing the popup before finishing shows a gentle cancellation message on Sproutbound. Logout uses Auth0's hosted logout and returns to the same page.
+## Teammate integration
 
-The Auth0 SDK's local storage cache restores a valid token after refresh. For the final game, the team should review the cache choice and any API authorization with its production security model. Expired sessions may need an Auth0 silent session check, which can depend on browser privacy settings.
+- `auth.js`: existing adapter methods `isConfigured`, `initialize`, `login`, `signup`, `logout`; adds `loginInTab(signup = false)` and `errorMessage(error)`.
+- `app.js`, `index.html`, `styles.css`: standalone auth UI and temporary welcome screen.
+- `config.js`: unchanged public Auth0 settings.
+- `auth0-spa-js.production.js`, `LICENSE.auth0-spa-js`: unchanged vendored official SDK and license.
+- `sprout-mascot.png`: unchanged existing branding asset.
+- `docs/auth0-setup.md`: dashboard instructions, branding palette, macOS checks, security and Supabase handoff.
 
-## Files for integration
+The integrated game loads its adapter from **`public/auth/auth.js`**, not root `auth.js`. The teammate adapter improvements and explicit fallback/help are now integrated there and in `AuthGate.tsx`; the served adapter also retains `getToken(expectedSubject)` for the Auth0-backed Supabase boundary. Root `app.js` targets this HTML's elements and should not be injected into the React game. The existing `initialize/login/signup/logout` contract remains compatible; all methods continue returning the SDK's original user profile without rewriting `sub`.
 
-- `index.html` and `styles.css`: existing fantasy-themed page and temporary welcome panel.
-- `config.js`: public Auth0 application settings.
-- `auth.js`: reusable Auth0 adapter (`initialize`, `login`, `signup`, `logout`). It leaves protocol handling to the official SDK.
-- `app.js`: button interactions, errors, and signed-in rendering.
-- `auth0-spa-js.production.js`: official Auth0 SPA SDK browser bundle, version 2.27, from `https://cdn.auth0.com/js/auth0-spa-js/2.27/auth0-spa-js.production.js`; its license is in `LICENSE.auth0-spa-js`.
-
-The prototype contains no database, game dashboard, or progression system. The welcome panel can be replaced by the game's authenticated route when the team integrates it.
-
-## Room updates
-
-Hair recoloring uses per-pose atlas masks for the full crown, bangs and long locks, preserving face and accessory colors. Garden stage buttons show a large clipped visual preview without changing energy or the active stage.
-
-The greenhouse Quests popup shows daily flashcard, focus, and lesson goals using the same persisted study data. The study page no longer contains quest navigation or the chores sidebar.
-
-Friends contains separate **Room members** and **Friends List** views. Accept the explicitly labeled demo requests to save friends independently of room membership; Rowan demonstrates a friend outside the greenhouse. Accepted friends persist under `sproutbound-friends`. These remain local simulations, not networked friendship requests.
+Scopes remain `openid profile email`; no audience, claims, Auth0 domain, Client ID, refresh-token policy, or token-cache setting was changed. Existing localStorage caching persists across reloads but is exposed to successful XSS. Client UI gating does not authorize backend requests. The approved backend validates Auth0 ID tokens and enforces actor-scoped access; its staging configuration and live verification remain pending. See [staging setup](docs/backend-staging-setup.md).

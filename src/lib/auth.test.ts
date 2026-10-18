@@ -11,6 +11,8 @@ function fixture(authenticated = false) {
   const client = {
     isAuthenticated: async () => authenticated,
     getUser: async () => user,
+    getTokenSilently: async () => {events.push("refresh");},
+    getIdTokenClaims: async () => {events.push("claims");return {sub:user.sub,__raw:"signed-id-token"};},
     loginWithPopup: async (value: any) => { events.push('login'); loginOptions = value; },
     logout: async (value: any) => { logoutOptions = value; },
   };
@@ -52,3 +54,10 @@ test('blocked popup surfaces an actionable error', () => {
   f.window.open = () => null;
   assert.throws(() => f.auth.login(), /Allow popups/);
 });
+
+test('Supabase token refresh reuses Auth0 and returns the signed ID token after SDK renewal',async()=>{
+ const f=fixture(true);assert.equal(await f.auth.getToken(),'signed-id-token');
+ assert.ok(f.events.indexOf('refresh')<f.events.indexOf('claims'));
+});
+
+test('a changed SDK account cannot reuse the previous player context',async()=>{const f=fixture(true);await assert.rejects(()=>f.auth.getToken('a-different-player'),/account changed/);});

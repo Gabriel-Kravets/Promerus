@@ -1,4 +1,6 @@
 'use client';
+import {useBackend} from './backend/BackendProvider';
+import LiveFriends from './backend/LiveFriends';
 import {useState} from 'react';
 import FriendsList from './FriendsList';
 import {Check,Copy,Flower2,ArrowRight} from 'lucide-react';
@@ -7,11 +9,13 @@ import {memberStatus} from '@/lib/party';
 import {getCourse} from '@/lib/courses';
 import {PlayerPortrait,GamePanelHeader,GameBadge,ProgressMeter,HeartMeter} from './ui/GamePrimitives';
 export default function FriendsMenu({selected,onSelect,onCustomize}:{selected:number|null;onSelect:(index:number|null)=>void;onCustomize:()=>void}){
+ const backend=useBackend();
  const [tab,setTab]=useState('members');
  const state=useGame(),[copied,setCopied]=useState(false),[copyMessage,setCopyMessage]=useState(''),names=[state.name,'Maya','Kai','Jules'],subjects=[state.course?getCourse(state.course).title:'Your learning journey','College Algebra','Spanish Basics','Creative Writing'];
  const contributors=[...new Set(state.completions.map(c=>c.player))],complete=contributors.length>=2;
  const lessonsBy=(index:number)=>state.completions.filter(c=>c.player===index).length;
  const avatarOf=(index:number)=>index===0?state.avatar:presets[index];
+ if(backend.enabled)return <LiveFriends/>;
  return <><GamePanelHeader eyebrow="YOUR LITTLE CIRCLE" title="Your study circle">Different journeys. The same little greenhouse.</GamePanelHeader><GameBadge muted>Local demo · simulated classmates</GameBadge>
  <div className="social-tabs" role="tablist" aria-label="Social views">{([['members','Room members'],['friends','Friends List']] as const).map(([id,title])=><button key={id} role="tab" className="social-tab" aria-selected={tab===id} aria-pressed={tab===id} onClick={()=>setTab(id)}>{title}</button>)}</div>
  <div className="social-page">{tab==='friends'?<FriendsList/>:<><div className="friend-list botanical-friends">{names.map((name,index)=>{const status=memberStatus(state,index);return <button className={`${state.online[index]?'online':'offline'} ${selected===index?'selected':''}`} key={index} onClick={()=>onSelect(selected===index?null:index)} aria-expanded={selected===index} aria-controls="friend-detail"><PlayerPortrait avatar={avatarOf(index)} name={name} offline={!state.online[index]}/><span className="friend-copy"><strong>{name}{index===0&&<small> · YOU</small>}</strong><small>{subjects[index]}</small><HeartMeter value={lessonsBy(index)} label={`${name}'s study hearts`}/></span><span className="friend-status"><GameBadge muted={!state.online[index]}>{status}</GameBadge><small>{lessonsBy(index)*20} energy</small></span></button>;})}</div>

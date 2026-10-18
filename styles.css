@@ -51,3 +51,17 @@
 }
 .signed-in:not([hidden]){display:flex;min-height:220px;flex-direction:column;align-items:center;justify-content:center}
 .signed-in .continue-button{max-width:320px}
+
+/* Authentication help stays optional so the main entry remains uncluttered. */
+.signin-help{margin:24px 0 0;font-size:13px;line-height:1.6;color:var(--ink)}
+.signin-help summary{display:list-item;width:fit-content;max-width:100%;margin:0 auto;padding:10px 4px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.signin-help p{margin:10px 0;text-align:left}
+.signin-help summary:focus-visible,.welcome:focus-visible{outline:3px solid #254f22;outline-offset:3px;border-radius:3px}
+.signin-help .text-link,.retry-button{min-height:44px;padding:8px 4px;font-size:13px}
+.login-card .links .text-link{min-height:44px;padding:8px 4px;font-size:13px}
+.retry-button{margin-top:4px}
+.status{font-size:13px;overflow-wrap:anywhere}
+#user-name,#user-email{overflow-wrap:anywhere}
+/* Expanded help must grow the page instead of clipping the mascot or controls. */
+.scene{display:flex;flex-direction:column;justify-content:center;align-items:center}
+.login-card{flex-shrink:0}
