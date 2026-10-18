@@ -30,7 +30,7 @@
     <div class="dock dock-right" aria-hidden="true"><span class="dock-lamp"></span></div>
     <div class="firefly fly1" aria-hidden="true"></div><div class="firefly fly2" aria-hidden="true"></div>
 
-    <section class="login-card" aria-labelledby="brand-title">
+    <section class="login-card" aria-labelledby="brand-title" aria-busy="true">
       <img class="sprout-sprite" src="sprout-mascot.png" alt="A smiling sprout sitting on the card" />
       <div class="card-vine vine-left" aria-hidden="true">❧</div><div class="card-vine vine-right" aria-hidden="true">❧</div>
       <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M32 51V23M32 33C16 31 11 20 13 10c12 0 20 6 19 18M32 28C34 14 44 8 54 9c1 12-7 21-22 22"/><path d="M20 51h24"/></svg></div>
@@ -39,17 +39,25 @@
       <p class="tagline">Your journey of growth begins here.</p>
 
       <div id="signed-out" class="auth-view">
-        <button class="enter-button" id="login" type="button"><span class="leaf-icon" aria-hidden="true">❧</span><span>Enter the Greenhouse</span><span class="leaf-icon flip" aria-hidden="true">❧</span></button>
-        <div class="links"><button type="button" class="text-link" id="signup">Create an account</button></div>
+        <button class="enter-button" id="login" type="button" disabled><span class="leaf-icon" aria-hidden="true">❧</span><span>Enter the Greenhouse</span><span class="leaf-icon flip" aria-hidden="true">❧</span></button>
+        <div class="links"><button type="button" class="text-link" id="signup" disabled>Create an account</button></div>
+        <details class="signin-help" id="signin-help">
+          <summary>Need a hand signing in?</summary>
+          <p>Choose from the methods available in the secure sign-in window. If offered, Google works for new and returning gardeners. A passkey lets a supported device sign you in with Touch ID or its screen lock.</p>
+          <p>No passkey? Use your password or another available method. If the window does not work, you can continue in this tab.</p>
+          <button type="button" class="text-link" id="continue-in-tab" disabled>Continue sign-in in this tab</button>
+        </details>
       </div>
       <div id="signed-in" class="signed-in" hidden>
         <div class="avatar" aria-hidden="true">✿</div>
-        <p class="welcome">Welcome back, <strong id="user-name">Gardener</strong>.</p>
+        <p class="welcome" id="welcome" tabindex="-1">Welcome back, <strong id="user-name">Gardener</strong>.</p>
         <p class="auth-note" id="user-email" hidden></p>
         <p class="auth-note">You’re signed in. Your garden will be here soon.</p>
         <button type="button" class="enter-button continue-button" id="logout"><span class="leaf-icon" aria-hidden="true">❧</span><span>Sign out</span><span class="leaf-icon flip" aria-hidden="true">❧</span></button>
       </div>
-      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <p id="status" class="status" role="status" aria-live="polite" aria-atomic="true">Preparing sign-in…</p>
+      <button type="button" class="text-link retry-button" id="retry" hidden>Retry connection</button>
+      <noscript><p class="auth-note">Enable JavaScript to sign in securely.</p></noscript>
       <div class="card-footer"><span>❧</span><i></i><span>❧</span></div>
     </section>
     <p class="scene-caption">The Greenhouse · After dusk</p>
