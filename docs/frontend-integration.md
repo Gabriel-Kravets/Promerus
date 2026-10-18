@@ -15,7 +15,7 @@ Working branch: `Jojo_dev_update`. PR #1 (`dev` → `main`) remains awaiting tea
 | Party | Four matching head portraits and activity labels; simulated presence explicitly labeled; offline gardeners disappear from the scene. |
 | UI and navigation | Bronze/parchment controls, selected/focus/hover states, social panels, garden gallery, profile customization, fullscreen study and keyboard access to activities. |
 | Environment | Masked water motion, reflections/ripples, foliage, lantern flicker, stove flames, particles and companion reactions; background ticker suspension and cleanup. |
-| Gameplay | Auth0 entry, learning journeys, quizzes, +20 energy for new lessons, duplicate reward protection, cosmetic garden stages and local progress persistence. |
+| Gameplay | Auth0 entry, learning journeys, quizzes, +20 nutrients for new lessons, duplicate reward protection, cosmetic garden stages and local progress persistence. |
 
 No older world files or art were restored from `Jojo_test_frontend`. No furniture coordinates, collision shapes, navigation geometry, assets, Auth0 files, dependencies or progression rules were changed.
 
@@ -42,7 +42,7 @@ Browser-observed flows:
 
 - Avatar creation; greenhouse, sprites and portraits rendered.
 - Three Science reveals immediately showed `3 / 3 cards` on return.
-- Complete Python lesson quiz awarded +20 energy and showed `1 / 1 lesson`.
+- Complete Python lesson quiz awarded +20 nutrients and showed `1 / 1 lesson`.
 - Every desk selected the correct station, walked to its chair and opened study; fireplace arrived at `11.5,-0.5` and opened its existing quiet-breath panel.
 - A water click did not change destination or player position.
 - Mock Maya presence rendered a second avatar; a simulated teammate lesson advanced the garden to Sprout and retained offline roster slots.
@@ -55,4 +55,4 @@ Browser-observed flows:
 
 Real Auth0 sign-in was confirmed by the user during Gate A; Gate B browser gameplay used the fictional adapter, and Auth0 itself was not reauthenticated here. The 20-minute focus threshold and midnight behavior were tested through fixtures rather than waiting for real elapsed time. Phone layouts and system-wide reduced-motion switching were not exhaustively browser-tested; gait suppression has automated coverage.
 
-Progress, friends and presence remain local/demo data. Authentication persistence redesign, onboarding, Greenhouse Worlds, Supabase, live multiplayer, shared authoritative energy and powerups are deliberately deferred. No backend packages, schemas or integrations were added.
+Progress, friends and presence remain local/demo data. Authentication persistence redesign, onboarding, Greenhouse Worlds, Supabase, live multiplayer, shared authoritative nutrients and powerups are deliberately deferred. No backend packages, schemas or integrations were added.

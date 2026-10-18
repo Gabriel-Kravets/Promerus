@@ -55,7 +55,7 @@ Automated tests mock Auth0; they do not verify live credentials, dashboard confi
 5. Close or block a login/signup popup. Check the safe message and enabled retry controls. Expand the help and choose **Continue sign-in in this tab**; after signup failure it should retain signup intent. Complete login and confirm a clean root callback URL without code/state.
 6. Cancel the Auth0 redirect and check recovery without raw provider details. Simulate offline/failed `/auth/` script requests, reconnect, then use **Retry connection**.
 7. Check Google and database passkey enrollment/login only after enabling them in the tenant. Use a real supported browser/device and approve its prompts yourself.
-8. Enter the greenhouse, walk, study, earn energy, and refresh. Confirm existing browser saves remain intact, including after logout/login. Repeat with a real HTTPS deployment and its configured allowlists.
+8. Enter the greenhouse, walk, study, earn nutrients, and refresh. Confirm existing browser saves remain intact, including after logout/login. Repeat with a real HTTPS deployment and its configured allowlists.
 
 ## Play
 
@@ -63,9 +63,9 @@ Automated tests mock Auth0; they do not verify live credentials, dashboard confi
 2. Click clear floor tiles to walk. Furniture and the central garden block movement.
 3. Click your back-left study desk, or use **Learn**, to create a demo learning path.
 4. Choose Programming, Mathematics, or Languages for a complete five-lesson course. Other topics use an explicitly labeled learning-skills template. Experience, goal, and duration are saved preferences; this prototype does not adapt the authored curriculum.
-5. Read a lesson, answer its three questions, and collect 20 energy. Incorrect answers provide explanations and can be retried. Replays do not grant duplicate rewards.
-6. Open **Settings → Show demo controls** and complete a lesson as Maya. Two different contributors unlock the Moonlight Flower. The initial 60 energy plus two completions reaches the first garden upgrade.
-7. Continue learning or trigger more simulated completions to reach Bloom at 180 energy and Sanctuary at 300.
+5. Read a lesson, answer its three questions, and collect 20 nutrients. Incorrect answers provide explanations and can be retried. Replays do not grant duplicate rewards.
+6. Open **Settings → Show demo controls** and complete a lesson as Maya. Two different contributors unlock the Moonlight Flower. The initial 60 nutrients plus two completions reaches the first garden upgrade.
+7. Continue learning or trigger more simulated completions to reach Bloom at 180 nutrients and Sanctuary at 300.
 8. Refresh: avatar, preferences, lessons, contributions, and progression remain in this browser.
 
 ## Topic and difficulty questionnaires
@@ -74,7 +74,7 @@ In **My Desk**, enter a learning topic, choose Beginner, Intermediate, or Advanc
 
 Add `GEMINI_API_KEY=your_key` to `.env.local` without replacing the public Auth0 settings. Optionally set `GEMINI_MODEL` to a model supported by your Gemini account. Restart the server after changing these settings. The Gemini key stays on the server; generation and short-answer grading require Gemini access and quota.
 
-Each correct answer grants 10/20/30 nutrients by difficulty, plus one coin per five nutrients. Nutrients add to greenhouse energy; coins appear in study Stats. Quiz rewards are granted once per quiz, including replays. Questions, answers, topic history, rewards, and completed lessons are saved in this browser. Switching study tabs preserves the active quiz. Saved signed quizzes can be reopened for grading; in-memory sessions last two hours and can be restored from the saved signed quiz while the signing key remains unchanged.
+Each correct answer grants 10/20/30 nutrients by difficulty, plus one coin per five nutrients. Nutrients advance the greenhouse tree; coins appear in study Stats. Quiz rewards are granted once per quiz, including replays. Questions, answers, topic history, rewards, and completed lessons are saved in this browser. Switching study tabs preserves the active quiz. Saved signed quizzes can be reopened for grading; in-memory sessions last two hours and can be restored from the saved signed quiz while the signing key remains unchanged.
 
 Online study-time tracking runs only after authentication and stops on sign-out. Existing browser-local saves and the Auth0 login flow are retained.
 
@@ -105,7 +105,7 @@ Tests cover coordinate conversion, obstacle avoidance, interactive approach poin
 
 ## Cozy study room
 
-Click a study desk or **Learn** to enter the illustrated cabin. **Flashcards** has six subject decks and answer reveal; **My Desk** offers topic quizzes alongside the full lesson journey and energy rewards. **Stats** and **Settings** are functional. Quests now open over the greenhouse from its Quests button or the quest board. The focus clock starts, pauses, resets, and supports 5/15/25/45-minute sessions. Flashcard review and active focus time update daily chores automatically; repeat reveals do not count twice. Study-room state is stored separately under `sproutbound-study-room` so existing game progression remains intact.
+Click a study desk or **Learn** to enter the illustrated cabin. **Flashcards** has six subject decks and answer reveal; **My Desk** offers topic quizzes alongside the full lesson journey and nutrients rewards. **Stats** and **Settings** are functional. Quests now open over the greenhouse from its Quests button or the quest board. The focus clock starts, pauses, resets, and supports 5/15/25/45-minute sessions. Flashcard review and active focus time update daily chores automatically; repeat reveals do not count twice. Study-room state is stored separately under `sproutbound-study-room` so existing game progression remains intact.
 
 ## Greenhouse polish
 
@@ -138,7 +138,7 @@ Shared UI primitives provide icon tooltips, head portraits, panel headings, stat
 
 ## Room updates
 
-Hair recoloring uses per-pose atlas masks for the full crown, bangs and long locks, preserving face and accessory colors. Garden stage buttons show a large clipped visual preview without changing energy or the active stage.
+Hair recoloring uses per-pose atlas masks for the full crown, bangs and long locks, preserving face and accessory colors. Garden stage buttons show a large clipped visual preview without changing nutrients or the active stage.
 
 The greenhouse Quests popup shows daily flashcard, focus, and lesson goals using the same persisted study data. The study page no longer contains quest navigation or the chores sidebar.
 
