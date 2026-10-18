@@ -14,7 +14,7 @@ If `.env.local` already exists, add the two public Auth0 values to it rather tha
 
 `NEXT_PUBLIC_AUTH0_DOMAIN` is the bare tenant hostname, without `https://` or a trailing slash. `NEXT_PUBLIC_AUTH0_CLIENT_ID` identifies the SPA. Restart development after edits. For Vercel, set both variables for the relevant Preview/Production environment before building; public variables are embedded at build time, so rebuild after changes. See [Next.js environment variables](https://nextjs.org/docs/pages/guides/environment-variables).
 
-`npm run build` produces the static application in `out/`, including `/`, `/game`, and `/learn`. Deploy using Vercel's Next.js preset. For a local production smoke test, run `python3 -m http.server 3000 --bind localhost --directory out` and use `/game.html` or `/learn.html` when testing that simple server's nested pages. Next's `npm start` is not supported with this project's `output: 'export'`; use `npm run dev` for normal local testing.
+`npm run build` produces a production Next.js application in `.next/`, including `/`, `/game`, `/learn`, and the questionnaire's `/api/study` endpoint. Run `npm start` for a local production smoke test at `http://127.0.0.1:3000/` (allowlist that origin in Auth0), or `npm start -- --hostname localhost` to use the documented localhost Auth0 URLs. Production requires a Next.js server, such as Vercel's Next.js preset; static `out/` hosting cannot run the study API.
 
 Development builds use `.next-dev/` and production builds use `.next/`, so `npm run build` does not overwrite a running development server's chunks.
 
@@ -36,7 +36,7 @@ If you use `127.0.0.1` or another port, allowlist its matching URLs separately. 
 
 Keep the database connection and signup enabled as appropriate. **Google, passkeys, and hosted branding remain unverified** and require dashboard configuration. Both buttons leave provider selection to Universal Login. Follow [the Auth0 dashboard, Google, passkey, and branding guide](docs/auth0-setup.md).
 
-This static application has a client-side login gate. Future APIs must validate tokens and enforce ownership themselves. Auth0 `sub` is preserved unchanged for a future backend; email is not an account key. The SDK retains its existing localStorage token cache for refresh restoration, with the associated exposure to successful XSS. Game saves are still browser-local and shared by accounts on the same browser/origin. Signing out does not erase them. No Supabase, cloud saves, or account-specific persistence is implemented.
+The application has a client-side login gate. The study API currently checks request origin but does not validate Auth0 access tokens; the gate does not provide server-side authorization. Server APIs must validate tokens and enforce ownership before being treated as account-protected services. Auth0 `sub` is preserved unchanged for a future backend; email is not an account key. The SDK retains its existing localStorage token cache for refresh restoration, with the associated exposure to successful XSS. Game saves are still browser-local and shared by accounts on the same browser/origin. Signing out does not erase them. No Supabase, cloud saves, or account-specific persistence is implemented.
 
 ## Verify authentication locally
 
@@ -68,6 +68,16 @@ Automated tests mock Auth0; they do not verify live credentials, dashboard confi
 7. Continue learning or trigger more simulated completions to reach Bloom at 180 energy and Sanctuary at 300.
 8. Refresh: avatar, preferences, lessons, contributions, and progression remain in this browser.
 
+## Topic and difficulty questionnaires
+
+In **My Desk**, enter a learning topic, choose Beginner, Intermediate, or Advanced, and select **Start studying**. Gemini generates four multiple-choice questions and one short answer. Submit all five answers for a score and explanations; matching cards appear in **Flashcards**. The existing offline five-lesson courses remain available through **Offline lessons** in the desk heading. In **Flashcards**, use **Flashcard deck** to switch between **Current quiz** and the six built-in decks without discarding your quiz.
+
+Add `GEMINI_API_KEY=your_key` to `.env.local` without replacing the public Auth0 settings. Optionally set `GEMINI_MODEL` to a model supported by your Gemini account. Restart the server after changing these settings. The Gemini key stays on the server; generation and short-answer grading require Gemini access and quota.
+
+Each correct answer grants 10/20/30 nutrients by difficulty, plus one coin per five nutrients. Nutrients add to greenhouse energy; coins appear in study Stats. Quiz rewards are granted once per quiz, including replays. Questions, answers, topic history, rewards, and completed lessons are saved in this browser. Switching study tabs preserves the active quiz. Saved signed quizzes can be reopened for grading; in-memory sessions last two hours and can be restored from the saved signed quiz while the signing key remains unchanged.
+
+Online study-time tracking runs only after authentication and stops on sign-out. Existing browser-local saves and the Auth0 login flow are retained.
+
 ## Controls and accessibility
 
 All essential activities have HTML navigation buttons independent of pointer movement. Escape closes panels; dialogs contain keyboard focus. Settings control reward sounds, ambient motion, interface size, and particles. System reduced-motion preferences are respected. Audio uses quiet synthesized chimes after user interaction. No sound files are required.
@@ -95,7 +105,7 @@ Tests cover coordinate conversion, obstacle avoidance, interactive approach poin
 
 ## Cozy study room
 
-Click a study desk or **Learn** to enter the illustrated cabin. **Flashcards** has six subject decks and answer reveal; **My Desk** retains the full lesson journey and energy rewards. **Stats** and **Settings** are functional. Quests now open over the greenhouse from its Quests button or the quest board. The focus clock starts, pauses, resets, and supports 5/15/25/45-minute sessions. Flashcard review and active focus time update daily chores automatically; repeat reveals do not count twice. Study-room state is stored separately under `sproutbound-study-room` so existing game progression remains intact.
+Click a study desk or **Learn** to enter the illustrated cabin. **Flashcards** has six subject decks and answer reveal; **My Desk** offers topic quizzes alongside the full lesson journey and energy rewards. **Stats** and **Settings** are functional. Quests now open over the greenhouse from its Quests button or the quest board. The focus clock starts, pauses, resets, and supports 5/15/25/45-minute sessions. Flashcard review and active focus time update daily chores automatically; repeat reveals do not count twice. Study-room state is stored separately under `sproutbound-study-room` so existing game progression remains intact.
 
 ## Greenhouse polish
 

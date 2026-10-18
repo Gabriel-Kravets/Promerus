@@ -1,5 +1,5 @@
 import {scopedStorageKey} from './backend/storage-scope';
-export type RoomSave={date:string;seen:string[];focusSeconds:number;lessonBaseline:number;duration:number;seconds:number;endAt:number|null};
+export type RoomSave={focusEnabled?:boolean;date:string;seen:string[];focusSeconds:number;lessonBaseline:number;duration:number;seconds:number;endAt:number|null};
 export const STUDY_STORAGE_KEY='sproutbound-study-room';
 export const STUDY_PROGRESS_EVENT='sproutbound:study-progress';
 export function writeStudySave(save:RoomSave) {
@@ -9,7 +9,7 @@ export function writeStudySave(save:RoomSave) {
 }
 export const studyDay=()=>new Date().toLocaleDateString('en-CA');
 export function defaultStudySave(lessons:number):RoomSave {
-  return {date:studyDay(),seen:[],focusSeconds:0,lessonBaseline:lessons,duration:25,seconds:1500,endAt:null};
+  return {focusEnabled:true,date:studyDay(),seen:[],focusSeconds:0,lessonBaseline:lessons,duration:25,seconds:1500,endAt:null};
 }
 export function currentStudyDay(save:RoomSave,lessons:number):RoomSave {
   return save.date===studyDay()?save:{...save,date:studyDay(),seen:[],focusSeconds:0,lessonBaseline:lessons};
@@ -19,8 +19,9 @@ export function readStudySave(lessons:number):RoomSave {
   try {
     const raw=JSON.parse(localStorage.getItem(scopedStorageKey(STUDY_STORAGE_KEY))||'null');
     if(!raw||!Array.isArray(raw.seen)||!raw.seen.every((v:unknown)=>typeof v==='string')||!Number.isFinite(raw.duration)||raw.duration<1||raw.duration>60||!Number.isFinite(raw.seconds)||raw.seconds<0||!Number.isFinite(raw.focusSeconds)||raw.focusSeconds<0||(raw.endAt!==null&&!Number.isFinite(raw.endAt)))return fallback;
+    const focusEnabled=raw.focusEnabled!==false;
     const seconds=raw.endAt?Math.max(0,Math.ceil((raw.endAt-Date.now())/1000)):raw.seconds;
-    const save=currentStudyDay({...raw,seconds,endAt:seconds>0?raw.endAt:null,lessonBaseline:Number.isInteger(raw.lessonBaseline)&&raw.lessonBaseline>=0?raw.lessonBaseline:lessons},lessons);
+    const save=currentStudyDay({...raw,focusEnabled,seconds,endAt:focusEnabled&&seconds>0?raw.endAt:null,lessonBaseline:Number.isInteger(raw.lessonBaseline)&&raw.lessonBaseline>=0?raw.lessonBaseline:lessons},lessons);
     // Keep the new baseline stable across later lesson updates and tab switches.
     if(raw.date!==save.date)try{localStorage.setItem(scopedStorageKey(STUDY_STORAGE_KEY),JSON.stringify(save));}catch{}
     return save;
