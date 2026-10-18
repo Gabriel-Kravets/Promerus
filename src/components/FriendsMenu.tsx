@@ -11,9 +11,20 @@ import {PlayerPortrait,GamePanelHeader,GameBadge,ProgressMeter,HeartMeter} from 
 /** Join someone's study room with their invite code, or share one for the room you're in. */
 function JoinStudyRoom({onJoined}:{onJoined:()=>void}){
  const backend=useWorldParty().backend;
- const [code,setCode]=useState(''),[invite,setInvite]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[takeover,setTakeover]=useState<string|null>(null);
+ const [code,setCode]=useState(''),[roomName,setRoomName]=useState('My study room'),[invite,setInvite]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[takeover,setTakeover]=useState<string|null>(null);
  const owner=!!backend.snapshot&&backend.snapshot.world.owner_id===backend.profile?.player_id;
  const online=backend.enabled;
+ const create=async()=>{
+  setBusy(true);setMessage('');
+  try{
+   const id=await rpc<string>(backend.client!,'create_greenhouse',{p_name:roomName.trim()||'My study room',p_public:false,p_visits:false});
+   await backend.switchWorld(id);
+   const value=await rpc<string>(backend.client!,'issue_invite',{p_world:id});
+   setInvite(value);
+   try{await navigator.clipboard.writeText(value);setMessage('Study room created. Invite code copied. Send it to a friend. It works for 24 hours.');}
+   catch{setMessage('Study room created. Copy the invite code below and send it to a friend. It works for 24 hours.');}
+  }catch(e){setMessage((e as Error).message);}finally{setBusy(false);}
+ };
  const join=async(take=false)=>{
   setBusy(true);setMessage('');
   try{
@@ -34,7 +45,8 @@ function JoinStudyRoom({onJoined}:{onJoined:()=>void}){
  return <section className="invite join-room" aria-labelledby="join-room-title"><div><small>STUDY ROOMS</small><strong id="join-room-title">Join a study room</strong><p className="fineprint">{online?'Paste the invite code a friend sent you. You’ll move into their room right away.':'Joining works in the online version. This copy is a local demo, so it can’t connect to other gardeners yet.'}</p></div>
   <form className="form-row" onSubmit={e=>{e.preventDefault();if(online&&code.trim())void join();}}><label className="join-room-code"><span className="sr-only">Invite code</span><input value={code} maxLength={100} onChange={e=>{setCode(e.target.value);setTakeover(null);}} placeholder="Paste an invite code" autoComplete="off" spellCheck={false} disabled={!online}/></label><button type="submit" className="primary" disabled={!online||busy||!code.trim()}><DoorOpen size={16} aria-hidden="true"/> Join</button></form>
   {takeover&&<button type="button" className="secondary" disabled={busy} onClick={()=>void join(true)}>Continue in this browser</button>}
-  {owner&&<div className="join-room-share"><button type="button" className="secondary" disabled={busy} onClick={()=>void share()}><Copy size={15} aria-hidden="true"/> {invite?'Copy a new invite code':'Invite friends to this room'}</button>{invite&&<input readOnly value={invite} aria-label="Invite code for this room" onFocus={e=>e.currentTarget.select()}/>}</div>}
+  {online&&!backend.lease&&<form className="form-row" onSubmit={e=>{e.preventDefault();void create();}}><label className="join-room-code"><span className="sr-only">Study room name</span><input value={roomName} maxLength={60} onChange={e=>setRoomName(e.target.value)} placeholder="Name your study room"/></label><button type="submit" className="secondary" disabled={busy||!roomName.trim()}>Create study room</button></form>}
+  {(owner||invite)&&<div className="join-room-share">{owner&&<button type="button" className="secondary" disabled={busy||!backend.lease} onClick={()=>void share()}><Copy size={15} aria-hidden="true"/> {invite?'Copy a new invite code':'Invite friends to this room'}</button>}{invite&&<input readOnly value={invite} aria-label="Invite code for this room" onFocus={e=>e.currentTarget.select()}/>}</div>}
   {online&&<button type="button" className="text-button" onClick={()=>window.dispatchEvent(new Event('sproutbound:open-worlds'))}>See all your rooms <ArrowRight size={14} aria-hidden="true"/></button>}
   <p className="copy-status" role="status">{message}</p>
  </section>;

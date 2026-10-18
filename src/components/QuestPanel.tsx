@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {BookOpen,Check,ChevronRight,Hourglass,Leaf,ScrollText,Sparkles,Sprout} from 'lucide-react';
+import {useBackend} from './backend/BackendProvider';
 import {useGame} from '@/store/game';
 import {dailyQuests,readStudySave,defaultStudySave,STUDY_STORAGE_KEY,STUDY_PROGRESS_EVENT} from '@/lib/study-progress';
 import {nextQuestReset,onlineDailyQuests,dailyQuestNotice} from '@/lib/daily-quests';
@@ -13,6 +14,7 @@ const untilReset=()=>{const now=new Date(),next=nextQuestReset(now);const minute
 // Nonmodal quest widget keeps the room interactive.
 export default function QuestPanel({onStudy}:{onStudy:()=>void}) {
   const daily=useDailyQuests();
+  const backend=useBackend();
   const lessons=useGame(s=>s.completions.filter(c=>c.player===0).length);
   const [save,setSave]=useState(()=>defaultStudySave(lessons)),[reset,setReset]=useState(''),[bloomed,setBloomed]=useState<string[]>([]);
   const completed=useRef<Set<string>|null>(null);
@@ -21,14 +23,15 @@ export default function QuestPanel({onStudy}:{onStudy:()=>void}) {
     const id=setInterval(refresh,5000);window.addEventListener('focus',refresh);window.addEventListener('storage',refresh);window.addEventListener(STUDY_PROGRESS_EVENT,refresh);
     return()=>{clearInterval(id);window.removeEventListener('focus',refresh);window.removeEventListener('storage',refresh);window.removeEventListener(STUDY_PROGRESS_EVENT,refresh);};
   },[lessons]);
-  const quests=daily.online?onlineDailyQuests(daily.status??{day:'',resets_at:'',time_zone:'America/New_York',science_cards:0,focus_seconds:0,lesson_completed:false,penalties_start_on:''}):dailyQuests(save,lessons),done=quests.filter(q=>q.value>=q.max);
+  const quests=daily.online?onlineDailyQuests(daily.status??{day:'',resets_at:'',time_zone:'America/New_York',science_cards:0,focus_seconds:0,lesson_completed:false,penalties_start_on:''}):backend.enabled&&backend.economy?.quests?.length?backend.economy.quests:dailyQuests(save,lessons),done=quests.filter(q=>q.value>=q.max);
+  const resetLabel=daily.online?(reset?`Renews in ${reset}`:''):backend.enabled&&backend.economy?`Renews at 00:00 UTC · ${Math.floor(backend.economy.resets_in_seconds/3600)}h ${Math.floor(backend.economy.resets_in_seconds%3600/60)}m`:(reset?`Renews in ${reset}`:'');
   // Celebrate quests that finish while the widget is open, not the ones already done on load.
   useEffect(()=>{const now=new Set(done.map(q=>q.text)),before=completed.current;completed.current=now;if(!before)return;
     const fresh=[...now].filter(text=>!before.has(text));if(!fresh.length)return;
     setBloomed(b=>[...b,...fresh]);const t=setTimeout(()=>setBloomed(b=>b.filter(text=>!fresh.includes(text))),1800);return()=>clearTimeout(t);
   },[done.map(q=>q.text).join('|')]);
   return <>
-    <header className="quest-head"><span className="quest-crest" aria-hidden="true"><ScrollText size={18}/></span><div><h2>Daily Quests</h2><small>{reset&&`Renews in ${reset}`}</small></div></header>
+    <header className="quest-head"><span className="quest-crest" aria-hidden="true"><ScrollText size={18}/></span><div><h2>Daily Quests</h2><small>{resetLabel}</small></div></header>
     <div className="quest-vine" role="img" aria-label={`${done.length} of ${quests.length} quests complete`}>
       {quests.map((q,i)=><span key={q.text} className={q.value>=q.max?'grown':''} style={{['--i' as string]:i}}><Leaf size={15}/></span>)}
       <em>{done.length}/{quests.length}</em>
