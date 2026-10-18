@@ -3,7 +3,7 @@ import {itemSprites,type ItemType} from './items.ts';
 export type ShopCategory='Furniture'|'Lighting'|'Curios';
 export type ShopEntry={type:ItemType;category:ShopCategory;price:number;description:string;image:string};
 
-/** Draft gold prices; purchases are free previews until a real wallet exists. */
+/** Gold prices, paid from the player's wallet. */
 export const shopCatalog:ShopEntry[]=([
   {type:'botanical-desk',category:'Furniture',price:180,description:'A rustic writing desk with a lantern, tea tray and trailing ivy.'},
   {type:'armchair',category:'Furniture',price:140,description:'A cozy teal lounge chair with a leaf-stitched cushion.'},

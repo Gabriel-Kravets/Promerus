@@ -1,19 +1,22 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
-import {BookOpen,Check,ChevronRight,Hourglass,Leaf,ScrollText,Sparkles,Sprout} from 'lucide-react';
+import {BookOpen,Check,ChevronRight,Hourglass,Leaf,ScrollText,Sparkles,Sprout,Users} from 'lucide-react';
 import {useGame} from '@/store/game';
 import {dailyQuests,readStudySave,defaultStudySave,STUDY_STORAGE_KEY,STUDY_PROGRESS_EVENT} from '@/lib/study-progress';
-import {nextQuestReset,onlineDailyQuests,dailyQuestNotice} from '@/lib/daily-quests';
+import {nextQuestReset,onlineDailyQuests,dailyQuestNotice,questDay} from '@/lib/daily-quests';
+import {GROUP_QUIZ_PENALTY,quizzesOn,requiredQuizzes} from '@/lib/group-quizzes';
+import {useWorldParty} from '@/hooks/useWorldParty';
 import {useDailyQuests} from './backend/DailyQuestProvider';
 import {ProgressMeter} from './ui/GamePrimitives';
 
-const questIcons=[BookOpen,Hourglass,Sprout];
+const questIcons=[BookOpen,Hourglass,Sprout,Users];
 const untilReset=()=>{const now=new Date(),next=nextQuestReset(now);const minutes=Math.ceil((next.getTime()-now.getTime())/60000);return `${Math.floor(minutes/60)}h ${minutes%60}m`;};
 
 // Nonmodal quest widget keeps the room interactive.
 export default function QuestPanel({onStudy}:{onStudy:()=>void}) {
   const daily=useDailyQuests();
   const lessons=useGame(s=>s.completions.filter(c=>c.player===0).length);
+  const quizLog=useGame(s=>s.quizLog),names=useWorldParty().names;
   const [save,setSave]=useState(()=>defaultStudySave(lessons)),[reset,setReset]=useState(''),[bloomed,setBloomed]=useState<string[]>([]);
   const completed=useRef<Set<string>|null>(null);
   // Focus time and flashcards are saved by the study room; keep the widget current while it stays open.
@@ -21,7 +24,11 @@ export default function QuestPanel({onStudy}:{onStudy:()=>void}) {
     const id=setInterval(refresh,5000);window.addEventListener('focus',refresh);window.addEventListener('storage',refresh);window.addEventListener(STUDY_PROGRESS_EVENT,refresh);
     return()=>{clearInterval(id);window.removeEventListener('focus',refresh);window.removeEventListener('storage',refresh);window.removeEventListener(STUDY_PROGRESS_EVENT,refresh);};
   },[lessons]);
-  const quests=daily.online?onlineDailyQuests(daily.status??{day:'',resets_at:'',time_zone:'America/New_York',science_cards:0,focus_seconds:0,lesson_completed:false,penalties_start_on:''}):dailyQuests(save,lessons),done=quests.filter(q=>q.value>=q.max);
+  // The local room shares one goal: as many quizzes today as there are members.
+  const today=reset?questDay():'',required=requiredQuizzes(names.length),groupDone=today?quizzesOn(quizLog,today):0;
+  const groupQuest={text:`Group quizzes · one per member`,value:Math.min(groupDone,required),max:required,unit:'quizzes'};
+  const finishers=today?names.filter((_,i)=>(quizLog[today]??[]).some(entry=>entry.startsWith(`${i}:`))):[];
+  const quests=daily.online?onlineDailyQuests(daily.status??{day:'',resets_at:'',time_zone:'America/New_York',science_cards:0,focus_seconds:0,lesson_completed:false,penalties_start_on:''}):[...dailyQuests(save,lessons),groupQuest],done=quests.filter(q=>q.value>=q.max);
   // Celebrate quests that finish while the widget is open, not the ones already done on load.
   useEffect(()=>{const now=new Set(done.map(q=>q.text)),before=completed.current;completed.current=now;if(!before)return;
     const fresh=[...now].filter(text=>!before.has(text));if(!fresh.length)return;
@@ -46,7 +53,7 @@ export default function QuestPanel({onStudy}:{onStudy:()=>void}) {
         </button>
       </li>;})}</ul>
     {done.length===quests.length&&<p className="quest-complete" role="status"><Sparkles size={15}/> Every quest done. The garden thanks you!</p>}
-    <p className="quest-penalty-note" role="status">{dailyQuestNotice(daily.online,daily.status,daily.error)} Quests reset at midnight New York time. New members start their first full day; nutrients never drop below zero.</p>
+    {daily.online?<p className="quest-penalty-note" role="status">{dailyQuestNotice(daily.online,daily.status,daily.error)} Quests reset at midnight New York time. New members start their first full day; nutrients never drop below zero.</p>:<p className="quest-penalty-note" role="status">{groupDone>=required?'The group met today’s quiz goal. The tree is safe.':`Your study group of ${names.length} needs ${required} quizzes today. Each one still missing at midnight (New York time) costs the tree ${GROUP_QUIZ_PENALTY} nutrients.`} {finishers.length?`Done today: ${finishers.join(', ')}.`:'Nobody has finished a quiz yet today.'}</p>}
     {daily.status?.last_penalty&&daily.status.last_penalty.amount>0&&<p className="quest-penalty-note">{daily.status.last_penalty.greenhouse_name} lost {daily.status.last_penalty.amount} nutrients for your missed quests on {daily.status.last_penalty.day}.</p>}
     <button className="primary quest-study" onClick={onStudy}>Study · +20 nutrients</button>
   </>;

@@ -170,9 +170,9 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
    const friendPositions:(Point|undefined)[]=[];
    // Online classmates use tight body ellipses, not their atlas cell bounds.
    players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,name:['', 'Maya','Kai','Jules'][i],action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>(handlers.current.backend.enabled?!!remotePeers()[i-1]?.online:state.online[i])&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen(handlers.current.backend.enabled?'friends':'profile',i)});});
-   let wander=createSproutlingWander();const petPoint=iso(8,4),pet=sprite(petTextures[state.energy>=100?1:0],petPoint.x,petPoint.y,125);pet.zIndex=petPoint.y+6;
+   let wander=createSproutlingWander();const petPoint=iso(8,4),pet=sprite(petTextures[stageFor(state.energy)>0?1:0],petPoint.x,petPoint.y,125);pet.zIndex=petPoint.y+6;
    const petRuns=[0,1].map(stage=>Array.from({length:sceneAssets.run.frames},(_,frame)=>new Texture({source:petRunSheet.source,frame:new Rectangle(frame*sceneAssets.run.width,stage*sceneAssets.run.height,sceneAssets.run.width,sceneAssets.run.height)})));
-   let petHitTexture=petTextures[state.energy>=100?1:0];
+   let petHitTexture=petTextures[stageFor(state.energy)>0?1:0];
    const petCycle=createWalkCycle(petPoint);
    let sharedPet={position:{x:8,y:4},moving:false,facing:1};
    const petShape={kind:'ellipse' as const,x:pet.x+5,y:pet.y-32,rx:25,ry:29};
@@ -410,7 +410,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false,activityOverri
     const roaming=net.enabled?{...sharedPet,moving:!petPaused&&sharedPet.moving}:wander(dt,petPaused);
     const petFloor=iso(roaming.position.x,roaming.position.y),petStride=petCycle(petFloor);
     petInteraction.approaches=[roaming.position];
-    const petStage=state.energy>=100||active&&state.reaction==='watering'?1:0;petHitTexture=petTextures[petStage];pet.texture=petStride.frame>=0?petRuns[petStage][petStride.frame]:petTextures[petStage];pet.width=125;pet.height=125*petTextures[0].height/petTextures[0].width;pet.x=petFloor.x;pet.y=petFloor.y+petStride.bob+(motion?(celebrate?-Math.abs(Math.sin(seconds*7))*9:roaming.moving?0:Math.sin(seconds*2)*1.2):0);pet.rotation=petStride.frame>=0?petStride.lean:motion&&active&&state.reaction==='watering'?Math.sin(seconds*4)*.06:0;sleep.visible=state.reaction==='sleeping'&&active;pet.alpha=sleep.visible?.8:1;
+    const petStage=stageFor(state.energy)>0||active&&state.reaction==='watering'?1:0;petHitTexture=petTextures[petStage];pet.texture=petStride.frame>=0?petRuns[petStage][petStride.frame]:petTextures[petStage];pet.width=125;pet.height=125*petTextures[0].height/petTextures[0].width;pet.x=petFloor.x;pet.y=petFloor.y+petStride.bob+(motion?(celebrate?-Math.abs(Math.sin(seconds*7))*9:roaming.moving?0:Math.sin(seconds*2)*1.2):0);pet.rotation=petStride.frame>=0?petStride.lean:motion&&active&&state.reaction==='watering'?Math.sin(seconds*4)*.06:0;sleep.visible=state.reaction==='sleeping'&&active;pet.alpha=sleep.visible?.8:1;
     pet.scale.x=Math.abs(pet.scale.x)*roaming.facing;pet.zIndex=petFloor.y+6;
     petShape.x=pet.x+5*roaming.facing;petShape.y=pet.y-32;sleep.position.set(pet.x+18,pet.y-75);
     garden.tint=active&&state.reaction==='evolving'?0xedffd2:0xffffff;

@@ -73,5 +73,7 @@ export function pathfind(start:Point,end:Point):Point[]{return planRoute(start,e
 export function approachRoute(start:Point,options:Point[],preferFirst=false){if(preferFirst){for(const option of options){const plan=planRoute(start,option);if(plan)return plan;}return null;}return options.map(p=>planRoute(start,p)).filter((r):r is NonNullable<typeof r>=>!!r).sort((a,b)=>{
  const length=(path:Point[])=>path.reduce((total,p,i)=>total+distance(i?path[i-1]:start,p),0);return length(a.path)-length(b.path);
  })[0]??null;}
-export const stageFor=(energy:number)=>energy>=300?3:energy>=180?2:energy>=100?1:0;
+/** Nutrients the shared tree needs to reach each stage. Kept high so growth takes days of group study. */
+export const STAGE_THRESHOLDS=[0,400,1000,2000] as const;
+export const stageFor=(energy:number)=>energy>=STAGE_THRESHOLDS[3]?3:energy>=STAGE_THRESHOLDS[2]?2:energy>=STAGE_THRESHOLDS[1]?1:0;
 export const stages=['Seed','Sprout','Bloom','Sanctuary'];

@@ -1,4 +1,7 @@
+/** Multiplayer stays off unless NEXT_PUBLIC_MULTIPLAYER=on; the local room with simulated classmates runs instead. */
+export function multiplayerEnabled(){return process.env.NEXT_PUBLIC_MULTIPLAYER==='on';}
 export function backendConfig(){
+ if(!multiplayerEnabled())return null;
  const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
  if(!url&&!key)return null;
  if(!url||!key)throw new Error('Both public Supabase configuration values are required.');

@@ -2,20 +2,21 @@
 import {useEffect,useState} from 'react';
 import {useBackend} from '@/components/backend/BackendProvider';
 import {useGame,presets,type MemberActivity} from '@/store/game';
-import {memberStatus} from '@/lib/party';
-import {weekStart,weeklyLeaderboard,type LeaderboardRow} from '@/lib/leaderboard';
+import {memberStatus,CLASSMATE_NAMES} from '@/lib/party';
+import {weekStart,weeklyLeaderboard,completionNutrients,type LeaderboardRow} from '@/lib/leaderboard';
 import {orderedRoomMembers,rankContributions,partyNames} from '@/lib/backend/party-view';
 
 /** Data adapter for main's existing roster, leaderboard and social renderers. */
 export function useWorldParty(){
  const backend=useBackend(),state=useGame();
  const members=orderedRoomMembers(backend.snapshot?.members??[],backend.profile?.player_id);
- const names=backend.enabled?partyNames(members,backend.profile?.name||state.name):[state.name,'Maya','Kai','Jules'];
- const online=backend.enabled?members.map(m=>m.online):state.online;
+ const names=backend.enabled?partyNames(members,backend.profile?.name||state.name):[state.name,...CLASSMATE_NAMES];
+ const online=backend.enabled?members.map(m=>m.online):[true,...state.online.slice(1)];
  return {backend,members,names,online,
-  avatar:(i:number)=>backend.enabled?members[i]?.avatar??state.avatar:i===0?state.avatar:presets[i],
+  avatar:(i:number)=>backend.enabled?members[i]?.avatar??state.avatar:i===0?state.avatar:presets[i]??state.avatar,
   status:(i:number,panel=''):MemberActivity|'Offline'=>backend.enabled?(!members[i]?.online?'Offline':i===0?memberStatus(state,0,panel):members[i].activity):memberStatus(state,i,panel),
-  energy:(i:number)=>backend.enabled?backend.snapshot?.contributions.find(c=>c.player_id===members[i]?.player_id)?.energy??0:state.completions.filter(c=>c.player===i).length*20,
+  energy:(i:number)=>backend.enabled?backend.snapshot?.contributions.find(c=>c.player_id===members[i]?.player_id)?.energy??0:state.completions.filter(c=>c.player===i).reduce((sum,c)=>sum+completionNutrients(c),0),
+  lessons:(i:number)=>backend.enabled?(backend.snapshot?.contributions.find(c=>c.player_id===members[i]?.player_id)?.energy??0)/20:state.completions.filter(c=>c.player===i).length,
  };
 }
 export function useWorldLeaderboard(){

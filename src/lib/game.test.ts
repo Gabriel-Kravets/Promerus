@@ -37,9 +37,9 @@ test('canopy and empty floor do not claim garden clicks, and object priority is 
 });
 test('fifteen complete lessons have four choices and valid answers',()=>{assert.equal(Object.keys(courses).length,3);for(const c of Object.values(courses)){assert.equal(c.lessons.length,5);for(const l of c.lessons){assert.equal(l.questions.length,3);for(const q of l.questions){assert.equal(q.options.length,4);assert.equal(new Set(q.options).size,4);assert.ok(q.answer>=0&&q.answer<4);assert.ok(q.explanation.length>10);}}}});
 test('replays cannot mint energy and quest needs distinct identities',()=>{useGame.getState().reset();const g=()=>useGame.getState();assert.equal(g().complete(0,'python:0'),true);assert.equal(g().energy,80);assert.equal(g().complete(0,'python:0'),false);assert.equal(g().energy,80);g().complete(0,'python:1');assert.equal(new Set(g().completions.map(c=>c.player)).size,1);g().complete(1,'algebra:0');assert.equal(new Set(g().completions.map(c=>c.player)).size,2);assert.equal(g().energy,120);g().reset();});
-test('garden thresholds are stable',()=>{assert.deepEqual([0,99,100,179,180,299,300].map(stageFor),[0,0,1,1,2,2,3]);});
+test('garden thresholds are stable',()=>{assert.deepEqual([0,399,400,999,1000,1999,2000].map(stageFor),[0,0,1,1,2,2,3]);});
 
-test('classmates start offline without changing progression',()=>{useGame.getState().reset();assert.deepEqual(useGame.getState().online,[true,false,false,false]);useGame.getState().set({online:[true,true,false,false]});assert.equal(useGame.getState().energy,60);useGame.getState().reset();});
+test('simulated classmates start in the room without changing progression',()=>{useGame.getState().reset();assert.deepEqual(useGame.getState().online,[true,true,true,true]);useGame.getState().set({online:[true,true,false,false]});assert.equal(useGame.getState().energy,60);useGame.getState().reset();});
 
 test('station layout retains original desk cells and keeps chairs reachable',()=>{
  for(const [index,station] of studyStations.entries()){

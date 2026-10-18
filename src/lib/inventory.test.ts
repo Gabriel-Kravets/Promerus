@@ -90,8 +90,11 @@ test('resetting a created greenhouse starts a fresh inventory',t=>{
   useGame.getState().set({created:true,online:[true,true,true,true]});
   const stop=listenForRoomJoins();t.after(stop);
   assert.equal(ofType('desk').length,4);
+  inventory().buyItem('lantern');assert.equal(ofType('lantern').length,1);
   useGame.getState().reset();
-  assert.equal(ofType('desk').length,1);
+  // The simulated classmates come back with the fresh room, so each still has a desk.
+  assert.equal(ofType('desk').length,4);
+  assert.equal(ofType('lantern').length,0);
   assert.equal(ofType('tree').length,0);
 });
 

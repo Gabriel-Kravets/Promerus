@@ -75,7 +75,7 @@ test('questionnaire book UI, quiz, flashcards, history, stats and legacy courses
   const state=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('sproutbound-v1')).state);
   assert.equal((await state()).energy,160);assert.equal((await state()).coins,20);assert.equal((await state()).course,'python');
   await page.getByRole('button',{name:'Stats',exact:true}).click();
-  assert.match(await page.locator('.study-stats').innerText(),/Study coins\s+20/);
+  assert.match(await page.locator('.study-stats').innerText(),/Gold\s+20/);
   assert.match(await page.locator('.most-studied-topics').innerText(),/Root biology/);
   await page.getByRole('dialog',{name:'Cozy study room',exact:true}).getByRole('button',{name:'Settings',exact:true}).click();
   await page.getByRole('switch',{name:'Focus session',exact:true}).uncheck();
