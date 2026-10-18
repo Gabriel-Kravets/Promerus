@@ -1,4 +1,4 @@
-import {distance,iso,planRoute,walkableTiles,type Point} from './movement';
+import {blocked,clearSegment,distance,iso,planRoute,walkableTiles,type Point} from './movement';
 
 /** A small autonomous walker using the same obstacle-safe routes as gardeners. */
 export function createSproutlingWander(start:Point={x:8,y:4},random:()=>number=Math.random){
@@ -6,10 +6,11 @@ export function createSproutlingWander(start:Point={x:8,y:4},random:()=>number=M
  return (dt:number,paused=false)=>{
   let moving=false;
   if(!paused){
+   if(route.length&&!clearSegment(position,route[0])){route=[];pause=.2;}
    if(!route.length){
     pause-=dt;
     if(pause<=0){
-     const choices=walkableTiles.filter(p=>distance(position,p)>100&&distance(position,p)<320);
+     const choices=walkableTiles.filter(p=>!blocked(p.x,p.y)&&distance(position,p)>100&&distance(position,p)<320);
      const destination=choices[Math.min(choices.length-1,Math.floor(random()*choices.length))];
      route=destination?planRoute(position,destination)?.path??[]:[];
      pause=2+random()*3;

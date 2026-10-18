@@ -10,7 +10,8 @@ export function contains(shape:Shape,p:XY):boolean {
 }
 // The bottom-middle railing and its planter box are solid, so nobody walks onto the fence.
 export const fenceFootprint:Shape={kind:'polygon',points:[360,487,400,503,450,522,505,540,560,536,620,542,655,564,685,575,750,552,820,527,820,640,360,640]};
-export const gardenFootprint:Shape={kind:'ellipse',x:660,y:380,rx:102,ry:50};
+// Ground bed in the garden atlas: below the trunk, excluding canopy and glow.
+export const gardenFootprint:Shape={kind:'ellipse',x:660,y:410,rx:96,ry:44};
 // The canopy is decorative. Only the stone bed/trunk area opens the garden panel.
 export const gardenHotspot:Shape={kind:'ellipse',x:660,y:433,rx:104,ry:43};
 // The rest of the base: the walk-blocking bed footprint plus the trunk column, so clicks there open the panel instead of walking.

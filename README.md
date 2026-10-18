@@ -29,7 +29,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000/. `npm run build` creates a static export in `out/`; authentication uses Auth0, while gameplay has no server APIs or external AI calls.
+Open http://localhost:3000/. `npm run build` creates a static export in `out/`; authentication uses Auth0, while gameplay has no server APIs or external AI calls. Development uses `.next-dev/`, and production builds use `.next/`, so building does not overwrite a running development server's chunks.
 
 ## Play
 
@@ -85,7 +85,11 @@ The existing Pixi ticker also drives masked water-texture shimmer, wavelets, rip
 
 ## Cohesive world and party interface
 
-The four original 178px study desks use a fixed mirrored layout around the center tree: two on the left and two on the right. `studyStations` in `world-layout.ts` owns each station's atlas cell, position, seat, alternative approaches, and visible contour. Collision derives from these same positions. Every desk opens the existing study room after walking and a brief reading-pose transition.
+The four original 178px study desks start in a mirrored layout around the center tree: two on the left and two on the right. Drag an original desk, the shared garden, or a placed Collection item to move it; releasing in a valid spot saves immediately. Invalid drops retain the editable preview and original saved placement. Cancel move/Escape restores it before a successful drop. Holding still for 500 ms opens item options. `studyStations` in `world-layout.ts` owns each station's default atlas cell, position, seat, alternative approaches, and visible contour. Saved fixture positions move the artwork, seats, interaction shapes, and navigation obstacles together without adding Collection copies. Every desk opens the existing study room after walking and a brief reading-pose transition.
+
+Move mode has a quest-style X button to return the piece to Collection and a Flip button to mirror its sprite. Flips save with the drop or the optional Place here button; cancelling restores the previous orientation. Original room pieces can also be stored and re-placed, with their positions and orientations retained. Desk placement footprints are larger and lower than their walking collision shapes. Potted-tree collisions follow the pot rim; the shared tree uses an ellipse around its visible ground bed, excluding canopy and glow. A ten-pixel buffer keeps projecting feet and pots away from the bottom railing.
+
+A valid placement can nudge gardeners and the Sproutling to separate nearby clear spots, up to 96 scene pixels away. The entire relocation plan is checked against floor edges, existing furniture, and other occupants before anything is saved or moved. Crowded spots with no safe short step remain invalid. Previewing and cancelling do not move occupants.
 
 The stove now has a traced visible outline, an extended adjoining floor boundary, a preferred front approach at tile `(11.5, -0.5)`, reachable fallbacks, and a look-at point. Preferred chair and stove approaches are honored before considering alternatives. Visible floor tiles show a thin hover diamond; blocked tiles use a subdued unavailable mark. Opening a menu cancels pending world movement so a delayed interaction cannot replace it.
 

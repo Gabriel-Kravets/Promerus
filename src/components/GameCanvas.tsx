@@ -6,12 +6,21 @@ import {avatarCanvas,loadImage} from '@/lib/sprite-assets';
 import {createWalkCycle} from '@/lib/walk-cycle';
 import {RUN_FRAME_COUNT} from '@/lib/sprite-locomotion';
 import {createSproutlingWander} from '@/lib/sproutling-wander';
-import {iso,uniso,planRoute,approachRoute,distance,stageFor,blocked,Point} from '@/lib/movement';
-import {studyStations,approaches,gardenApproaches,treeCenter} from '@/lib/world-layout';
+import {iso,uniso,planRoute,approachRoute,distance,stageFor,blocked,setMovementObstacles,walkableTiles,Point} from '@/lib/movement';
+import {studyStations,gardenApproaches,treeCenter} from '@/lib/world-layout';
 import {contains,floorShape,gardenHotspot,furnitureRegions,inGardenBase,pickInteraction,Shape} from '@/lib/world-geometry';
 import {chairPose} from '@/lib/avatar-seating';
 import {objectTooltipPosition} from '@/lib/tooltip-position';
 import {createWorldEffects} from '@/lib/world-effects';
+import {useItemDrag,checkItemPreview,attachPlacementOccupants,setPreviewAnchor,type PlacementOccupantPlan} from '@/store/item-drag';
+import {useInventory} from '@/store/inventory';
+import {getItemDefinition,itemInteractions,itemSprites,type ItemType} from '@/lib/items';
+import {permanentRoomObstacles,itemFootprint,itemRenderOrder,resolvePlacements} from '@/lib/placement';
+import {fixtureObstacles,roomFixture,translateShape} from '@/lib/room-fixtures';
+import {pointerRoomPosition} from '@/lib/item-drag';
+import {attachItemDragInput} from '@/lib/item-drag-input';
+import {createItemArt,createItemPreview,registerItemTextures} from '@/lib/item-preview';
+import {occupantShape,planPlacementNudges,type PlacementOccupant} from '@/lib/placement-occupants';
 import sceneAssets from '@/lib/scene-assets.json';
 
 type Props={suspended?:boolean;onOpen:(panel:string,player?:number)=>void;onHint:(text:string)=>void};
@@ -21,8 +30,9 @@ const drawShape=(g:Graphics,shape:Shape)=>shape.kind==='ellipse'?g.ellipse(shape
 export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
  const host=useRef<HTMLDivElement>(null),handlers=useRef({onOpen,onHint,suspended});handlers.current={onOpen,onHint,suspended};
  const [error,setError]=useState(false);
+ useEffect(()=>{if(suspended)useItemDrag.getState().cancel();},[suspended]);
  useEffect(()=>{
-  let disposed=false,unsubscribe=()=>{},observer:ResizeObserver|undefined,visibility=()=>{},destroyEffects=()=>{};
+  let disposed=false,unsubscribe=()=>{},unsubscribePreview=()=>{},unsubscribePlacements=()=>{},cleanupOccupants=()=>{},cleanupPreviewInput=()=>{},observer:ResizeObserver|undefined,visibility=()=>{},destroyEffects=()=>{};
   const app=new Application();
   const hoverTextures:Texture[]=[];
   const run=async()=>{
@@ -41,7 +51,13 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const gardenTextures=[new Rectangle(0,0,768,480),new Rectangle(768,0,768,480),new Rectangle(0,480,768,544),new Rectangle(768,480,768,544)].map(frame=>new Texture({source:gardenSheet.source,frame}));
    const deskTextures=[frame(propSheet,0,0),frame(propSheet,1,0)],petTextures=[frame(propSheet,0,1),frame(propSheet,1,1)];
    const ground=new Container();ground.eventMode='none';scene.addChild(ground);
+   const floorItems=new Container();floorItems.sortableChildren=true;floorItems.eventMode='none';ground.addChild(floorItems);
    const world=new Container();world.sortableChildren=true;world.eventMode='none';scene.addChild(world);
+   // Shop sprites are smooth downscales of large art, so sample them linearly.
+   const spriteEntries=Object.entries(itemSprites) as [ItemType,{src:string}][];
+   const spriteTextures=await Promise.all(spriteEntries.map(async([,art])=>{const t=await texture(art.src);t.source.scaleMode='linear';return t;}));
+   if(disposed)return;
+   registerItemTextures(new Map(spriteEntries.map(([type],i)=>[type,spriteTextures[i]])));
    const effects=createWorldEffects(scene,room);destroyEffects=effects.destroy;
    const feedback=new Container();feedback.eventMode='none';scene.addChild(feedback);
    const sprite=(t:Texture,x:number,y:number,width:number)=>{const s=new Sprite(t);s.anchor.set(.5,1);s.width=width;s.height=width*t.height/t.width;s.position.set(x,y);s.zIndex=y;s.eventMode='none';world.addChild(s);return s;};
@@ -62,7 +78,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const propImage=await loadImage('/assets/study-and-companions.webp');if(disposed)return;
    const pixels=document.createElement('canvas');pixels.width=propImage.width;pixels.height=propImage.height;
    const context=pixels.getContext('2d',{willReadFrequently:true})!;context.drawImage(propImage,0,0);const alpha=context.getImageData(0,0,pixels.width,pixels.height).data;
-   const spriteContains=(s:Sprite,p:Point,hitTexture:Texture=s.texture)=>{const local=s.toLocal(scene.toGlobal(p)),f=hitTexture.frame;
+   const spriteContains=(s:Sprite,p:Point,hitTexture:Texture=s.texture)=>{if(!s.visible)return false;const local=s.toLocal(scene.toGlobal(p)),f=hitTexture.frame;
     const x=Math.floor((local.x/s.texture.width+.5)*hitTexture.width),y=Math.floor((local.y/s.texture.height+1)*hitTexture.height);
     return x>=0&&y>=0&&x<f.width&&y<f.height&&alpha[((Math.floor(f.y)+y)*pixels.width+Math.floor(f.x)+x)*4+3]>90;
    };
@@ -72,36 +88,47 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const add=(item:Interaction)=>{interactions.push(item);return item;};
    // Pixel outlines that hug sprite artwork instead of drawing a hit-shape contour.
    const outlines=new Map<string,Sprite>();
+   const fixtureArt=new Map<string,Sprite>();
+   const stationPositions=studyStations.map(station=>({...station.position}));
+   const stationMirrors=studyStations.map(()=>false),stationStored=studyStations.map(()=>false);
+   let gardenStored=false,gardenMirrored=false;
+   const approaches=studyStations.map(station=>({...station.seat}));
+   const stationAlternatives=studyStations.map(station=>station.alternatives.map(p=>({...p})));
    const deskHover=sceneAssets.desk.bounds.map((bounds,col)=>({
     texture:new Texture({source:deskHoverSheet.source,frame:new Rectangle(col*sceneAssets.desk.width,0,sceneAssets.desk.width,sceneAssets.desk.height)}),
     bounds,pad:sceneAssets.desk.pad,density:sceneAssets.desk.density
    }));
-   studyStations.forEach(station=>{const p=iso(station.position.x,station.position.y),desk=sprite(deskTextures[station.atlasColumn],p.x,p.y+36,station.width);desk.zIndex=p.y;const hover=deskHover[station.atlasColumn],outline=new Sprite(hover.texture);
+   studyStations.forEach((station,index)=>{const p=iso(station.position.x,station.position.y),desk=sprite(deskTextures[station.atlasColumn],p.x,p.y+36,station.width);desk.zIndex=p.y;fixtureArt.set(`fixture:${station.id}`,desk);const hover=deskHover[station.atlasColumn],outline=new Sprite(hover.texture);
     outline.scale.set(1/hover.density);outline.position.set(desk.x-desk.width/2-hover.pad/hover.density,desk.y-desk.height-hover.pad/hover.density);
     outline.zIndex=desk.zIndex+.1;outline.alpha=0;outline.eventMode='none';world.addChild(outline);outlines.set(station.id,outline);
     const b=hover.bounds,left=outline.x+b.left/hover.density,top=outline.y+b.top/hover.density,right=outline.x+b.right/hover.density,bottom=outline.y+b.bottom/hover.density;
     const shape:Shape={kind:'polygon',points:[left,top,right,top,right,bottom,left,bottom]};
-    add({id:station.id,name:station.label,action:'Begin Studying',symbol:'▤',priority:30,contains:q=>spriteContains(desk,q),shape,approaches:[station.seat,...station.alternatives],preferFirst:true,lookAt:{x:p.x,y:p.y-25},activate:()=>handlers.current.onOpen('learn')});
+    add({id:station.id,name:station.label,action:'Begin Studying',symbol:'▤',priority:30,contains:q=>spriteContains(desk,q),shape,approaches:[approaches[index],...stationAlternatives[index]],preferFirst:true,lookAt:{x:p.x,y:p.y-25},activate:()=>handlers.current.onOpen('learn')});
    });
    furnitureRegions.forEach(item=>add({...item,priority:20,contains:p=>contains(item.shape,p),activate:()=>handlers.current.onOpen(item.panel)}));
-   const gp=iso(treeCenter.x,treeCenter.y),garden=sprite(gardenTextures[stageFor(state.energy)],gp.x,gp.y+83,365);garden.zIndex=gp.y+40;
+   const treeScale=.85,treeWidth=365*treeScale;
+   const gp=iso(treeCenter.x,treeCenter.y),garden=sprite(gardenTextures[stageFor(state.energy)],gp.x,gp.y+83,treeWidth);garden.zIndex=gp.y+40;
+   fixtureArt.set('fixture:garden',garden);
+   let gardenOffset={x:0,y:0};
    // The stone bed stays the click target; the outline and tooltip follow the whole tree.
    const gardenTooltip:Shape={kind:'polygon',points:[]},gardenOutline=new Sprite();gardenOutline.eventMode='none';gardenOutline.alpha=0;gardenOutline.zIndex=garden.zIndex+2;world.addChild(gardenOutline);outlines.set('garden',gardenOutline);
    const gardenHover=sceneAssets.garden.cells.map(cell=>({texture:new Texture({source:gardenHoverSheet.source,frame:new Rectangle(cell.x,0,cell.width,cell.height)}),bounds:cell.bounds}));
-   const updateGardenOutline=()=>{const {density,pad}=sceneAssets.garden,hover=gardenHover[stageFor(state.energy)],b=hover.bounds;
-    gardenOutline.texture=hover.texture;gardenOutline.scale.set(1/density);gardenOutline.position.set(garden.x-garden.width/2-pad/density,garden.y-garden.height-pad/density);
-    const left=gardenOutline.x+b.left/density,top=gardenOutline.y+b.top/density,right=gardenOutline.x+b.right/density,bottom=gardenOutline.y+b.bottom/density;gardenTooltip.points=[left,top,right,top,right,bottom,left,bottom];
+   const updateGardenOutline=()=>{const {pad}=sceneAssets.garden,density=sceneAssets.garden.density/treeScale,hover=gardenHover[stageFor(state.energy)],b=hover.bounds;
+    const sign=gardenMirrored?-1:1;
+    gardenOutline.texture=hover.texture;gardenOutline.scale.set(sign/density,1/density);gardenOutline.position.set(garden.x+sign*(-garden.width/2-pad/density),garden.y-garden.height-pad/density);
+    const x1=gardenOutline.x+sign*b.left/density,x2=gardenOutline.x+sign*b.right/density,left=Math.min(x1,x2),right=Math.max(x1,x2),top=gardenOutline.y+b.top/density,bottom=gardenOutline.y+b.bottom/density;gardenTooltip.points=[left,top,right,top,right,bottom,left,bottom];
    };
    // True where opaque tree pixels cover a scene point (scene coordinates).
-   const treeCovers=(p:Point)=>{const f=garden.texture.frame,local=garden.toLocal(scene.toGlobal(p)),x=Math.floor((local.x/garden.texture.width+.5)*f.width),y=Math.floor((local.y/garden.texture.height+1)*f.height);
+   const treeCovers=(p:Point)=>{if(!garden.visible)return false;const f=garden.texture.frame,local=garden.toLocal(scene.toGlobal(p)),x=Math.floor((local.x/garden.texture.width+.5)*f.width),y=Math.floor((local.y/garden.texture.height+1)*f.height);
     return x>=0&&y>=0&&x<f.width&&y<f.height&&gardenAlpha[((Math.floor(f.y)+y)*gardenPixels.width+Math.floor(f.x)+x)*4+3]>90;};
    // While the local character stands behind the see-through tree, the canopy above the bed is clickable too.
    let playerBehindTree=false;
-   add({id:'garden',name:'Shared Garden',action:'View Garden Progress',symbol:'❧',priority:10,instant:true,contains:p=>inGardenBase(p)||(playerBehindTree&&p.y<gp.y&&treeCovers(p)),shape:gardenHotspot,tooltipShape:gardenTooltip,approaches:gardenApproaches,activate:()=>handlers.current.onOpen('garden')});
+   const gardenInteraction=add({id:'garden',name:'Shared Garden',action:'View Garden Progress',symbol:'❧',priority:10,instant:true,contains:p=>garden.visible&&(inGardenBase({x:p.x-gardenOffset.x,y:p.y-gardenOffset.y})||(playerBehindTree&&p.y<gp.y&&treeCovers(p))),shape:{...gardenHotspot},tooltipShape:gardenTooltip,approaches:gardenApproaches.map(p=>({...p})),activate:()=>handlers.current.onOpen('garden')});
    // Animate only small outer leaf clusters, never scale the complete garden/tree.
-   const branches=[-1,1].map(side=>{const c=new Container();c.eventMode='none';c.zIndex=garden.zIndex+1;world.addChild(c);const leaf=new Sprite(garden.texture);leaf.anchor.set(.5,1);leaf.width=365;leaf.height=365*leaf.texture.height/leaf.texture.width;leaf.position.set(garden.x,garden.y);c.addChild(leaf);const mask=new Graphics();c.addChild(mask);leaf.mask=mask;return {c,leaf,mask,side};});
-   const updateBranches=()=>{const stage=stageFor(state.energy);branches.forEach(({leaf,mask,side})=>{leaf.texture=garden.texture;leaf.width=365;leaf.height=365*leaf.texture.height/leaf.texture.width;
-    const y=stage<2?garden.y-leaf.height+54:garden.y-leaf.height+45;const x=gp.x+side*(stage<2?35:58);mask.clear().poly([x-19,y+9,x-10,y-9,x+13,y-5,x+22,y+14,x+5,y+25,x-15,y+19]).fill(0xffffff);
+   const branches=[-1,1].map(side=>{const c=new Container();c.eventMode='none';c.zIndex=garden.zIndex+1;world.addChild(c);const leaf=new Sprite(garden.texture);leaf.anchor.set(.5,1);leaf.width=treeWidth;leaf.height=treeWidth*leaf.texture.height/leaf.texture.width;leaf.position.set(garden.x,garden.y);c.addChild(leaf);const mask=new Graphics();c.addChild(mask);leaf.mask=mask;return {c,leaf,mask,side};});
+   const updateBranches=()=>{const stage=stageFor(state.energy);branches.forEach(({leaf,mask,side})=>{leaf.texture=garden.texture;leaf.width=treeWidth;leaf.height=treeWidth*leaf.texture.height/leaf.texture.width;
+    leaf.position.set(garden.x,garden.y);
+    const y=garden.y-leaf.height+(stage<2?54:45)*treeScale;const x=gp.x+side*(stage<2?35:58)*treeScale;mask.position.set(x,y);mask.scale.set(treeScale);mask.clear().poly([-19,9,-10,-9,13,-5,22,14,5,25,-15,19]).fill(0xffffff);
    });};updateBranches();
    const moonflower=new Graphics();moonflower.moveTo(0,0).lineTo(0,-23).stroke({color:0x9ad7ae,width:2});for(let i=0;i<5;i++)moonflower.circle(Math.cos(i*1.256)*5,-27+Math.sin(i*1.256)*5,4).fill(0xd3f2dd);moonflower.circle(0,-27,3).fill(0xf5dda0);moonflower.position.set(gp.x+65,gp.y+24);moonflower.zIndex=gp.y+60;moonflower.eventMode='none';world.addChild(moonflower);
    const avatars=[state.avatar,...presets.slice(1)];
@@ -121,9 +148,10 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const reading=await Promise.all(avatars.map(async (a,i)=>i===0||state.online[i]?texture(await avatarCanvas(a,true)):standing[i]));if(disposed)return;
    const players=standing.map((t,i)=>{const p=iso(approaches[i].x,approaches[i].y);return sprite(t,p.x,p.y+4,i===2?88:72);});
    const friendShapes:({kind:'ellipse';x:number;y:number;rx:number;ry:number}|undefined)[]=[];
+   const friendPositions:(Point|undefined)[]=[];
    // Online classmates use tight body ellipses, not their atlas cell bounds.
    players.forEach((s,i)=>{if(!i)return;const shape={kind:'ellipse' as const,x:s.x,y:s.y-28,rx:17,ry:25};friendShapes[i]=shape;add({id:`friend-${i}`,name:['', 'Maya','Kai','Jules'][i],action:'View Gardener',symbol:'✧',priority:40,shape,contains:p=>state.online[i]&&contains(shape,p),approaches:[approaches[i]],activate:()=>handlers.current.onOpen('profile',i)});});
-   const wander=createSproutlingWander(),petPoint=iso(8,4),pet=sprite(petTextures[state.energy>=100?1:0],petPoint.x,petPoint.y,125);pet.zIndex=petPoint.y+6;
+   let wander=createSproutlingWander();const petPoint=iso(8,4),pet=sprite(petTextures[state.energy>=100?1:0],petPoint.x,petPoint.y,125);pet.zIndex=petPoint.y+6;
    const petRuns=[0,1].map(stage=>Array.from({length:sceneAssets.run.frames},(_,frame)=>new Texture({source:petRunSheet.source,frame:new Rectangle(frame*sceneAssets.run.width,stage*sceneAssets.run.height,sceneAssets.run.width,sceneAssets.run.height)})));
    let petHitTexture=petTextures[state.energy>=100?1:0];
    const petCycle=createWalkCycle(petPoint);
@@ -139,17 +167,150 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     if(!path.length&&item){confirmation=.3;if(item.lookAt){const look=item.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}if(item.id.startsWith('desk-'))sitAt(item);}
    };
    const resetHint=()=>handlers.current.onHint('Click the floor to wander · choose a desk to learn');
-   scene.on('pointermove',(event:FederatedPointerEvent)=>{if(handlers.current.suspended)return;const point=scene.toLocal(event.global),next=pickInteraction(interactions,point);pointer=point;
+   const roomInputBlocked=()=>handlers.current.suspended||!!useItemDrag.getState().preview;
+   const stopRoomMove=()=>{route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity(seated?'Studying':'Idle');reportPosition();};
+   const placedArt=new Map<string,Container>();
+   const artContains=(art:Container,at:Point)=>{const local=art.toLocal(scene.toGlobal(at));return art.getLocalBounds().containsPoint(local.x,local.y);};
+   const syncFixtures=()=>{
+    const inventory=useInventory.getState(),positions=inventory.fixturePositions??{};
+    studyStations.forEach((station,index)=>{
+     const tile=positions[`fixture:${station.id}`]??station.position,at=iso(tile.x,tile.y),desk=fixtureArt.get(`fixture:${station.id}`)!,outline=outlines.get(station.id)!;
+     const mirrored=!!positions[`fixture:${station.id}`]?.mirrored,sign=mirrored?-1:1,hover=deskHover[station.atlasColumn],b=hover.bounds;
+     stationMirrors[index]=mirrored;stationStored[index]=!!inventory.storedFixtures?.includes(`fixture:${station.id}`);
+     desk.position.set(at.x,at.y+36);desk.zIndex=at.y;desk.scale.x=Math.abs(desk.scale.x)*sign;
+     outline.scale.set(sign/hover.density,1/hover.density);outline.position.set(desk.x+sign*(-desk.width/2-hover.pad/hover.density),desk.y-desk.height-hover.pad/hover.density);outline.zIndex=at.y+.1;
+     const interaction=interactions.find(item=>item.id===station.id)!;
+     const x1=outline.x+sign*b.left/hover.density,x2=outline.x+sign*b.right/hover.density,left=Math.min(x1,x2),right=Math.max(x1,x2),top=outline.y+b.top/hover.density,bottom=outline.y+b.bottom/hover.density;
+     interaction.shape={kind:'polygon',points:[left,top,right,top,right,bottom,left,bottom]};interaction.lookAt={x:at.x,y:at.y-25};
+     Object.assign(stationPositions[index],{x:tile.x,y:tile.y});
+     const approach=(p:Point)=>{const dx=p.x-station.position.x,dy=p.y-station.position.y;return {x:tile.x+(mirrored?dy:dx),y:tile.y+(mirrored?dx:dy)};};
+     Object.assign(approaches[index],approach(station.seat));
+     station.alternatives.forEach((p,i)=>Object.assign(stationAlternatives[index][i],approach(p)));
+    });
+    const tile=positions['fixture:garden']??treeCenter,at=iso(tile.x,tile.y),original=iso(treeCenter.x,treeCenter.y);
+    Object.assign(gp,at);gardenOffset={x:at.x-original.x,y:at.y-original.y};
+    gardenMirrored=!!positions['fixture:garden']?.mirrored;gardenStored=!!inventory.storedFixtures?.includes('fixture:garden');
+    garden.position.set(at.x,at.y+83);garden.scale.x=Math.abs(garden.scale.x)*(gardenMirrored?-1:1);garden.zIndex=at.y+40;gardenOutline.zIndex=garden.zIndex+2;
+    gardenInteraction.shape=translateShape(gardenHotspot,gardenOffset.x,gardenOffset.y);
+    gardenInteraction.approaches=gardenApproaches.map(p=>({x:p.x+tile.x-treeCenter.x,y:p.y+tile.y-treeCenter.y}));
+    branches.forEach(({c})=>{c.zIndex=garden.zIndex+1;});
+    moonflower.position.set(gp.x+(gardenMirrored?-65:65),gp.y+24);moonflower.zIndex=gp.y+60;updateBranches();updateGardenOutline();
+   };
+   const nearestClear=(point:Point)=>[...walkableTiles].filter(p=>!blocked(p.x,p.y)).sort((a,b)=>distance(a,point)-distance(b,point))[0]??point;
+   const syncPlacements=()=>{
+    syncFixtures();
+    placedArt.forEach(art=>art.destroy({children:true}));placedArt.clear();
+    for(let i=interactions.length-1;i>=0;i--)if(interactions[i].id.startsWith('owned:'))interactions.splice(i,1);
+    const inventory=useInventory.getState(),placed=resolvePlacements(inventory.items,inventory.placements);
+    setMovementObstacles([...permanentRoomObstacles,...fixtureObstacles(inventory.fixturePositions,undefined,inventory.storedFixtures,true),...placed.filter(p=>getItemDefinition(p.item.type,p.item.theme).solid).map(p=>itemFootprint(p.item,p.position))],true);
+    route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;hovered=undefined;
+    if(blocked(position.x,position.y))position={...nearestClear(position)};
+    if(seatedStation!==undefined){if(stationStored[seatedStation]){seated=false;seatedStation=undefined;setActivity('Idle');}else position={...approaches[seatedStation]};}
+    const petTile=petInteraction.approaches[0];if(blocked(petTile.x,petTile.y)){const clear=nearestClear(petTile);wander=createSproutlingWander(clear);petInteraction.approaches=[clear];}
+    for(let i=1;i<avatars.length;i++)if(state.online[i]){
+     const at=friendPositions[i]??approaches[i];if(blocked(at.x,at.y))friendPositions[i]={...nearestClear(at)};
+    }
+    for(const {item,position:tile} of placed){
+     const art=createItemArt(item),at=iso(tile.x,tile.y),order=itemRenderOrder(item,tile);art.position.set(at.x,at.y);art.zIndex=order.depth;
+     (order.layer==='floor'?floorItems:world).addChild(art);placedArt.set(item.id,art);
+     if(getItemDefinition(item.type,item.theme).solid){
+      const bounds=art.getLocalBounds(),sign=item.mirrored?-1:1,left=at.x+Math.min(sign*bounds.minX,sign*bounds.maxX),right=at.x+Math.max(sign*bounds.minX,sign*bounds.maxX),shape:Shape={kind:'polygon',points:[left,at.y+bounds.minY,right,at.y+bounds.minY,right,at.y+bounds.maxY,left,at.y+bounds.maxY]};
+      const options=walkableTiles.filter(p=>!blocked(p.x,p.y)&&distance(p,tile)<150).sort((a,b)=>distance(a,tile)-distance(b,tile)).slice(0,8);
+      add({id:`owned:${item.id}`,name:getItemDefinition(item.type,item.theme).name,action:itemInteractions[item.type].action,symbol:'✧',priority:35,shape,contains:p=>art.visible&&artContains(art,p),approaches:options,activate:()=>handlers.current.onOpen(itemInteractions[item.type].panel)});
+     }
+    }
+    if(host.current)host.current.dataset.placedItems=String(placed.length);reportPosition();
+   };
+   syncPlacements();
+   const roomOccupants=():PlacementOccupant[]=>[
+    {id:'local',position:{...position},rx:10,ry:8},
+    {id:'pet',position:{...petInteraction.approaches[0]},rx:14,ry:10},
+    ...approaches.flatMap((p,i)=>i&&state.online[i]?[{id:`friend-${i}`,position:{...friendPositions[i]??p},rx:10,ry:8}]:[]),
+   ];
+   // Preview planning never moves actors. A successful drop applies the complete
+   // short-step plan after the new placement has passed every collision check.
+   let cachedPlanKey='',cachedPlan:PlacementOccupantPlan|null=null;
+   cleanupOccupants=attachPlacementOccupants(()=>roomOccupants().map(occupantShape),preview=>{
+    const inventory=useInventory.getState(),occupants=roomOccupants();
+    const key=JSON.stringify([preview.item,preview.position,inventory.items,inventory.placements,inventory.fixturePositions,inventory.storedFixtures,occupants]);
+    if(key===cachedPlanKey)return cachedPlan;
+    cachedPlanKey=key;cachedPlan=null;
+    const obstacles=[...permanentRoomObstacles,...fixtureObstacles(inventory.fixturePositions,preview.item.id,inventory.storedFixtures,true),
+     ...resolvePlacements(inventory.items,inventory.placements.filter(p=>p.itemId!==preview.item.id)).filter(p=>getItemDefinition(p.item.type,p.item.theme).solid).map(p=>itemFootprint(p.item,p.position))];
+    const moves=planPlacementNudges(preview.item,preview.position,occupants,obstacles);
+    if(!moves)return null;
+    const destinations=new Map(moves.map(move=>[move.id,move.position]));
+    cachedPlan={obstacles:occupants.map(actor=>occupantShape({...actor,position:destinations.get(actor.id)??actor.position})),apply:()=>{
+     for(const move of moves){
+      if(move.id==='local'){
+       stopRoomMove();seated=false;seatedStation=undefined;position={...move.position};setActivity('Idle');
+      }else if(move.id==='pet'){
+       wander=createSproutlingWander(move.position);petInteraction.approaches=[{...move.position}];
+      }else{
+       const index=Number(move.id.slice('friend-'.length));friendPositions[index]={...move.position};
+       const interaction=interactions.find(item=>item.id===move.id);if(interaction)interaction.approaches=[friendPositions[index]!];
+      }
+     }
+     reportPosition();
+    }};return cachedPlan;
+   });
+   const previewOutline=new Graphics();previewOutline.eventMode='none';feedback.addChild(previewOutline);
+   let previewArt:Container|undefined,previewItem:object|undefined,wasPreviewing=false;
+   const updatePreview=()=>{
+    const {preview}=useItemDrag.getState();
+    placedArt.forEach((art,id)=>{art.visible=!(preview?.originalPosition&&preview.item.id===id);});
+    if(preview?.item!==previewItem){previewArt?.destroy({children:true});previewArt=undefined;previewItem=preview?.item;
+     if(preview){
+      const original=fixtureArt.get(preview.item.id);
+      if(original){const ghost=new Sprite(original.texture);ghost.anchor.copyFrom(original.anchor);ghost.width=original.width;ghost.height=original.height;ghost.scale.x=Math.abs(ghost.scale.x)*(preview.item.mirrored?-1:1);ghost.alpha=.65;ghost.eventMode='none';previewArt=ghost;}
+      else previewArt=createItemPreview(preview.item);
+      (getItemDefinition(preview.item.type,preview.item.theme).layer==='floor'?floorItems:world).addChild(previewArt);
+     }}
+    fixtureArt.forEach((art,id)=>{art.visible=preview?.item.id!==id&&!useInventory.getState().storedFixtures?.includes(id);});
+    effects.setGarden(garden.visible?{x:gp.x,y:gp.y+23}:null);
+    if(preview&&previewArt){const at=iso(preview.position.x,preview.position.y),fixture=roomFixture(preview.item.id);previewArt.position.set(at.x,at.y+(fixture?(fixture.type==='desk'?36:83):0));
+     previewArt.zIndex=fixture?at.y+(fixture.type==='tree'?40:0):itemRenderOrder(preview.item,preview.position).depth;
+     const valid=checkItemPreview().valid;previewArt.tint=valid?0xffffff:0xffa7a0;
+     previewOutline.clear().poly(itemFootprint(preview.item,preview.position).points).fill({color:valid?0xaedc97:0xf49286,alpha:.15}).stroke({color:valid?0xaedc97:0xf49286,width:2});
+     if(!wasPreviewing){route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity(seated?'Studying':'Idle');reportPosition();}
+     hovered=undefined;pointer=undefined;floorHover.visible=false;tooltip.visible=false;pressedUntil=0;
+     highlightAlpha=0;highlight.alpha=contour.alpha=0;outlines.forEach(outline=>outline.alpha=0);
+     cursorMode=preview.phase==='idle'?'grab':'grabbing';scene.cursor=cursorMode;app.canvas.style.cursor=cursorMode;
+     if(host.current){host.current.dataset.previewItem=preview.item.id;host.current.dataset.previewTile=`${preview.position.x.toFixed(3)},${preview.position.y.toFixed(3)}`;host.current.dataset.previewPhase=preview.phase;host.current.dataset.previewValid=String(valid);}
+    }else if(wasPreviewing){cursorMode='var(--leaf-default)';scene.cursor=cursorMode;app.canvas.style.cursor=cursorMode;resetHint();
+     previewOutline.clear();if(host.current){delete host.current.dataset.previewItem;delete host.current.dataset.previewTile;delete host.current.dataset.previewPhase;delete host.current.dataset.previewValid;}}
+    wasPreviewing=!!preview;publishAnchor();
+   };
+   const publishAnchor=()=>{
+    if(!previewArt||!useItemDrag.getState().preview){setPreviewAnchor(null);return;}
+    const b=previewArt.getBounds(),r=app.canvas.getBoundingClientRect();
+    setPreviewAnchor({x:r.left+b.x+b.width/2,top:r.top+b.y,bottom:r.top+b.y+b.height});
+   };
+   unsubscribePreview=useItemDrag.subscribe(updatePreview);updatePreview();
+   unsubscribePlacements=useInventory.subscribe((next,previous)=>{if(next.placements!==previous.placements||next.fixturePositions!==previous.fixturePositions||next.storedFixtures!==previous.storedFixtures||next.items!==previous.items)syncPlacements();updatePreview();});
+   const roomPoint=(event:PointerEvent)=>pointerRoomPosition({x:event.clientX,y:event.clientY},app.canvas.getBoundingClientRect(),app.screen,{x:scene.x,y:scene.y,scaleX:scene.scale.x,scaleY:scene.scale.y});
+   const overPreview=(point:Point)=>!!previewArt&&artContains(previewArt,iso(point.x,point.y));
+   const pickPlacedItem=(point:Point)=>{
+    // Editing follows the placed artwork rather than room-action priorities:
+    // a passing pet or classmate must not make a piece impossible to grab.
+    const at=iso(point.x,point.y);
+    const hits:[string,Container][]=[...[...placedArt].filter(([,art])=>art.visible&&artContains(art,at)),
+     ...[...fixtureArt].filter(([id,art])=>art.visible&&(id==='fixture:garden'?treeCovers(at):spriteContains(art,at)))];
+    hits.sort((a,b)=>Number(b[1].parent===world)-Number(a[1].parent===world)||b[1].zIndex-a[1].zIndex);
+    return hits[0]?.[0];
+   };
+   cleanupPreviewInput=attachItemDragInput(app.canvas,{point:roomPoint,hitTest:overPreview,suspended:()=>handlers.current.suspended,pickItem:pickPlacedItem,onTap:point=>activatePoint(iso(point.x,point.y)),onHoldStart:stopRoomMove});
+   scene.on('pointermove',(event:FederatedPointerEvent)=>{if(roomInputBlocked())return;const point=scene.toLocal(event.global),next=pickInteraction(interactions,point);pointer=point;
     if(next!==hovered){hovered=next;if(next)handlers.current.onHint(`${next.name} · ${next.action}`);else resetHint();}
     const tile=uniso(point.x,point.y),snapped={x:Math.round(tile.x*2)/2,y:Math.round(tile.y*2)/2},inFloor=contains(floorShape,point),valid=!blocked(snapped.x,snapped.y),center=iso(snapped.x,snapped.y);
     floorHover.clear();floorHover.visible=!next&&inFloor;
     if(floorHover.visible){floorHover.poly([center.x,center.y-8,center.x+16,center.y,center.x,center.y+8,center.x-16,center.y]).fill({color:valid?0xbcebd7:0xb39783,alpha:.035}).stroke({color:valid?0xbcebd7:0xb39783,width:1,alpha:.5});if(!valid)floorHover.moveTo(center.x-3,center.y-2).lineTo(center.x+3,center.y+2).moveTo(center.x+3,center.y-2).lineTo(center.x-3,center.y+2).stroke({color:0xb39783,width:1,alpha:.6});}
     cursorMode=next?'var(--leaf-interactive)':inFloor?(valid?'var(--leaf-walk)':'var(--leaf-blocked)'):'var(--leaf-default)';scene.cursor=cursorMode;
    });
-   scene.on('pointerdown',()=>{if(!handlers.current.suspended){pressedUntil=seconds+.14;scene.cursor='var(--leaf-pressed)';}});
-   scene.on('pointerleave',()=>{hovered=undefined;pointer=undefined;floorHover.visible=false;cursorMode='var(--leaf-default)';resetHint();});
-   scene.on('pointertap',(event:FederatedPointerEvent)=>{
-    if(handlers.current.suspended)return;const point=scene.toLocal(event.global),item=pickInteraction(interactions,point);
+   scene.on('pointerdown',()=>{if(!roomInputBlocked()){pressedUntil=seconds+.14;scene.cursor='var(--leaf-pressed)';}});
+   scene.on('pointerleave',()=>{if(roomInputBlocked())return;hovered=undefined;pointer=undefined;floorHover.visible=false;cursorMode='var(--leaf-default)';resetHint();});
+   function activatePoint(point:Point){
+    if(roomInputBlocked())return;const item=pickInteraction(interactions,point);
     // Instant objects open from anywhere; the character stays put.
     if(item?.instant){item.activate();return;}
     if(item){if(selected===item&&(pending||seconds-selectionTime<.6))return;const plan=approachRoute(position,item.approaches,item.preferFirst);
@@ -158,10 +319,12 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     }
     if(!contains(floorShape,point))return;
     const plan=planRoute(position,uniso(point.x,point.y),true);if(!plan)return;beginMove(plan.path,plan.destination);resetHint();
-   });
-   const updateGarden=()=>{garden.texture=gardenTextures[stageFor(state.energy)];garden.width=365;garden.height=365*garden.texture.height/garden.texture.width;moonflower.visible=new Set(state.completions.map(c=>c.player)).size>=2;updateBranches();updateGardenOutline();};updateGarden();
+   }
+   scene.on('pointertap',(event:FederatedPointerEvent)=>activatePoint(scene.toLocal(event.global)));
+   const updateGarden=()=>{garden.texture=gardenTextures[stageFor(state.energy)];garden.width=treeWidth;garden.height=treeWidth*garden.texture.height/garden.texture.width;moonflower.visible=new Set(state.completions.map(c=>c.player)).size>=2;updateBranches();updateGardenOutline();};updateGarden();
    unsubscribe=useGame.subscribe((next,previous)=>{state=next;if(next.online!==previous.online){
      reportPosition();
+     if(useItemDrag.getState().preview)updatePreview();
      for(let i=1;i<avatars.length;i++)if(next.online[i]&&!previous.online[i]){
       void avatarCanvas(avatars[i],true).then(texture).then(t=>{if(!disposed)reading[i]=t;}).catch(console.error);
      }
@@ -175,8 +338,9 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     }
    });
    app.ticker.add(tick=>{
+    if(previewArt)publishAnchor();
     const dt=Math.min(tick.deltaMS/1000,.05);seconds+=dt;const motion=state.settings.motion&&!reduced.matches;
-    if(handlers.current.suspended){if(route.length||pending){route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity('Idle');reportPosition();}hovered=undefined;floorHover.visible=false;}
+    if(roomInputBlocked()){if(route.length||pending){route=[];pending=undefined;selected=undefined;confirmation=0;speed=0;marker.visible=false;setActivity('Idle');reportPosition();}hovered=undefined;floorHover.visible=false;}
     scene.cursor=seconds<pressedUntil?'var(--leaf-pressed)':cursorMode;
     const walking=route.length>0;
     if(walking){const remaining=route.reduce((total,p,i)=>total+distance(i?route[i-1]:position,p),0),targetSpeed=Math.min(112,Math.sqrt(2*260*remaining));
@@ -187,15 +351,19 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     }
     if(confirmation>0){confirmation-=dt;if(confirmation<=0&&pending){const done=pending;pending=undefined;selected=undefined;done.activate();}}
     const p=iso(position.x,position.y),stride=cycle(p);
-    const seat=seated&&seatedStation!==undefined?chairPose(seatedStation,deskTextures[0].height/deskTextures[0].width):undefined;
+    const seat=seated&&seatedStation!==undefined?chairPose(seatedStation,deskTextures[0].height/deskTextures[0].width,stationPositions[seatedStation],stationMirrors[seatedStation]):undefined;
     players[0].texture=seat?reading[0]:stride.frame>=0?(strides[stride.frame]??standing[0]):standing[0];players[0].anchor.set(seat?.anchorX??.5,seat?.anchorY??1);players[0].width=76;players[0].height=76*players[0].texture.height/players[0].texture.width;
     players[0].scale.x=Math.abs(players[0].scale.x)*(seat?.facing??facing);players[0].position.set(seat?.x??p.x,seat?.y??p.y+4+stride.bob);players[0].rotation=seat?0:stride.lean;players[0].zIndex=seat?.depth??p.y+6;
-    for(let i=1;i<4;i++){const base=iso(approaches[i].x,approaches[i].y),sitting=state.memberActivities[i]==='Studying',chair=sitting?chairPose(i,deskTextures[0].height/deskTextures[0].width):undefined;
+    for(let i=1;i<4;i++){
+     const ground=friendPositions[i]??approaches[i];
+     if(state.online[i]&&blocked(ground.x,ground.y))friendPositions[i]={...nearestClear(ground)};
+     const at=friendPositions[i]??approaches[i],base=iso(at.x,at.y),sitting=!friendPositions[i]&&!stationStored[i]&&state.memberActivities[i]==='Studying',chair=sitting?chairPose(i,deskTextures[0].height/deskTextures[0].width,stationPositions[i],stationMirrors[i]):undefined;
+     const interaction=interactions.find(item=>item.id===`friend-${i}`);if(interaction)interaction.approaches=[at];
      players[i].texture=sitting?reading[i]:standing[i];players[i].anchor.set(chair?.anchorX??.5,chair?.anchorY??1);players[i].width=i===2?88:72;players[i].height=players[i].width*players[i].texture.height/players[i].texture.width;players[i].scale.x=Math.abs(players[i].scale.x)*(chair?.facing??1);players[i].position.set(chair?.x??base.x,chair?.y??base.y+4);players[i].zIndex=chair?.depth??base.y+6;players[i].visible=state.online[i];
      const shape=friendShapes[i];if(shape){shape.x=players[i].x;shape.y=players[i].y-(sitting?22:28);}
     }
     const active=seconds-reactionStart<4,celebrate=active&&['happy','celebrating','evolving'].includes(state.reaction);
-    const roaming=wander(dt,handlers.current.suspended||hovered===petInteraction||selected===petInteraction||active);
+    const roaming=wander(dt,roomInputBlocked()||hovered===petInteraction||selected===petInteraction||active);
     const petFloor=iso(roaming.position.x,roaming.position.y),petStride=petCycle(petFloor);
     petInteraction.approaches=[roaming.position];
     const petStage=state.energy>=100||active&&state.reaction==='watering'?1:0;petHitTexture=petTextures[petStage];pet.texture=petStride.frame>=0?petRuns[petStage][petStride.frame]:petTextures[petStage];pet.width=125;pet.height=125*petTextures[0].height/petTextures[0].width;pet.x=petFloor.x;pet.y=petFloor.y+petStride.bob+(motion?(celebrate?-Math.abs(Math.sin(seconds*7))*9:roaming.moving?0:Math.sin(seconds*2)*1.2):0);pet.rotation=petStride.frame>=0?petStride.lean:motion&&active&&state.reaction==='watering'?Math.sin(seconds*4)*.06:0;sleep.visible=state.reaction==='sleeping'&&active;pet.alpha=sleep.visible?.8:1;
@@ -210,7 +378,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
      playerBehindTree=behind;
      const target=handlers.current.suspended?1:over||behind?.25:1;treeAlpha+=(target-treeAlpha)*Math.min(1,dt/.12);garden.alpha=treeAlpha;}
     // Frame-rate independent 150ms fade. Only one object owns hover/selected feedback.
-    const wanted=handlers.current.suspended?undefined:hovered??selected;if(wanted!==displayed){highlightAlpha=Math.max(0,highlightAlpha-dt/.15);if(highlightAlpha===0){displayed=wanted;highlight.clear();contour.clear();if(displayed){const dest=displayed.instant?undefined:approachRoute(position,displayed.approaches,displayed.preferFirst)?.destination;
+    const wanted=roomInputBlocked()?undefined:hovered??selected;if(wanted!==displayed){highlightAlpha=Math.max(0,highlightAlpha-dt/.15);if(highlightAlpha===0){displayed=wanted;highlight.clear();contour.clear();if(displayed){const dest=displayed.instant?undefined:approachRoute(position,displayed.approaches,displayed.preferFirst)?.destination;
        if(dest){const a=iso(dest.x,dest.y);highlight.poly([a.x,a.y-8,a.x+16,a.y,a.x,a.y+8,a.x-16,a.y]).fill({color:0xbae5bf,alpha:.14}).stroke({color:0xbcebd7,width:1});}
        // Room-art objects get the same soft glow edge as the sprite outlines on desks and the tree.
        if(!outlines.has(displayed.id)){drawShape(contour,displayed.shape).fill({color:0xc9e4af,alpha:.05}).stroke({color:0xc9e6bf,width:5,alpha:.18,join:'round'});drawShape(contour,displayed.shape).stroke({color:0xc9e6bf,width:1.5,alpha:.85,join:'round'});}tooltipText.text=`${displayed.symbol}  ${displayed.name}\n${displayed.action}`;
@@ -222,18 +390,20 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     highlight.alpha=contour.alpha=highlightAlpha;tooltip.visible=!!hovered&&displayed===hovered&&highlightAlpha>0&&!handlers.current.suspended;tooltip.alpha=highlightAlpha;
     if(displayed){const at=objectTooltipPosition(displayed.tooltipShape??displayed.shape,tooltipText.width+20,tooltipText.height+14);tooltip.position.set(at.x,at.y);}
     marker.alpha=motion?.65+Math.sin(seconds*3)*.16:.8;
-    cues.forEach(({item,g},i)=>{const near=item.approaches.some(a=>distance(position,a)<115),shape=item.shape;g.visible=!handlers.current.suspended&&(near||hovered===item||selected===item);g.alpha=(hovered===item||selected===item)?.8:motion?.22+Math.max(0,Math.sin(seconds*.7+i*2))*.25:.3;
+    cues.forEach(({item,g},i)=>{const near=item.approaches.some(a=>distance(position,a)<115),shape=item.shape;g.visible=!roomInputBlocked()&&!useInventory.getState().storedFixtures?.includes(`fixture:${item.id}`)&&(near||hovered===item||selected===item);g.alpha=(hovered===item||selected===item)?.8:motion?.22+Math.max(0,Math.sin(seconds*.7+i*2))*.25:.3;
      const x=shape.kind==='ellipse'?shape.x:shape.points[0]+30,y=shape.kind==='ellipse'?shape.y-shape.ry:shape.points[1];g.position.set(x,y-10+(motion?Math.sin(seconds*1.5+i)*1.5:0));
     });
     outlines.forEach((outline,id)=>{outline.alpha=displayed?.id===id?highlightAlpha:0;});
-    branches.forEach(({c,side})=>{c.visible=motion&&state.settings.graphics==='Full'&&stageFor(state.energy)>0;c.alpha=.7*treeAlpha;c.x=motion?Math.sin(seconds*(side===1?.61:.43)+side)*1.3:0;c.y=motion?Math.sin(seconds*.37+side)*.45:0;});
+    const movingGarden=useItemDrag.getState().preview?.item.id==='fixture:garden';
+    moonflower.visible=!movingGarden&&!gardenStored&&new Set(state.completions.map(c=>c.player)).size>=2;
+    branches.forEach(({c,side})=>{c.visible=!movingGarden&&!gardenStored&&motion&&state.settings.graphics==='Full'&&stageFor(state.energy)>0;c.alpha=.7*treeAlpha;c.pivot.x=gp.x;c.scale.x=gardenMirrored?-1:1;c.x=gp.x+(motion?Math.sin(seconds*(side===1?.61:.43)+side)*1.3:0);c.y=motion?Math.sin(seconds*.37+side)*.45:0;});
     effects.update(seconds,dt,motion,state.settings.graphics==='Full',celebrate);
    });
    void warmStrides(state.avatar).catch(console.error);
    reportPosition();visibility=()=>{if(document.hidden)app.ticker.stop();else app.ticker.start();};document.addEventListener('visibilitychange',visibility);visibility();
   };
   run().catch(e=>{console.error(e);if(!disposed)setError(true);});
-  return()=>{disposed=true;unsubscribe();observer?.disconnect();document.removeEventListener('visibilitychange',visibility);if(app.renderer){destroyEffects();app.destroy(true,{children:true,texture:false});}};
+  return()=>{disposed=true;unsubscribe();unsubscribePlacements();unsubscribePreview();cleanupOccupants();cleanupPreviewInput();setPreviewAnchor(null);setMovementObstacles([]);observer?.disconnect();document.removeEventListener('visibilitychange',visibility);if(app.renderer){destroyEffects();app.destroy(true,{children:true,texture:false});}};
  },[]);
  return <div className="canvas-host reference-world" ref={host} role="application" aria-label="Interactive greenhouse. Click clear floor tiles to walk; use the navigation buttons to access every activity.">{error&&<div className="canvas-error">The world artwork couldn’t load. You can still use every lesson and garden control in the navigation.</div>}</div>;
 }

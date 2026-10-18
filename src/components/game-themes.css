@@ -23,11 +23,11 @@
 }
 
 /* ---------- Font ---------- */
-.game :is(.room-title h1,.game-tooltip,.party-hover,.party-caption,.party-copy,.energy-pill,.quest-menu,.weekly-board,.game-badge,.achievement,.quest-launcher),
+.game :is(.room-title h1,.game-tooltip,.party-hover,.party-caption,.party-copy,.room-sprout,.quest-menu,.weekly-board,.game-badge,.achievement,.quest-launcher),
 .game .modal :is(h1,h2,h3,.eyebrow,.primary,.secondary,.text-button,.social-tab,.friend-copy,.friend-status,.saved-friend,.dialogue-text p,.invite strong,.stage-gallery strong,.theme-option),
 .game .welcome :is(h1,.primary,.secondary){font-family:var(--ui-font)}
 /* Older rules set Georgia on headings and names directly, so pass the pixel font down explicitly. */
-.game :is(.weekly-board,.quest-menu,.party-roster,.energy-pill,.botanical-friends,.saved-friend,.dialogue-box,.bloom-quest,.garden-unlock,.stage-gallery) :is(h1,h2,h3,strong,small,b,em){font-family:var(--ui-font)}
+.game :is(.weekly-board,.quest-menu,.party-roster,.botanical-friends,.saved-friend,.dialogue-box,.bloom-quest,.garden-unlock,.stage-gallery) :is(h1,h2,h3,strong,small,b,em){font-family:var(--ui-font)}
 
 /* ---------- Buttons: clean bevelled shape ---------- */
 .game :is(.modal,.welcome,.quest-widget,.world-hint) :is(.primary,.secondary),.game .quest-launcher,.game .quest-menu .quest-study{
@@ -100,9 +100,12 @@
 .game.theme-classic .modal .friend-letter{border:1px dashed #b5986866;border-radius:3px;padding:10px;margin:6px 0;background:#ffffff08}
 
 /* ---------- Weekly leaderboard (bottom left) ---------- */
-.weekly-board{width:260px;padding:12px 14px 10px;color:var(--ui-ink);background:var(--ui-panel);font-family:var(--ui-font)}
+.weekly-board{position:relative;width:260px;padding:12px 14px 10px;transform-origin:bottom left;animation:quest-unfurl .2s var(--ease);color:var(--ui-ink);background:var(--ui-panel);font-family:var(--ui-font)}
 .game.theme-classic .weekly-board{border:3px double #b5a38b;outline:1px solid #746d65;outline-offset:3px;box-shadow:inset 0 0 0 4px #242426,inset 0 0 0 5px #8a7c68,0 5px 16px #0006}
-.weekly-board header{display:flex;flex-wrap:wrap;align-items:center;column-gap:7px;row-gap:2px;margin-bottom:8px}
+.weekly-board header{display:flex;flex-wrap:wrap;align-items:center;column-gap:7px;row-gap:2px;margin-bottom:8px;padding-right:34px}
+.weekly-board>.quest-close{right:8px;top:8px}
+.game .board-launcher{display:flex}
+.reduced-motion .weekly-board{animation:none}
 .weekly-board header svg{color:#f5c542;flex-shrink:0}
 .weekly-board h2{margin:0;white-space:nowrap;font-size:15px;font-weight:700;color:inherit}
 .weekly-board header small{flex-basis:100%;padding-left:23px;font-size:10px;color:var(--ui-ink-soft);white-space:nowrap}
@@ -142,5 +145,6 @@
 @keyframes ui-pop{from{transform:translateY(4px);opacity:0}to{transform:none;opacity:1}}
 @keyframes ui-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 .reduced-motion :is(.dialogue-box,.mail-count){animation:none!important}
-@media(prefers-reduced-motion:reduce){.game :is(.dialogue-box,.mail-count){animation:none!important}.game :is(.party-member,.social-tab,.botanical-friends>button,.primary,.secondary,.quest-launcher,.board-row,.theme-option,.hud nav button){transition:none!important}}
-@media(max-width:700px){.weekly-board{display:none}.game .modal .social-tab{padding:7px 10px;font-size:12px}.game .modal .dialogue-box{grid-template-columns:1fr}.game .modal .dialogue-portrait{flex-direction:row;justify-content:flex-start}.game .modal .dialogue-portrait .player-head{width:56px;height:56px}}
+@media(prefers-reduced-motion:reduce){.game :is(.dialogue-box,.mail-count){animation:none!important}.game :is(.room-sprout-bar>span,.party-member,.social-tab,.botanical-friends>button,.primary,.secondary,.quest-launcher,.board-row,.theme-option,.hud nav button){transition:none!important}}
+@media(prefers-reduced-motion:reduce){.weekly-board{animation:none}}
+@media(max-width:700px){.board-widget{display:none}.game .modal .social-tab{padding:7px 10px;font-size:12px}.game .modal .dialogue-box{grid-template-columns:1fr}.game .modal .dialogue-portrait{flex-direction:row;justify-content:flex-start}.game .modal .dialogue-portrait .player-head{width:56px;height:56px}}
