@@ -1,5 +1,6 @@
 import {Container,Graphics,Rectangle,Sprite,Texture} from 'pixi.js';
 import {contains,Shape} from './world-geometry';
+import {createPuffs,teaSteam} from './ambient-puffs';
 
 /** A bounded, pooled effect layer. Called from the world's existing Pixi ticker. */
 export function createWorldEffects(scene:Container,room:Texture){
@@ -34,6 +35,8 @@ export function createWorldEffects(scene:Container,room:Texture){
  });
  const flames=new Container();flames.position.set(1148,345);layer.addChild(flames);
  const flameShapes=Array.from({length:4},(_,i)=>{const g=new Graphics().poly([-4,0,-5,-6,-2,-10,0,-18,3,-11,5,-5,4,0]).fill(i%2?0xffe68b:0xffa742);g.x=(i-1.5)*3;flames.addChild(g);return g;});
+ // Steam off the teapot on the side table beside the armchair.
+ const steam=createPuffs(teaSteam);steam.root.position.set(313,312);layer.addChild(steam.root);
  let seed=4231;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
  let gardenVisible=true,gardenPosition={x:660,y:421};
  const waterPoint=()=>{for(let n=0;n<100;n++){const p={x:random()*1320,y:605+random()*139};if(waterShapes.some(s=>contains(s,p)))return p;}return {x:20,y:680};};
@@ -70,6 +73,7 @@ export function createWorldEffects(scene:Container,room:Texture){
    lights.forEach((g,i)=>{const organic=Math.sin(time*(1.1+i*.137)+i*2.3)*.055+Math.sin(time*(2.7+i*.12)+i)*.025;g.alpha=motion&&full?.91+organic:.91;if(motion&&i===9&&time-milestone<2)g.alpha+=Math.sin((time-milestone)/2*Math.PI)*.7;});
    foliage.forEach(p=>{p.c.rotation=motion&&full?Math.sin(time*(.43+p.phase*.06)+p.phase)*p.amp:0;p.c.alpha=motion&&full?.72:0;});
    flameShapes.forEach((g,i)=>{g.scale.y=motion?.8+Math.sin(time*(3.1+i*.7)+i)*.12: .9;g.x=(i-1.5)*3+(motion?Math.sin(time*2.3+i)*.8:0);g.alpha=motion?.68+Math.sin(time*2+i)*.09:.7;});
+   steam.update(time);
    particles.forEach(p=>{p.g.visible=full&&motion&&(p.kind!==0||gardenVisible)&&(p.kind!==4||time-milestone<2);if(!p.g.visible)return;p.age+=dt;if(p.age>=p.life)reset(p,p.kind===4&&time-milestone<2);
     p.g.position.set(p.x+p.vx*p.age+(p.kind===3?Math.sin(time+p.x)*3:Math.sin(time*.4+p.x)*2),p.y+p.vy*p.age);p.g.alpha=Math.sin(Math.min(1,p.age/p.life)*Math.PI)*(p.kind===3?.55:.65);if(p.kind===3)p.g.rotation=Math.sin(time*.7+p.x)*.4;
    });

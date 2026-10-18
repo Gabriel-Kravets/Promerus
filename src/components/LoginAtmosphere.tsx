@@ -14,7 +14,8 @@ function DustSpiral({className}: {className: string}) {
     {Array.from({length: 43}, (_, i) => {
       const angle = i * .19;
       const radius = 5 + i * 2.3;
-      return <rect key={i} x={120 + Math.cos(angle) * radius} y={90 + Math.sin(angle) * radius * .67}
+      // Rounded so server (Node) and browser trig results serialize identically.
+      return <rect key={i} x={(120 + Math.cos(angle) * radius).toFixed(2)} y={(90 + Math.sin(angle) * radius * .67).toFixed(2)}
         width={i % 5 === 0 ? 3 : 2} height="2" opacity={.22 + (i % 4) * .13}/>;
     })}
   </svg>;

@@ -23,6 +23,8 @@ type InventoryState=RoomInventory&{
   reset:()=>void;
 };
 
+/** Rooms used to start with a potted tree; the shared garden fixture replaced it. */
+const RETIRED_STARTER_TREE='starter:tree';
 const emptyInventory=():RoomInventory=>({initialized:false,theme:'Stardew',items:[],tutorialSeen:false,placements:[],fixturePositions:undefined,storedFixtures:undefined});
 const orient=(items:InventoryItem[],id:string,mirrored:boolean)=>items.some(item=>item.id===id&&!!item.mirrored!==mirrored)
   ?items.map(item=>item.id===id?{...item,mirrored}:item):items;
@@ -60,9 +62,10 @@ export function readRoomInventory(value:unknown):RoomInventory|null {
       members.add(item.grantedTo);
     }
     ids.add(item.id);
+    // The retired starter potted tree is dropped, along with any placement of it.
+    if(item.id===RETIRED_STARTER_TREE)continue;
     items.push({id:item.id,type:item.type,theme:item.theme,...(typeof item.grantedTo==='string'?{grantedTo:item.grantedTo}:{}),...(typeof item.mirrored==='boolean'?{mirrored:item.mirrored}:{})});
   }
-  if(!items.some(item=>item.id==='starter:tree'&&item.type==='tree'))return null;
   const fixtures:FixturePositions={};
   const savedStored=Array.isArray(saved.storedFixtures)?saved.storedFixtures:[];
   const storedFixtures=roomFixtures.filter(f=>savedStored.includes(f.id)).map(f=>f.id);
@@ -97,7 +100,7 @@ export const useInventory=create<InventoryState>()(persist<InventoryState,[],[],
     const members=participantIds(people);
     if(!isItemTheme(theme))throw new TypeError('Unknown room theme.');
     set(state=>{
-      const items=addDesks(state.initialized?state.items:[{id:'starter:tree',type:'tree',theme}],members,theme);
+      const items=addDesks(state.initialized?state.items:[],members,theme);
       if(state.initialized&&state.theme===theme&&items===state.items)return state;
       return {initialized:true,theme,items};
     });

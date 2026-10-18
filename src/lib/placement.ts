@@ -117,10 +117,28 @@ export function constrainItemPosition(item:InventoryItem,requested:Point,previou
     safe=candidates.sort((a,b)=>Math.hypot(a.x-previous.x,a.y-previous.y)-Math.hypot(b.x-previous.x,b.y-previous.y))[0]??safe;
   }
   if(!Number.isFinite(requested.x)||!Number.isFinite(requested.y))return {...safe};
-  let low=0,high=1;
-  for(let i=0;i<30;i++){const mid=(low+high)/2;if(withinRoom(item,lerp(safe,requested,mid)))low=mid;else high=mid;}
-  return lerp(safe,requested,low);
+  const reach=(from:Point,to:Point)=>{
+    let low=0,high=1;
+    for(let i=0;i<20;i++){const mid=(low+high)/2;if(withinRoom(item,lerp(from,to,mid)))low=mid;else high=mid;}
+    return lerp(from,to,low);
+  };
+  // Stop at the wall, then slide along it toward the pointer so the piece keeps
+  // following a pointer that has wandered past the edge instead of sticking.
+  // The floor is irregular, so search all directions rather than the grid axes.
+  // Distance is measured on screen, where the player is actually pointing.
+  const target=iso(requested.x,requested.y),away=(p:Point)=>{const s=iso(p.x,p.y);return Math.hypot(target.x-s.x,target.y-s.y);};
+  let at=reach(safe,requested),gap=away(at);
+  for(let step=1,checks=0;step>.01&&checks<240;){
+    let moved=false;
+    for(const [dx,dy] of slideDirections){
+      const next={x:at.x+dx*step,y:at.y+dy*step},d=away(next);checks++;
+      if(d<gap&&withinRoom(item,next)){at=next;gap=d;moved=true;break;}
+    }
+    if(!moved)step/=2;
+  }
+  return at;
 }
+const slideDirections=Array.from({length:16},(_,i)=>[Math.cos(i*Math.PI/8),Math.sin(i*Math.PI/8)] as const);
 
 export function resolvePlacements(items:readonly InventoryItem[],placements:readonly ItemPlacement[]):PlacedItem[]{
   return placements.flatMap(placement=>{const item=items.find(item=>item.id===placement.itemId);return item?[{item,position:placement.position}]:[];});

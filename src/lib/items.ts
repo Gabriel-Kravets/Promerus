@@ -40,28 +40,33 @@ const footprints={
 /** Shop pieces share one sprite across themes. */
 const shopNames={'botanical-desk':'Botanical writing desk',lantern:'Brass lantern',armchair:'Teal lounge chair',stove:'Cast-iron wood stove',telescope:'Brass telescope'} as const;
 
+/** The study desk is the upper-left atlas cell, including its reading stool. */
+const studyDeskScale=1.05*.9;
+export const studyDeskSprite={src:'/assets/study-and-companions.webp',width:178*studyDeskScale,scale:studyDeskScale,offsetY:36,frameWidth:701,frameHeight:561} as const;
+
 /**
  * Sprite art for shop pieces: width in scene pixels, anchored bottom-centre
  * offsetY pixels below the footprint centre so the legs sit on the footprint.
+ * front outlines, in texture pixels, the art drawn over a seated avatar.
  */
-export const itemSprites:Partial<Record<ItemType,{src:string;width:number;offsetY:number}>>={
-  'botanical-desk':{src:'/assets/items/botanical-desk.png',width:180,offsetY:56},
+export const itemSprites:Partial<Record<ItemType,{src:string;width:number;offsetY:number;front?:readonly number[]}>>={
+  'botanical-desk':{src:'/assets/items/botanical-desk.png',width:180*.85*.8,offsetY:56},
   lantern:{src:'/assets/items/brass-lantern.png',width:40,offsetY:13},
-  armchair:{src:'/assets/items/lounge-chair.png',width:82,offsetY:25},
-  stove:{src:'/assets/items/wood-stove.png',width:78,offsetY:27},
+  armchair:{src:'/assets/items/lounge-chair.png',width:82*1.15*1.15,offsetY:25,
+    front:[91,143,99,134,112,131,128,127,150,114,168,103,186,100,190,100,190,175,160,195,128,221,91,221]},
+  stove:{src:'/assets/items/wood-stove.png',width:78*1.15*1.05,offsetY:27},
   telescope:{src:'/assets/items/brass-telescope.png',width:100,offsetY:30},
 };
 
-/** What clicking a placed piece offers, and which panel it opens. */
-export const itemInteractions:Record<ItemType,{action:string;panel:string}>={
+/** Where the wood-stove pipe's elbow opens, in item-local pixels (art is 180 x 280, mouth at 174,18). */
+const stoveScale=itemSprites.stove!.width/180;
+export const stovePipeMouth={x:(174-90)*stoveScale,y:itemSprites.stove!.offsetY-(280-18)*stoveScale} as const;
+
+/** What clicking a placed piece offers, and which panel it opens. Pieces without an entry are decorative. */
+export const itemInteractions:Partial<Record<ItemType,{action:string;panel:string}>>={
   desk:{action:'Begin Studying',panel:'learn'},
   'botanical-desk':{action:'Begin Studying',panel:'learn'},
-  tree:{action:'View Garden Progress',panel:'garden'},
-  carpet:{action:'View Garden Progress',panel:'garden'},
-  lantern:{action:'Admire the Glow',panel:'plants'},
   armchair:{action:'Take a Rest',panel:'hearth'},
-  stove:{action:'Warm Up',panel:'hearth'},
-  telescope:{action:'Stargaze',panel:'observatory'},
 };
 
 const names:Record<Theme,Record<ItemType,string>>={

@@ -10,6 +10,9 @@
 .collection-item.is-starter{border-color:var(--ui-accent-deep);box-shadow:0 0 0 2px var(--ui-accent)}
 .collection-item-art{display:grid;place-items:center;width:100%;height:96px;margin-bottom:14px;border:1px solid var(--ui-line);border-radius:3px}
 .collection-sprite{display:block;max-width:86%;max-height:84px;object-fit:contain}
+/* Sized to the frame's ratio so neighbouring stages on the sheet never show. */
+.collection-garden{display:block;width:auto;height:84px}
+.collection-study-desk{display:block;width:105px;max-width:86%;height:84px;overflow:hidden}
 .collection-art-classic{background:linear-gradient(145deg,#343b32,#22282b);color:#d8c08f}
 .collection-art-stardew{background:linear-gradient(145deg,#e8efb4,#b6cc89);color:#49632c}
 .collection-type{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ui-ink-soft)}

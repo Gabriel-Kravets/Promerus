@@ -37,14 +37,15 @@ test('coordinate conversion rejects hidden canvases and retains positions beyond
 });
 
 test('selection requires ownership and retains the exact instance and its original theme',()=>{
-  assert.equal(drag().select('starter:tree'),false);
+  assert.equal(drag().select('shop:lantern:1'),false);
   selectDesk();inventory().setTheme('Stardew');inventory().personJoined('kai');
   assert.equal(drag().preview?.item.id,'desk:member:maya');assert.equal(drag().preview?.item.theme,'Classic');
   assert.equal(drag().select('unknown'),false);assert.equal(drag().preview?.item.id,'desk:member:maya');
   assert.ok(drag().select('desk:member:kai'));assert.equal(drag().preview?.item.theme,'Stardew');
-  assert.ok(drag().select('starter:tree'));assert.equal(drag().preview?.item.type,'tree');
+  const lantern=inventory().buyItem('lantern')!;
+  assert.ok(drag().select(lantern.id));assert.equal(drag().preview?.item.type,'lantern');
   // Selecting again replaces the only ghost instead of making additional copies.
-  assert.ok(drag().select('starter:tree'));assert.equal(drag().preview?.phase,'following');
+  assert.ok(drag().select(lantern.id));assert.equal(drag().preview?.phase,'following');
 });
 
 test('ghost follows, pauses on release, and re-grabs without jumping or consuming inventory',()=>{

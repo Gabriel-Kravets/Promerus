@@ -1,0 +1,56 @@
+/* First-run tour: a dimmed room with a spotlight on one widget at a time.
+   Waiting steps drop the dimmer so the room stays playable. Above the HUD and
+   placement toolbar, below panels (the tour hides while a panel is open). */
+.welcome-tour{position:fixed;inset:0;z-index:8;pointer-events:none}
+.tour-blocker{position:absolute;inset:0;pointer-events:auto}
+.tour-blocker.is-dim{background:#06101fa6}
+.tour-spotlight{position:fixed;border:2px solid var(--ui-ring);border-radius:8px;box-shadow:0 0 0 4px var(--ui-ring-soft),0 0 0 9999px #06101fa6;transition:left var(--t-med) var(--ease),top var(--t-med) var(--ease),width var(--t-med) var(--ease),height var(--t-med) var(--ease);animation:tour-pulse 1.8s ease-in-out infinite}
+.welcome-tour.is-waiting .tour-spotlight{box-shadow:0 0 0 4px var(--ui-ring-soft)}
+
+
+/* Short copy, generous type: one idea per card. */
+.tour-card{position:fixed;pointer-events:auto;width:min(320px,calc(100vw - 32px));padding:16px 18px 14px;color:var(--ui-ink);background:var(--ui-panel);border:2px solid var(--ui-page-border);border-radius:5px;box-shadow:0 14px 40px #0008;font-family:var(--ui-font);animation:tour-in .18s var(--ease)}
+.tour-card.is-measuring{visibility:hidden;left:0;top:0}
+.tour-card header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+.tour-count{display:inline-flex;align-items:center;gap:5px;font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--ui-ink-soft)}
+/* Step counter: the pixel font blurs small digits, so numbers use a plain face at a readable size. */
+.tour-progress{display:inline-flex;align-items:center;gap:4px;font:600 15px/1 'Trebuchet MS',Verdana,sans-serif;font-variant-numeric:tabular-nums;color:var(--ui-ink-soft)}
+.tour-progress b{font-weight:700}
+.tour-dots{display:inline-flex;gap:4px;margin-left:8px}
+.tour-dots i{width:7px;height:7px;border-radius:50%;background:var(--ui-line);border:1px solid var(--ui-ink-soft)}
+.tour-dots i.is-done{background:var(--ui-accent-deep);border-color:var(--ui-accent-deep)}
+.game.theme-classic .tour-dots i.is-done{background:var(--ui-accent);border-color:var(--ui-accent)}
+.tour-skip{padding:2px 4px;font:inherit;font-size:12px;color:var(--ui-ink-soft);background:none;border:0;text-decoration:underline;cursor:pointer}
+.tour-skip:hover{color:var(--ui-ink)}
+.game .tour-card h2{margin:0 0 6px;font:600 21px var(--ui-font);color:var(--ui-ink)}
+.tour-body p{margin:0 0 12px;font-size:15px;line-height:1.5}
+.tour-tip{margin:0 0 10px;font-size:13px;color:var(--ui-ink-soft)}
+.tour-tip.is-nudge{padding:6px 9px;font-size:14px;color:var(--ui-ink);background:var(--ui-page);border-left:3px solid var(--ui-accent-deep);border-radius:2px}
+.tour-body .tour-gesture{display:flex;align-items:flex-start;gap:10px}
+.tour-gesture svg{flex-shrink:0;margin-top:1px;color:var(--ui-accent-deep)}
+.game.theme-classic .tour-gesture svg{color:var(--ui-accent)}
+.tour-chips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 12px;padding:0;list-style:none}
+.tour-chips li{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;font-size:13px;color:var(--ui-ink-soft);background:var(--ui-page);border:1px solid var(--ui-line);border-radius:3px}
+.tour-chips strong{color:var(--ui-ink)}
+.tour-chips svg{color:var(--ui-accent-deep)}
+.game.theme-classic .tour-chips svg{color:var(--ui-accent)}
+.tour-card footer{display:flex;justify-content:flex-end;gap:8px}
+
+/* The opening card is larger so the first thing a new player reads is easy on the eyes. */
+.tour-card.is-intro{width:min(440px,calc(100vw - 32px));padding:24px 28px 22px;text-align:center}
+.tour-card.is-intro header{justify-content:center;position:relative}
+.tour-card.is-intro .tour-skip{position:absolute;right:0}
+.tour-card.is-intro .tour-count{font-size:13px}
+.game .tour-card.is-intro h2{margin-bottom:10px;font-size:30px}
+.tour-card.is-intro .tour-body p{font-size:18px;margin-bottom:20px}
+.tour-card.is-intro footer{justify-content:center}
+.game .tour-card.is-intro footer .primary{min-height:46px;padding:10px 24px;font-size:15px}
+/* Hands-on steps tuck below the floor and stay compact. */
+.tour-card.is-docked{padding:12px 16px 10px}
+.tour-card.is-docked .tour-body p,.tour-card.is-docked .tour-chips{margin-bottom:8px}
+
+@keyframes tour-in{from{opacity:0;transform:translateY(6px)}}
+@keyframes tour-pulse{50%{border-color:var(--ui-ring-soft)}}
+.game.reduced-motion :is(.tour-card,.tour-spotlight){animation:none;transition:none}
+@media(prefers-reduced-motion:reduce){.tour-card,.tour-spotlight{animation:none;transition:none}}
+@media(max-width:600px){.tour-card{padding:12px 14px}}

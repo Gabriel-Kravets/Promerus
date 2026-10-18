@@ -44,6 +44,15 @@ test('dragging clamps the full footprint inside every side of the room for all i
   assert.deepEqual(constrainItemPosition(desk,clearSpot),clearSpot);
 });
 
+test('a piece pushed past a wall slides along it with the pointer',()=>{
+  // Pin against the left wall, then sweep the pointer along just outside it.
+  const pinned=constrainItemPosition(desk,{x:-100,y:clearSpot.y},clearSpot);
+  let at=pinned;
+  for(const y of [clearSpot.y-.5,clearSpot.y-1,clearSpot.y-1.5,clearSpot.y-2])at=constrainItemPosition(desk,{x:pinned.x-.5,y},at);
+  assert.ok(withinRoom(desk,at));
+  assert.ok(pinned.y-at.y>1.5,`expected to slide about 2 tiles, moved ${(pinned.y-at.y).toFixed(2)}`);
+});
+
 test('collision geometry catches thin crossings, enclosed shapes and ellipse edges',()=>{
   const horizontal={kind:'polygon' as const,points:[0,4,10,4,10,6,0,6]};
   assert.ok(footprintIntersects(horizontal,{kind:'polygon',points:[4,0,6,0,6,10,4,10]}));
@@ -131,7 +140,7 @@ test('placement persistence round-trips and excludes temporary ghosts',async t=>
     getItem:key=>memory.get(key)??null,setItem:(key,value)=>{memory.set(key,value);},removeItem:key=>{memory.delete(key);},
   }))});t.after(()=>useInventory.persist.setOptions({storage:previousStorage}));
   const item=prepare();pauseAt(item.id,clearSpot);assert.ok(drag().confirm().valid);
-  assert.ok(drag().select('starter:tree'));
+  assert.ok(drag().select(inventory().buyItem('lantern')!.id));
   const saved=memory.get('sproutbound-inventory-v1')!;assert.equal(saved.includes('preview'),false);
   inventory().reset();memory.set('sproutbound-inventory-v1',saved);await useInventory.persist.rehydrate();
   assert.deepEqual(inventory().placements,[{itemId:item.id,position:clearSpot}]);assert.equal(drag().select(item.id),false);

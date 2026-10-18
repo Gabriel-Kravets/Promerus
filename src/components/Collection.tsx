@@ -2,12 +2,17 @@
 import {useEffect,useState} from 'react';
 import {Archive,Armchair,Flame,Lamp,Layers,Sparkles,Table2,Telescope,TreePine} from 'lucide-react';
 import {useInventory} from '@/store/inventory';
-import {getItemDefinition,itemSprites,type InventoryItem,type ItemType} from '@/lib/items';
+import {useGame} from '@/store/game';
+import {stageFor,stages} from '@/lib/movement';
+import {getItemDefinition,itemSprites,studyDeskSprite,type InventoryItem,type ItemType} from '@/lib/items';
 import {GamePanelHeader} from './ui/GamePrimitives';
-import {fixtureItem,roomFixture,roomFixtures} from '@/lib/room-fixtures';
+import {deskChairSide,fixtureItem,roomFixture,roomFixtures} from '@/lib/room-fixtures';
 import './collection.css';
 
 const itemIcons:Record<ItemType,typeof Table2>={desk:Table2,tree:TreePine,carpet:Layers,'botanical-desk':Table2,lantern:Lamp,armchair:Armchair,stove:Flame,telescope:Telescope};
+/** Frames of /assets/garden-stages.webp (1536 x 1024), one per tree stage, matching the canvas. */
+const gardenFrames=[[0,0,768,480],[768,0,768,480],[0,480,768,544],[768,480,768,544]];
+
 const typeLabels:Record<ItemType,string>={desk:'Desk',tree:'Tree',carpet:'Carpet','botanical-desk':'Desk',lantern:'Lighting',armchair:'Chair',stove:'Stove',telescope:'Curio'};
 
 export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
@@ -16,6 +21,7 @@ export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
   const available=items.length-placements.length+(storedFixtures?.length??0);
   const isPlaced=(item:InventoryItem)=>roomFixture(item.id)?!storedFixtures?.includes(item.id):placements.some(p=>p.itemId===item.id);
   const desks=collectionItems.filter(item=>item.type==='desk'),others=collectionItems.filter(item=>item.type!=='desk');
+  const stage=useGame(state=>stageFor(state.energy));
   const [showTutorial,setShowTutorial]=useState(()=>!tutorialSeen);
   // Mark seen only once the introduction is mounted, never while scheduling it.
   useEffect(()=>{
@@ -30,7 +36,7 @@ export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
       {showTutorial&&<section className="collection-tutorial" aria-labelledby="collection-tutorial-title">
         <Sparkles size={24} aria-hidden="true"/>
         <div><h2 id="collection-tutorial-title">Your greenhouse starts here</h2>
-          <p>A desk for every gardener, and a tree to bring the room to life. Your starting pieces are highlighted below. When someone new joins, a matching desk joins your collection.</p>
+          <p>A desk for every gardener, and the shared garden at the heart of the room. Your starting pieces are highlighted below. When someone new joins, a matching desk joins your collection.</p>
           <button type="button" className="secondary" onClick={()=>setShowTutorial(false)}>Got it</button>
         </div>
       </section>}
@@ -40,8 +46,13 @@ export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
           // Desks are grouped into one card: one per gardener, no per-desk names.
           const placedDesks=desks.filter(isPlaced).length,next=desks.find(desk=>!isPlaced(desk)),label=`${desks.length} ${desks.length===1?'desk':'desks'}`;
           const themes=[...new Set(desks.map(desk=>desk.theme))],starter=showTutorial&&desks.some(desk=>desk.grantedTo!==undefined);
+          const shown=next??desks[0];
           return <li key="desks" className={`collection-item${starter?' is-starter':''}`} data-item-type="desk">
-            <div className={`collection-item-art collection-art-${(next??desks[0]).theme.toLowerCase()}`}><Table2 size={40} strokeWidth={1.5} aria-hidden="true"/></div>
+            <div className={`collection-item-art collection-art-${shown.theme.toLowerCase()}`}>
+              <svg className="collection-study-desk" viewBox={`0 0 ${studyDeskSprite.frameWidth} ${studyDeskSprite.frameHeight}`} aria-hidden="true" style={{transform:deskChairSide(shown.id,!!shown.mirrored)===-1?'scaleX(-1)':undefined}}>
+                <image href={studyDeskSprite.src} width={studyDeskSprite.frameWidth*2} height={studyDeskSprite.frameHeight*2}/>
+              </svg>
+            </div>
             <span className="collection-type">{typeLabels.desk}</span>
             <h2>{label}</h2>
             <span className="collection-theme">{placedDesks} in room · {desks.length-placedDesks} available{themes.length===1?` · ${themes[0]} style`:''}</span>
@@ -53,12 +64,14 @@ export default function Collection({onSelect}:{onSelect:(itemId:string)=>void}){
           const definition=getItemDefinition(item.type,item.theme),Icon=itemIcons[item.type];
           const fixture=roomFixture(item.id),name=fixture?.name??definition.name;
           const placed=isPlaced(item);
-          const starter=showTutorial&&(item.id==='starter:tree'||item.grantedTo!==undefined);
+          const starter=showTutorial&&item.grantedTo!==undefined,garden=item.id==='fixture:garden';
           return <li key={item.id} className={`collection-item${starter?' is-starter':''}`} data-item-id={item.id}>
-            <div className={`collection-item-art collection-art-${item.theme.toLowerCase()}`}>{itemSprites[item.type]?<img className="collection-sprite" src={itemSprites[item.type]!.src} alt="" style={{transform:item.mirrored?'scaleX(-1)':undefined}}/>:<Icon size={40} strokeWidth={1.5} style={{transform:item.mirrored?'scaleX(-1)':undefined}} aria-hidden="true"/>}</div>
+            <div className={`collection-item-art collection-art-${item.theme.toLowerCase()}`}>{garden
+              ?<svg className="collection-garden" viewBox={gardenFrames[stage].join(' ')} role="img" aria-label={`${stages[stage]} stage tree`} style={{aspectRatio:`${gardenFrames[stage][2]}/${gardenFrames[stage][3]}`,transform:item.mirrored?'scaleX(-1)':undefined}}><image href="/assets/garden-stages.webp" width="1536" height="1024"/></svg>
+              :itemSprites[item.type]?<img className="collection-sprite" src={itemSprites[item.type]!.src} alt="" style={{transform:item.mirrored?'scaleX(-1)':undefined}}/>:<Icon size={40} strokeWidth={1.5} style={{transform:item.mirrored?'scaleX(-1)':undefined}} aria-hidden="true"/>}</div>
             <span className="collection-type">{typeLabels[item.type]}</span>
             <h2>{name}</h2>
-            <span className="collection-theme">{item.theme} style</span>
+            <span className="collection-theme">{garden?`${stages[stage]} stage · grows as the room learns`:`${item.theme} style`}</span>
             {starter&&<span className="collection-starter"><Sparkles size={12} aria-hidden="true"/> Starting item</span>}
             <button type="button" className="secondary collection-preview" disabled={placed} aria-label={placed?`${name} is already in the room`:`Preview ${name} in the room`} onClick={()=>onSelect(item.id)}>{placed?'In room':'Preview in room'}</button>
             {placed&&<button type="button" className="text-button collection-return" onClick={()=>returnItem(item.id)}>Return to collection</button>}

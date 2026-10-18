@@ -13,7 +13,7 @@ import RoomShop from './RoomShop';
 import {useInventory} from '@/store/inventory';
 import {useItemDrag,listenForItemDragInventory} from '@/store/item-drag';
 import {listenForRoomJoins} from '@/lib/room-inventory';
-import {useNewGreenhouseTutorial} from '@/hooks/useNewGreenhouseTutorial';
+import WelcomeTour from './WelcomeTour';
 import Collection from './Collection';
 import ItemPlacementControls from './ItemPlacementControls';
 import QuestPanel from './QuestPanel';
@@ -41,12 +41,11 @@ export default function Game({initialLearn=false}:{initialLearn?:boolean}){const
   return()=>{disposed=true;unsubscribe?.();};
  },[ready]);
  useEffect(()=>{const stop=listenForItemDragInventory();return()=>{stop();useItemDrag.getState().cancel();};},[]);
- useEffect(()=>{if(!panel)return;const listener=(e:KeyboardEvent)=>{if(e.key==='Escape')setPanel('');};window.addEventListener('keydown',listener);const previous=document.activeElement as HTMLElement;const timer=setTimeout(()=>document.querySelector<HTMLElement>('.modal button, .cozy-study button, .learning button')?.focus(),50);return()=>{clearTimeout(timer);window.removeEventListener('keydown',listener);previous?.focus();};},[panel]);
+ useEffect(()=>{if(!panel)return;const listener=(e:KeyboardEvent)=>{if(e.key==='Escape')setPanel('');};window.addEventListener('keydown',listener);const previous=document.activeElement as HTMLElement;const timer=setTimeout(()=>document.querySelector<HTMLElement>('.modal button, .cozy-study button, .learning button')?.focus(),50);return()=>{clearTimeout(timer);window.removeEventListener('keydown',listener);/* Returning focus after Esc would otherwise count as keyboard focus and pin the toolbar tooltip open. */if(previous?.closest('.game-icon-control'))previous.dataset.quiet=previous.dataset.quietHover='';previous?.focus();};},[panel]);
+ const showQuests=useCallback(()=>setQuestsOpen(true),[]);
  const minimizeQuests=()=>{const restore=questMenu.current?.contains(document.activeElement);setQuestsOpen(false);if(restore)requestAnimationFrame(()=>questLauncher.current?.focus());};
  useEffect(()=>{if(panel||!questsOpen||!s.created)return;const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!event.defaultPrevented)minimizeQuests();};window.addEventListener('keydown',escape);return()=>window.removeEventListener('keydown',escape);},[panel,questsOpen,s.created]);
  const open=(p:string,i=0)=>{useItemDrag.getState().cancel();if(p==='quests'){setQuestsOpen(true);return;}setPlayer(i);setPanel(p);if(p==='friends')setFriendDetail(null);};const friendEvent=(i:number)=>{const count=s.completions.filter(c=>c.player===i).length;s.complete(i,`demo-lesson-${count+1}`);};
- const startCollectionTutorial=useCallback(()=>setPanel('collection'),[]);
- useNewGreenhouseTutorial(ready&&s.created&&!panel,startCollectionTutorial);
  if(!ready)return <div className="boot"><Leaf/><p>Opening the greenhouse…</p></div>;
  return <div className={`game theme-${(s.settings.theme??'Stardew').toLowerCase()} ${!s.settings.motion?'reduced-motion':''} ${s.settings.scale==='Large'?'large-ui':''}`}><div className="world-vignette"/><GameCanvas onOpen={open} onHint={setHint} suspended={!!panel||!s.created}/>
  {!s.created?<div className="welcome-shade"><div className={`welcome ${create?'welcome-create':''}`}>{create?<><button className="text-button" onClick={()=>setCreate(false)}>← Back</button><h1>Make yourself at home.</h1><AvatarCreator first onDone={()=>setCreate(false)}/></>:<><span className="welcome-sprig"><Leaf size={32}/></span><span className="eyebrow">A COZY PLACE TO BECOME</span><h1>Sproutbound<span>Learn a little.<br/><em>Grow together.</em></span></h1><p>A moonlit greenhouse. A few good friends.<br/>And a little creature who believes in you.</p><button className="primary" onClick={()=>setCreate(true)}>Create greenhouse <ArrowRight size={18}/></button><span className="welcome-caption">YOUR NEXT CHAPTER STARTS WITH A SEED</span><span className="fineprint">Single-browser prototype · three simulated classmates</span></>}</div></div>:<>
@@ -54,6 +53,7 @@ export default function Game({initialLearn=false}:{initialLearn?:boolean}){const
  <PartyRoster panel={panel} onSelect={i=>{setFriendDetail(i);setPanel('friends');}}/>
  <div className="world-title"><span>✧</span><p>A little wonder is taking root.</p></div>
  {!panel&&<ItemPlacementControls/>}
+ {!s.tourDone&&<WelcomeTour paused={!!panel} onClose={()=>s.set({tourDone:true})} onShowQuests={showQuests}/>}
  <footer className="bottom-hud"><WeeklyLeaderboard onSelect={i=>{setFriendDetail(i);setPanel('friends');}}/><p className="world-status" role="status">{hint}</p><div className="ambient-control"><button aria-label={s.settings.audio?'Mute sounds':'Enable sounds'} onClick={()=>s.set({settings:{...s.settings,audio:!s.settings.audio}})}>{s.settings.audio?<Volume2 size={18}/>:<VolumeX size={18}/>}</button><span>NIGHTFALL · PEACEFUL</span></div></footer>
  <aside className="quest-widget" aria-label="Daily quests">{questsOpen?<section id="quest-menu" className="quest-menu"><button className="quest-close" aria-label="Minimize quests" onClick={()=>setQuestsOpen(false)}><X size={18}/></button><QuestPanel onStudy={()=>open('learn')}/></section>:<button className="quest-launcher secondary" aria-expanded={false} aria-controls="quest-menu" onClick={()=>setQuestsOpen(true)}><ScrollText size={18}/> Quests</button>}</aside>
  <AnimatePresence>{banner&&<motion.div role="status" className="achievement" initial={{opacity:0,y:-20}} animate={{opacity:1,y:0}} exit={{opacity:0}}><Sparkles size={18}/>{banner}</motion.div>}</AnimatePresence>
