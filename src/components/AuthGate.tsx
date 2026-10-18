@@ -4,6 +4,7 @@ import {createContext, useContext, useEffect, useRef, useState} from 'react';
 import {loadAuth, type AuthAdapter, type AuthUser} from '@/lib/auth-client';
 import LoginAtmosphere from './LoginAtmosphere';
 import './auth.css';
+import OnlineStudyTime from './OnlineStudyTime';
 
 const AuthContext = createContext<{user: AuthUser; logout: () => void; busy: boolean; error: string} | null>(null);
 export const useAuth = () => useContext(AuthContext);
@@ -77,7 +78,7 @@ export default function AuthGate({children}: {children: React.ReactNode}) {
     catch { setError("We couldn't sign you out. Check your connection and try again."); }
     finally { locked.current = false; setActivity(null); }
   }
-  if (user) return <AuthContext.Provider value={{user, logout, busy, error}}>{children}</AuthContext.Provider>;
+  if (user) return <AuthContext.Provider value={{user, logout, busy, error}}><OnlineStudyTime/>{children}</AuthContext.Provider>;
   return <main className="auth-scene">
     <LoginAtmosphere/>
     <section className="auth-card" aria-labelledby="auth-title" aria-busy={busy}>
