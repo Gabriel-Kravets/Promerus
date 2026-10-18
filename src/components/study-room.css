@@ -327,3 +327,39 @@
 /* A quiet illustrated left page for the settings book. */
 .cozy-study .book-settings .subject-cabinet{padding:0;border:0;overflow:hidden;display:grid;place-items:center}
 .cozy-study .settings-tree-page{width:100%;height:100%;min-height:160px;background:url('/assets/settings-tree.svg') center/contain no-repeat;opacity:.9}
+.cozy-study .settings-leaf-page{display:grid;place-items:center;width:100%;height:100%;min-height:160px;color:#294b35}
+.cozy-study .settings-leaf-page>svg{width:72%;height:72%;max-width:330px;max-height:330px;stroke-width:1.5;fill:none}
+/* Movable greenhouse focus widget. */
+.cozy-study .focus-widget{position:fixed;left:16px;bottom:16px;z-index:20;width:min(240px,calc(100vw - 16px));padding:4px;background:#304735;border:2px solid #33291c;border-radius:3px;box-shadow:inset 0 0 0 1px #bd9e62,0 3px 0 #302317,3px 6px 14px #20180d55;color:#f1dfb5;font:16px 'VT323','Courier New',monospace}
+.cozy-study .focus-widget-handle{display:flex;align-items:center;gap:7px;width:100%;padding:7px 8px;color:#ecd7a6;background:linear-gradient(90deg,#526346,#3b5037);border:0;border-bottom:1px solid #a38b5555;cursor:grab;touch-action:none;user-select:none;font:18px 'VT323','Courier New',monospace;min-height:32px}
+.cozy-study .focus-widget-handle>svg:last-child{margin-left:auto;color:#bcaa7c}
+.cozy-study .focus-widget.dragging .focus-widget-handle{cursor:grabbing}
+.cozy-study .focus-widget-body{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px}
+.cozy-study .focus-widget-dial{position:relative;display:grid;place-items:center;width:46px;height:46px;color:#b6ca83}
+.cozy-study .focus-widget-dial>svg:first-child{position:absolute;inset:0;width:46px;height:46px;transform:rotate(-90deg);fill:none;stroke-width:3}
+.cozy-study .focus-ring-track{stroke:#21382a}.cozy-study .focus-ring-progress{stroke:#c3a565;stroke-linecap:round}
+.cozy-study .focus-widget-time{display:flex;flex-direction:column;gap:1px}
+.cozy-study .focus-widget-time strong{font:400 34px/1 'VT323','Courier New',monospace;font-variant-numeric:tabular-nums;letter-spacing:1px;color:#fff0c7}
+.cozy-study .focus-widget-time span{font-size:14px;color:#c0c59b}
+.cozy-study .focus-widget-controls{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 6px 6px}
+.cozy-study .focus-widget-controls button{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border:1px solid #a58b55;background:#435b3d;box-shadow:inset 0 1px #82916455;color:#f0deb0;font:17px 'VT323','Courier New',monospace;border-radius:0;min-height:32px}
+.cozy-study .focus-widget-controls button:hover{background:#556b46}
+.cozy-study .focus-widget button:focus-visible{outline:2px solid #f5dfa7;outline-offset:-3px}
+/* Compact focus menu docked in the upper-right corner. */
+.cozy-study .focus-menu{top:8px;right:8px;bottom:auto;left:auto;width:180px;padding:3px}
+.cozy-study .focus-menu .focus-widget-handle{padding:6px;min-height:29px;font-size:16px;gap:5px;cursor:pointer;touch-action:auto}
+.cozy-study .focus-menu-summary{margin-left:auto;font-variant-numeric:tabular-nums;color:#fff0c7}
+.cozy-study .focus-menu .focus-widget-handle>svg:last-child{margin-left:0}
+.cozy-study .focus-menu .focus-widget-body{gap:8px;padding:8px 4px}
+.cozy-study .focus-menu .focus-widget-dial,.cozy-study .focus-menu .focus-widget-dial>svg:first-child{width:34px;height:34px}
+.cozy-study .focus-menu .focus-widget-time strong{font-size:28px}
+.cozy-study .focus-menu .focus-widget-time span{font-size:12px}
+.cozy-study .focus-menu .focus-widget-controls{padding:0 3px 3px;gap:5px}
+.cozy-study .focus-menu .focus-widget-controls button{min-height:28px;padding:5px;font-size:15px;gap:4px}
+@media(max-width:1100px){.cozy-study .focus-menu{top:54px}}
+@media(max-width:700px){.cozy-study .focus-menu{top:8px;width:166px}}
+/* Separate drag grip keeps the collapse interaction unchanged. */
+.cozy-study .focus-menu-header{display:flex;align-items:stretch;background:#435b3d}
+.cozy-study .focus-menu .focus-widget-handle{flex:1;min-width:0}
+.cozy-study .focus-menu-grip{display:grid;place-items:center;flex:0 0 22px;border:0;border-right:1px solid #a38b5544;background:#344c35;color:#bfa775;padding:0;cursor:grab;touch-action:none;user-select:none}
+.cozy-study .focus-menu.dragging .focus-menu-grip{cursor:grabbing}
