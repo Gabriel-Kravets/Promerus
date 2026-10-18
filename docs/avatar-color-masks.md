@@ -10,6 +10,8 @@ Edit src/lib/avatar-hair.ts:
 - faceProtection: extra exclusion polygons for difficult forehead or ear edges.
 - ribbonStanding / ribbonReading: bun ribbon and bow exclusions; these preserve the original fabric colors.
 - FACE_EDGE_PADDING: safety margin around protected face outlines (six pixels).
+- skinStanding / skinReading: loose boxes around exposed hands and necks. Pixels inside
+  that look like skin get the same skin tone as the face; cuffs and sleeves are left alone.
 
 Each polygon is a flat list [x1,y1,x2,y2,...] in cell-local pixels.
 For the reading row, subtract 538 from the atlas y coordinate. Subtract

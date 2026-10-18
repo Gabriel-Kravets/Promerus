@@ -23,5 +23,55 @@
         "bottom": 280
       }
     ]
+  },
+  "garden": {
+    "density": 2,
+    "pad": 4,
+    "cells": [
+      {
+        "x": 0,
+        "width": 738,
+        "height": 464,
+        "bounds": {
+          "left": 81,
+          "top": 53,
+          "right": 662,
+          "bottom": 446
+        }
+      },
+      {
+        "x": 738,
+        "width": 738,
+        "height": 464,
+        "bounds": {
+          "left": 63,
+          "top": 34,
+          "right": 653,
+          "bottom": 460
+        }
+      },
+      {
+        "x": 1476,
+        "width": 738,
+        "height": 525,
+        "bounds": {
+          "left": 57,
+          "top": 11,
+          "right": 675,
+          "bottom": 502
+        }
+      },
+      {
+        "x": 2214,
+        "width": 738,
+        "height": 525,
+        "bounds": {
+          "left": 50,
+          "top": 4,
+          "right": 681,
+          "bottom": 504
+        }
+      }
+    ]
   }
 }

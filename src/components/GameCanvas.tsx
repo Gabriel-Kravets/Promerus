@@ -15,7 +15,7 @@ import {createWorldEffects} from '@/lib/world-effects';
 import sceneAssets from '@/lib/scene-assets.json';
 
 type Props={suspended?:boolean;onOpen:(panel:string,player?:number)=>void;onHint:(text:string)=>void};
-type Interaction={id:string;name:string;action:string;symbol:string;priority:number;contains:(p:Point)=>boolean;shape:Shape;approaches:Point[];activate:()=>void;lookAt?:Point;preferFirst?:boolean};
+type Interaction={id:string;name:string;action:string;symbol:string;priority:number;contains:(p:Point)=>boolean;shape:Shape;approaches:Point[];activate:()=>void;lookAt?:Point;preferFirst?:boolean;tooltipShape?:Shape};
 const drawShape=(g:Graphics,shape:Shape)=>shape.kind==='ellipse'?g.ellipse(shape.x,shape.y,shape.rx,shape.ry):g.poly(shape.points);
 
 export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
@@ -32,7 +32,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const resize=()=>{if(!host.current)return;const r=host.current.getBoundingClientRect();app.renderer.resize(r.width,r.height);const scale=Math.min(r.width/1320,r.height/744);scene.scale.set(scale);scene.position.set((r.width-1320*scale)/2,(r.height-744*scale)/2);};
    observer=new ResizeObserver(resize);observer.observe(host.current!);resize();
    const texture=async(source:string|HTMLCanvasElement)=>{const t=Texture.from(typeof source==='string'?await loadImage(source):source);t.source.scaleMode='nearest';return t;};
-   const [room,propSheet,gardenSheet,petRunSheet,deskHoverSheet]=await Promise.all(['/assets/greenhouse-room.webp','/assets/study-and-companions.webp','/assets/garden-stages.webp','/assets/sproutling-run.png','/assets/desk-hover.png'].map(texture));
+   const [room,propSheet,gardenSheet,petRunSheet,deskHoverSheet,gardenHoverSheet]=await Promise.all(['/assets/greenhouse-room.webp','/assets/study-and-companions.webp','/assets/garden-stages.webp','/assets/sproutling-run.png','/assets/desk-hover.png','/assets/garden-hover.png'].map(texture));
    if(disposed)return;
    // One scene-level pointer dispatcher: visual sprites never compete with the floor for events.
    scene.eventMode='static';scene.hitArea=new Rectangle(0,0,1320,744);
@@ -46,7 +46,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const feedback=new Container();feedback.eventMode='none';scene.addChild(feedback);
    const sprite=(t:Texture,x:number,y:number,width:number)=>{const s=new Sprite(t);s.anchor.set(.5,1);s.width=width;s.height=width*t.height/t.width;s.position.set(x,y);s.zIndex=y;s.eventMode='none';world.addChild(s);return s;};
    let state=useGame.getState(),position:Point={x:8.5,y:8.5},route:Point[]=[],pending:Interaction|undefined,selected:Interaction|undefined,hovered:Interaction|undefined;
-   let seconds=0,reactionStart=-10,speed=0,facing=1,selectionTime=0,confirmation=0,highlightAlpha=0,displayed:Interaction|undefined,seated=false,seatedStation:number|undefined=undefined,cursorMode='var(--leaf-default)',pressedUntil=0;
+   let seconds=0,reactionStart=-10,speed=0,facing=1,selectionTime=0,confirmation=0,highlightAlpha=0,displayed:Interaction|undefined,seated=false,seatedStation:number|undefined=undefined,cursorMode='var(--leaf-default)',pressedUntil=0,pointer:Point|undefined,treeAlpha=1;
    const reduced=matchMedia('(prefers-reduced-motion: reduce)');
    const interactions:Interaction[]=[];
    const marker=new Graphics().ellipse(0,0,12,5).stroke({color:0xc9e9ad,width:1.5}).moveTo(-4,0).lineTo(4,0).moveTo(0,-2).lineTo(0,2).stroke({color:0xe1edc3,width:1});marker.visible=false;ground.addChild(marker);
@@ -55,7 +55,9 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
    const contour=new Graphics();contour.alpha=0;feedback.addChild(contour);
    const tooltip=new Container();tooltip.visible=false;feedback.addChild(tooltip);
    const tooltipBg=new Graphics();tooltip.addChild(tooltipBg);
-   const tooltipText=new Text({text:'',style:{fontFamily:'Georgia',fontSize:12,fill:0xefe2c2,align:'center'}});tooltipText.anchor.set(.5);tooltip.addChild(tooltipText);
+   const tooltipText=new Text({text:'',style:{fontFamily:'Pixelify Sans, Georgia',fontSize:13,fontWeight:'600',fill:0x3f1a04,align:'center'}});
+   // Tooltip colours per UI theme: [fill, outline, inner frame, text].
+   const tooltipPalette={Classic:[0x292a25,0xb59868,0x4a4032,0xefe2c2],Stardew:[0xfbe1a6,0x5c2706,0x5c2706,0x3f1a04]};tooltipText.anchor.set(.5);tooltip.addChild(tooltipText);
    // Alpha checks use the actual atlas pixels, excluding empty margins around desks and characters.
    const propImage=await loadImage('/assets/study-and-companions.webp');if(disposed)return;
    const pixels=document.createElement('canvas');pixels.width=propImage.width;pixels.height=propImage.height;
@@ -64,22 +66,33 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     const x=Math.floor((local.x/s.texture.width+.5)*hitTexture.width),y=Math.floor((local.y/s.texture.height+1)*hitTexture.height);
     return x>=0&&y>=0&&x<f.width&&y<f.height&&alpha[((Math.floor(f.y)+y)*pixels.width+Math.floor(f.x)+x)*4+3]>90;
    };
+   const gardenImage=await loadImage('/assets/garden-stages.webp');if(disposed)return;
+   const gardenPixels=document.createElement('canvas');gardenPixels.width=gardenImage.width;gardenPixels.height=gardenImage.height;
+   const gardenContext=gardenPixels.getContext('2d',{willReadFrequently:true})!;gardenContext.drawImage(gardenImage,0,0);const gardenAlpha=gardenContext.getImageData(0,0,gardenPixels.width,gardenPixels.height).data;
    const add=(item:Interaction)=>{interactions.push(item);return item;};
-   const deskHighlights=new Map<string,Sprite>();
+   // Pixel outlines that hug sprite artwork instead of drawing a hit-shape contour.
+   const outlines=new Map<string,Sprite>();
    const deskHover=sceneAssets.desk.bounds.map((bounds,col)=>({
     texture:new Texture({source:deskHoverSheet.source,frame:new Rectangle(col*sceneAssets.desk.width,0,sceneAssets.desk.width,sceneAssets.desk.height)}),
     bounds,pad:sceneAssets.desk.pad,density:sceneAssets.desk.density
    }));
    studyStations.forEach(station=>{const p=iso(station.position.x,station.position.y),desk=sprite(deskTextures[station.atlasColumn],p.x,p.y+36,station.width);desk.zIndex=p.y;const hover=deskHover[station.atlasColumn],outline=new Sprite(hover.texture);
     outline.scale.set(1/hover.density);outline.position.set(desk.x-desk.width/2-hover.pad/hover.density,desk.y-desk.height-hover.pad/hover.density);
-    outline.zIndex=desk.zIndex+.1;outline.alpha=0;outline.eventMode='none';world.addChild(outline);deskHighlights.set(station.id,outline);
+    outline.zIndex=desk.zIndex+.1;outline.alpha=0;outline.eventMode='none';world.addChild(outline);outlines.set(station.id,outline);
     const b=hover.bounds,left=outline.x+b.left/hover.density,top=outline.y+b.top/hover.density,right=outline.x+b.right/hover.density,bottom=outline.y+b.bottom/hover.density;
     const shape:Shape={kind:'polygon',points:[left,top,right,top,right,bottom,left,bottom]};
     add({id:station.id,name:station.label,action:'Begin Studying',symbol:'▤',priority:30,contains:q=>spriteContains(desk,q),shape,approaches:[station.seat,...station.alternatives],preferFirst:true,lookAt:{x:p.x,y:p.y-25},activate:()=>handlers.current.onOpen('learn')});
    });
    furnitureRegions.forEach(item=>add({...item,priority:20,contains:p=>contains(item.shape,p),activate:()=>handlers.current.onOpen(item.panel)}));
    const gp=iso(treeCenter.x,treeCenter.y),garden=sprite(gardenTextures[stageFor(state.energy)],gp.x,gp.y+83,365);garden.zIndex=gp.y+40;
-   add({id:'garden',name:'Shared Garden',action:'View Garden Progress',symbol:'❧',priority:10,contains:p=>contains(gardenHotspot,p),shape:gardenHotspot,approaches:gardenApproaches,activate:()=>handlers.current.onOpen('garden')});
+   // The stone bed stays the click target; the outline and tooltip follow the whole tree.
+   const gardenTooltip:Shape={kind:'polygon',points:[]},gardenOutline=new Sprite();gardenOutline.eventMode='none';gardenOutline.alpha=0;gardenOutline.zIndex=garden.zIndex+2;world.addChild(gardenOutline);outlines.set('garden',gardenOutline);
+   const gardenHover=sceneAssets.garden.cells.map(cell=>({texture:new Texture({source:gardenHoverSheet.source,frame:new Rectangle(cell.x,0,cell.width,cell.height)}),bounds:cell.bounds}));
+   const updateGardenOutline=()=>{const {density,pad}=sceneAssets.garden,hover=gardenHover[stageFor(state.energy)],b=hover.bounds;
+    gardenOutline.texture=hover.texture;gardenOutline.scale.set(1/density);gardenOutline.position.set(garden.x-garden.width/2-pad/density,garden.y-garden.height-pad/density);
+    const left=gardenOutline.x+b.left/density,top=gardenOutline.y+b.top/density,right=gardenOutline.x+b.right/density,bottom=gardenOutline.y+b.bottom/density;gardenTooltip.points=[left,top,right,top,right,bottom,left,bottom];
+   };
+   add({id:'garden',name:'Shared Garden',action:'View Garden Progress',symbol:'❧',priority:10,contains:p=>contains(gardenHotspot,p),shape:gardenHotspot,tooltipShape:gardenTooltip,approaches:gardenApproaches,activate:()=>handlers.current.onOpen('garden')});
    // Animate only small outer leaf clusters, never scale the complete garden/tree.
    const branches=[-1,1].map(side=>{const c=new Container();c.eventMode='none';c.zIndex=garden.zIndex+1;world.addChild(c);const leaf=new Sprite(garden.texture);leaf.anchor.set(.5,1);leaf.width=365;leaf.height=365*leaf.texture.height/leaf.texture.width;leaf.position.set(garden.x,garden.y);c.addChild(leaf);const mask=new Graphics();c.addChild(mask);leaf.mask=mask;return {c,leaf,mask,side};});
    const updateBranches=()=>{const stage=stageFor(state.energy);branches.forEach(({leaf,mask,side})=>{leaf.texture=garden.texture;leaf.width=365;leaf.height=365*leaf.texture.height/leaf.texture.width;
@@ -121,7 +134,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     if(!path.length&&item){confirmation=.3;if(item.lookAt){const look=item.lookAt.x-iso(position.x,position.y).x;if(Math.abs(look)>1)facing=look<0?1:-1;}if(item.id.startsWith('desk-'))sitAt(item);}
    };
    const resetHint=()=>handlers.current.onHint('Click the floor to wander · choose a desk to learn');
-   scene.on('pointermove',(event:FederatedPointerEvent)=>{if(handlers.current.suspended)return;const point=scene.toLocal(event.global),next=pickInteraction(interactions,point);
+   scene.on('pointermove',(event:FederatedPointerEvent)=>{if(handlers.current.suspended)return;const point=scene.toLocal(event.global),next=pickInteraction(interactions,point);pointer=point;
     if(next!==hovered){hovered=next;if(next)handlers.current.onHint(`${next.name} · ${next.action}`);else resetHint();}
     const tile=uniso(point.x,point.y),snapped={x:Math.round(tile.x*2)/2,y:Math.round(tile.y*2)/2},inFloor=contains(floorShape,point),valid=!blocked(snapped.x,snapped.y),center=iso(snapped.x,snapped.y);
     floorHover.clear();floorHover.visible=!next&&inFloor;
@@ -129,7 +142,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     cursorMode=next?'var(--leaf-interactive)':inFloor?(valid?'var(--leaf-walk)':'var(--leaf-blocked)'):'var(--leaf-default)';scene.cursor=cursorMode;
    });
    scene.on('pointerdown',()=>{if(!handlers.current.suspended){pressedUntil=seconds+.14;scene.cursor='var(--leaf-pressed)';}});
-   scene.on('pointerleave',()=>{hovered=undefined;floorHover.visible=false;cursorMode='var(--leaf-default)';resetHint();});
+   scene.on('pointerleave',()=>{hovered=undefined;pointer=undefined;floorHover.visible=false;cursorMode='var(--leaf-default)';resetHint();});
    scene.on('pointertap',(event:FederatedPointerEvent)=>{
     if(handlers.current.suspended)return;const point=scene.toLocal(event.global),item=pickInteraction(interactions,point);
     if(item){if(selected===item&&(pending||seconds-selectionTime<.6))return;const plan=approachRoute(position,item.approaches,item.preferFirst);
@@ -139,7 +152,7 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     if(!contains(floorShape,point))return;
     const plan=planRoute(position,uniso(point.x,point.y),true);if(!plan)return;beginMove(plan.path,plan.destination);resetHint();
    });
-   const updateGarden=()=>{garden.texture=gardenTextures[stageFor(state.energy)];garden.width=365;garden.height=365*garden.texture.height/garden.texture.width;moonflower.visible=new Set(state.completions.map(c=>c.player)).size>=2;updateBranches();};updateGarden();
+   const updateGarden=()=>{garden.texture=gardenTextures[stageFor(state.energy)];garden.width=365;garden.height=365*garden.texture.height/garden.texture.width;moonflower.visible=new Set(state.completions.map(c=>c.player)).size>=2;updateBranches();updateGardenOutline();};updateGarden();
    unsubscribe=useGame.subscribe((next,previous)=>{state=next;if(next.online!==previous.online){
      reportPosition();
      for(let i=1;i<avatars.length;i++)if(next.online[i]&&!previous.online[i]){
@@ -182,22 +195,31 @@ export default function GameCanvas({onOpen,onHint,suspended=false}:Props){
     pet.scale.x=Math.abs(pet.scale.x)*roaming.facing;pet.zIndex=petFloor.y+6;
     petShape.x=pet.x+5*roaming.facing;petShape.y=pet.y-32;sleep.position.set(pet.x+18,pet.y-75);
     garden.tint=active&&state.reaction==='evolving'?0xedffd2:0xffffff;
+    // See-through canopy: fade the tree while the cursor is over it or a character is standing behind it. Visual only: walking and click targets are unchanged.
+    {const [cl,ct,cr,,,cb]=gardenTooltip.points,over=!!pointer&&pointer.x>cl&&pointer.x<cr&&pointer.y>ct&&pointer.y<cb;
+     // Only the local character, and only where opaque tree pixels actually cover its body.
+     const me=players[0],f=garden.texture.frame,treeCovers=(p:Point)=>{const local=garden.toLocal(scene.toGlobal(p)),x=Math.floor((local.x/garden.texture.width+.5)*f.width),y=Math.floor((local.y/garden.texture.height+1)*f.height);
+      return x>=0&&y>=0&&x<f.width&&y<f.height&&gardenAlpha[((Math.floor(f.y)+y)*gardenPixels.width+Math.floor(f.x)+x)*4+3]>90;};
+     const behind=me.zIndex<garden.zIndex&&[[0,.25],[0,.5],[0,.75],[-.2,.5],[.2,.5]].some(([dx,dy])=>treeCovers({x:me.x+dx*me.width,y:me.y-dy*me.height}));
+     const target=handlers.current.suspended?1:over||behind?.25:1;treeAlpha+=(target-treeAlpha)*Math.min(1,dt/.12);garden.alpha=treeAlpha;}
     // Frame-rate independent 150ms fade. Only one object owns hover/selected feedback.
     const wanted=handlers.current.suspended?undefined:hovered??selected;if(wanted!==displayed){highlightAlpha=Math.max(0,highlightAlpha-dt/.15);if(highlightAlpha===0){displayed=wanted;highlight.clear();contour.clear();if(displayed){const dest=approachRoute(position,displayed.approaches,displayed.preferFirst)?.destination;
        if(dest){const a=iso(dest.x,dest.y);highlight.poly([a.x,a.y-8,a.x+16,a.y,a.x,a.y+8,a.x-16,a.y]).fill({color:0xbae5bf,alpha:.14}).stroke({color:0xbcebd7,width:1});}
-       if(!deskHighlights.has(displayed.id))drawShape(contour,displayed.shape).fill({color:0xc9e4af,alpha:.045}).stroke({color:0xc9e6bf,width:1.2,alpha:.65});tooltipText.text=`${displayed.symbol}  ${displayed.name}\n${displayed.action}`;
-       tooltipBg.clear().roundRect(-tooltipText.width/2-10,-tooltipText.height/2-7,tooltipText.width+20,tooltipText.height+14,3).fill({color:0x292a25,alpha:.95}).stroke({color:0xb59868,width:1});
+       // Room-art objects get the same soft glow edge as the sprite outlines on desks and the tree.
+       if(!outlines.has(displayed.id)){drawShape(contour,displayed.shape).fill({color:0xc9e4af,alpha:.05}).stroke({color:0xc9e6bf,width:5,alpha:.18,join:'round'});drawShape(contour,displayed.shape).stroke({color:0xc9e6bf,width:1.5,alpha:.85,join:'round'});}tooltipText.text=`${displayed.symbol}  ${displayed.name}\n${displayed.action}`;
+       {const [fill,outline,frame,ink]=tooltipPalette[state.settings.theme]??tooltipPalette.Stardew,w=tooltipText.width+20,h=tooltipText.height+14;tooltipText.style.fill=ink;
+        tooltipBg.clear().rect(-w/2+1,-h/2+4,w,h).fill({color:0x000000,alpha:.3}).roundRect(-w/2,-h/2,w,h,3).fill(fill).stroke({color:outline,width:2}).roundRect(-w/2+3,-h/2+3,w-6,h-6,2).stroke({color:frame,width:1.5});}
       }}}
     else highlightAlpha=Math.min(1,highlightAlpha+dt/.15);
     if(!wanted)highlightAlpha=Math.max(0,highlightAlpha-dt/.15);
     highlight.alpha=contour.alpha=highlightAlpha;tooltip.visible=!!hovered&&displayed===hovered&&highlightAlpha>0&&!handlers.current.suspended;tooltip.alpha=highlightAlpha;
-    if(displayed){const at=objectTooltipPosition(displayed.shape,tooltipText.width+20,tooltipText.height+14);tooltip.position.set(at.x,at.y);}
+    if(displayed){const at=objectTooltipPosition(displayed.tooltipShape??displayed.shape,tooltipText.width+20,tooltipText.height+14);tooltip.position.set(at.x,at.y);}
     marker.alpha=motion?.65+Math.sin(seconds*3)*.16:.8;
     cues.forEach(({item,g},i)=>{const near=item.approaches.some(a=>distance(position,a)<115),shape=item.shape;g.visible=!handlers.current.suspended&&(near||hovered===item||selected===item);g.alpha=(hovered===item||selected===item)?.8:motion?.22+Math.max(0,Math.sin(seconds*.7+i*2))*.25:.3;
      const x=shape.kind==='ellipse'?shape.x:shape.points[0]+30,y=shape.kind==='ellipse'?shape.y-shape.ry:shape.points[1];g.position.set(x,y-10+(motion?Math.sin(seconds*1.5+i)*1.5:0));
     });
-    deskHighlights.forEach((outline,id)=>{outline.alpha=displayed?.id===id?highlightAlpha:0;});
-    branches.forEach(({c,side})=>{c.visible=motion&&state.settings.graphics==='Full'&&stageFor(state.energy)>0;c.alpha=.7;c.x=motion?Math.sin(seconds*(side===1?.61:.43)+side)*1.3:0;c.y=motion?Math.sin(seconds*.37+side)*.45:0;});
+    outlines.forEach((outline,id)=>{outline.alpha=displayed?.id===id?highlightAlpha:0;});
+    branches.forEach(({c,side})=>{c.visible=motion&&state.settings.graphics==='Full'&&stageFor(state.energy)>0;c.alpha=.7*treeAlpha;c.x=motion?Math.sin(seconds*(side===1?.61:.43)+side)*1.3:0;c.y=motion?Math.sin(seconds*.37+side)*.45:0;});
     effects.update(seconds,dt,motion,state.settings.graphics==='Full',celebrate);
    });
    void warmStrides(state.avatar).catch(console.error);

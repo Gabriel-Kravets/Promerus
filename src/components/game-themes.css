@@ -1,0 +1,146 @@
+/* Shared by both themes: pixel font, clean bevelled buttons, the pressed/selected
+   states, motion timing and the newer components. Colours come from theme tokens,
+   so the resting and pressed states always use one palette. Panel styling for the
+   Stardew theme lives in stardew-ui.css; Classic uses the original dark styles. */
+.game{--ui-font:'Pixelify Sans','Trebuchet MS',sans-serif;--ease:cubic-bezier(.2,.8,.2,1);--t-fast:120ms;--t-med:180ms}
+
+/* Classic: black, walnut and brass. */
+.game.theme-classic{
+ --btn-bg:linear-gradient(#64503a,#49392b);--btn-bg-alt:linear-gradient(#514337,#3b322b);--btn-border:#b59868;--btn-inset:#382b24;--btn-bevel:#8c7251;--btn-drop:#211a17;--btn-ink:#f0e3c7;--btn-press:#241c17;
+ --btn-active-bg:linear-gradient(#6b5b3f,#414436);--ui-ring:#dfcc92;--ui-ring-soft:#dfcc9244;
+ --ui-ink:#efe2c2;--ui-ink-soft:#c3b9a8;--ui-accent:#b5d78e;--ui-accent-deep:#5f7a45;--ui-line:#88705266;
+ --ui-card:linear-gradient(110deg,#3b3c2d66,#262c2977);--ui-card-border:#82764e77;--ui-card-hover:#b0be8f;--ui-page:#22242299;--ui-page-border:#b59868aa;
+ --ui-panel:linear-gradient(135deg,#393331f5,#25282bf5);--heart-empty:#5e594c;--heart-full:#e2665a;--heart-shade:#1a1714;
+}
+/* Stardew: parchment, orange wood and red accents. */
+.game.theme-stardew{
+ --sv-trim:#5c2706;
+ --btn-bg:linear-gradient(#ffe39a,#f6c65e);--btn-bg-alt:linear-gradient(#fff0c8,#f5d390);--btn-border:var(--sv-trim);--btn-inset:#fff0c8;--btn-bevel:var(--sv-trim);--btn-drop:var(--sv-trim);--btn-ink:#3f1a04;--btn-press:#5c270680;
+ --btn-active-bg:linear-gradient(#fff0c8,#ffd27e);--ui-ring:#d8432f;--ui-ring-soft:#ffb199;
+ --ui-ink:#3f1a04;--ui-ink-soft:#85522a;--ui-accent:#5d9b2c;--ui-accent-deep:#2f5a12;--ui-line:#5c270659;
+ --ui-card:linear-gradient(#fde6ae,#f1c57c);--ui-card-border:var(--sv-trim);--ui-card-hover:var(--sv-trim);--ui-page:#fff3cf;--ui-page-border:var(--sv-trim);
+ --ui-panel:linear-gradient(#fbe1a6,#f0c477);--heart-empty:#5c270647;--heart-full:#e8352a;--heart-shade:var(--sv-trim);
+}
+
+/* ---------- Font ---------- */
+.game :is(.room-title h1,.game-tooltip,.party-hover,.party-caption,.party-copy,.energy-pill,.quest-menu,.weekly-board,.game-badge,.achievement,.quest-launcher),
+.game .modal :is(h1,h2,h3,.eyebrow,.primary,.secondary,.text-button,.social-tab,.friend-copy,.friend-status,.saved-friend,.dialogue-text p,.invite strong,.stage-gallery strong,.theme-option),
+.game .welcome :is(h1,.primary,.secondary){font-family:var(--ui-font)}
+/* Older rules set Georgia on headings and names directly, so pass the pixel font down explicitly. */
+.game :is(.weekly-board,.quest-menu,.party-roster,.energy-pill,.botanical-friends,.saved-friend,.dialogue-box,.bloom-quest,.garden-unlock,.stage-gallery) :is(h1,h2,h3,strong,small,b,em){font-family:var(--ui-font)}
+
+/* ---------- Buttons: clean bevelled shape ---------- */
+.game :is(.modal,.welcome,.quest-widget,.world-hint) :is(.primary,.secondary),.game .quest-launcher,.game .quest-menu .quest-study{
+ display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:8px 18px;font-weight:600;font-size:13px;letter-spacing:.2px;
+ color:var(--btn-ink);background:var(--btn-bg);border:1px solid var(--btn-border);border-radius:3px;text-shadow:none;
+ box-shadow:inset 0 0 0 2px var(--btn-inset),inset 0 0 0 3px var(--btn-bevel),0 3px 0 var(--btn-drop);
+ transition:transform var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease),filter var(--t-fast) var(--ease),background-color var(--t-med) var(--ease);
+}
+.game :is(.modal,.welcome,.quest-widget,.world-hint) .secondary,.game .quest-launcher{background:var(--btn-bg-alt)}
+.game .quest-widget>.quest-launcher{display:flex;margin-left:auto}
+.game .quest-menu .quest-study{width:100%;min-height:0;padding:9px;font-family:var(--ui-font)}
+.game :is(.modal,.welcome,.quest-widget,.world-hint) :is(.primary,.secondary):hover:not(:disabled),.game .quest-launcher:hover,.game .quest-menu .quest-study:hover{transform:translateY(-1px);filter:brightness(1.06)}
+/* Pressed: the newer push-in design, tinted from the same palette. */
+.game :is(.modal,.welcome,.quest-widget,.world-hint) :is(.primary,.secondary):active:not(:disabled),.game .quest-launcher:active,.game .quest-menu .quest-study:active{transform:translateY(2px);filter:none;box-shadow:inset 0 3px 0 var(--btn-press),inset 0 0 0 1px var(--btn-inset),0 1px 0 var(--btn-drop)}
+.game :is(.modal,.welcome,.quest-widget) :is(.primary,.secondary):disabled{opacity:.5;filter:saturate(.4);transform:none}
+.game .modal .secondary.accept{background:linear-gradient(#a8e06a,#5d9b2c);color:#163005;--btn-inset:#c9f59a;--btn-bevel:#3d7016;--btn-press:#3d7016}
+.game .modal .text-button{color:var(--ui-ink-soft);transition:color var(--t-fast) var(--ease)}
+.game .modal .text-button:hover{color:var(--ui-ink)}
+.game .modal .text-button.danger{color:#e0715f;padding:6px 4px}
+.game.theme-stardew .modal .text-button.danger{color:#a12a17}
+
+/* Toolbar: Classic keeps the original dark slots, Stardew uses parchment; the selected state uses the ring design in both. */
+.game .hud nav .game-icon-control>button{transition:transform var(--t-fast) var(--ease),background-color var(--t-med) var(--ease),border-color var(--t-med) var(--ease),box-shadow var(--t-med) var(--ease)}
+.game .hud nav .game-icon-control>button:hover{transform:translateY(-1px)}
+.game .hud nav .game-icon-control>button:active{transform:translateY(2px)}
+.game .hud nav .game-icon-control>button[aria-pressed=true]{background:var(--btn-active-bg);border-color:var(--ui-ring);box-shadow:0 0 0 2px var(--ui-ring-soft),inset 0 0 0 2px var(--btn-inset)}
+.game.theme-classic .hud nav .game-icon-control>button[aria-pressed=true]{box-shadow:0 0 0 2px var(--ui-ring-soft),inset 0 0 0 2px #34352b}
+/* Same structure as the Classic slots: the dark fill and inner ring become panel yellow,
+   the brass border, inner line and icons become the shared Stardew trim. */
+.game.theme-stardew .hud nav .game-icon-control>button{color:var(--sv-trim);background:linear-gradient(#fbe1a6,#f0c477);border:1px solid var(--sv-trim);border-radius:0;box-shadow:inset 0 0 0 3px #f5d390,inset 0 0 0 4px var(--sv-trim),0 3px 0 var(--sv-trim)}
+.game.theme-stardew .hud nav .game-icon-control>button svg{filter:drop-shadow(1px 2px 0 #5c270633)}
+.game.theme-stardew .hud nav .game-icon-control>button[aria-pressed=true]{background:var(--btn-active-bg);border-color:var(--ui-ring);box-shadow:0 0 0 2px var(--ui-ring-soft),inset 0 0 0 2px var(--sv-trim)}
+.game.theme-stardew .ambient-control button{color:var(--btn-ink);background:#fbe1a6f2;border:1px solid var(--btn-border)}
+.game :is(.modal .close,.quest-close){transition:transform var(--t-fast) var(--ease),filter var(--t-fast) var(--ease)}
+.game :is(.modal .close,.quest-close):active{transform:translateY(1px) scale(.96)}
+
+/* ---------- Folder tabs (selected tab joins the page) ---------- */
+.game .modal .social-tabs{display:flex;gap:4px;margin:22px 0 0;padding-left:10px}
+.game .modal .social-tab{position:relative;padding:8px 16px;font-weight:600;font-size:13px;color:var(--ui-ink-soft);background:var(--btn-bg-alt);border:2px solid var(--ui-page-border);border-bottom:0;border-radius:5px 5px 0 0;transform:translateY(3px);outline:0;transition:transform var(--t-fast) var(--ease),color var(--t-fast) var(--ease),background-color var(--t-med) var(--ease)}
+.game .modal .social-tab:hover{transform:translateY(1px);color:var(--ui-ink)}
+.game .modal .social-tab[aria-selected=true]{z-index:1;color:var(--ui-ink);background:var(--ui-page);transform:translateY(2px)}
+.game .modal .social-tab:focus-visible{outline:2px solid var(--ui-ring);outline-offset:2px}
+.game .modal .social-page{position:relative;padding:14px;background:var(--ui-page);border:2px solid var(--ui-page-border);border-radius:0 4px 4px 4px;margin-bottom:6px}
+.game .modal .social-page .botanical-friends{margin:0 0 14px}
+
+/* ---------- Hearts, activity gems ---------- */
+.heart-meter{display:flex;gap:3px;margin-top:6px}
+.heart-meter svg{width:16px;height:14px;fill:var(--heart-empty);filter:drop-shadow(1px 1px 0 var(--heart-shade));shape-rendering:crispEdges;transition:fill var(--t-med) var(--ease)}
+.heart-meter svg.full{fill:var(--heart-full)}
+.activity-gem{display:inline-block;flex-shrink:0;width:8px;height:8px;background:#7cc34a;border:1px solid #0008;transform:rotate(45deg)}
+.activity-gem.studying{background:#59a7ff}.activity-gem.exploring{background:#ffcc33}.activity-gem.idle{background:#7cc34a}.activity-gem.taking-a-break{background:#ff9ac1}.activity-gem.offline{background:#9a8c75}
+.game .party-copy>span{display:flex;align-items:center;gap:5px}
+.game .party-caption{display:flex;justify-content:space-between;align-items:center}
+.game .party-caption b{color:var(--ui-accent)}
+
+/* ---------- Friend detail dialogue box ---------- */
+.game .modal .dialogue-box{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:stretch;padding:14px;animation:ui-pop var(--t-med) var(--ease)}
+.game .modal .dialogue-text{display:flex;flex-direction:column;gap:6px}
+.game .modal .dialogue-text p{font-size:15px;line-height:1.45;color:var(--ui-ink);margin:2px 0}
+.game .modal .dialogue-text .secondary{align-self:flex-start;margin-top:auto}
+.game .modal .dialogue-portrait{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;border:1px solid var(--ui-card-border);border-radius:3px}
+.game .modal .dialogue-portrait .player-head{width:84px;height:84px}
+.game .modal .dialogue-portrait h2{margin:0;font-size:15px}
+.game.theme-classic .modal .dialogue-portrait{background:#1d1f1e88}
+
+/* ---------- Friends list letters ---------- */
+.game .modal .saved-friends h3{display:flex;align-items:center;gap:8px}
+.game .modal .mail-count{display:grid;place-items:center;min-width:20px;height:20px;padding:0 5px;font:700 12px var(--ui-font);color:#fff!important;background:#d8432f;border-radius:10px;animation:ui-pulse 2.4s var(--ease) infinite}
+.game .modal .empty-slot{padding:12px;text-align:center;font-size:13px;font-family:var(--ui-font);color:var(--ui-ink-soft);border:1px dashed var(--ui-line);border-radius:4px}
+.game.theme-classic .modal .friend-letter{border:1px dashed #b5986866;border-radius:3px;padding:10px;margin:6px 0;background:#ffffff08}
+
+/* ---------- Weekly leaderboard (bottom left) ---------- */
+.weekly-board{width:260px;padding:12px 14px 10px;color:var(--ui-ink);background:var(--ui-panel);font-family:var(--ui-font)}
+.game.theme-classic .weekly-board{border:3px double #b5a38b;outline:1px solid #746d65;outline-offset:3px;box-shadow:inset 0 0 0 4px #242426,inset 0 0 0 5px #8a7c68,0 5px 16px #0006}
+.weekly-board header{display:flex;flex-wrap:wrap;align-items:center;column-gap:7px;row-gap:2px;margin-bottom:8px}
+.weekly-board header svg{color:#f5c542;flex-shrink:0}
+.weekly-board h2{margin:0;white-space:nowrap;font-size:15px;font-weight:700;color:inherit}
+.weekly-board header small{flex-basis:100%;padding-left:23px;font-size:10px;color:var(--ui-ink-soft);white-space:nowrap}
+.weekly-board ol{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.board-row{display:flex;align-items:center;gap:8px;width:100%;margin:0;padding:4px 6px;text-align:left;color:inherit;font:inherit;background:transparent;border:1px solid transparent;border-radius:3px;cursor:pointer;transition:background-color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
+.board-row:hover,.board-row:focus-visible{background:#ffffff14;border-color:var(--ui-card-hover);transform:translateX(1px)}
+.board-row:active{transform:translateY(1px)}
+.game.theme-stardew .board-row:hover,.game.theme-stardew .board-row:focus-visible{background:#fff3cf}
+.board-row.is-you{background:#ffffff0d;border-color:var(--ui-line)}
+.game.theme-stardew .board-row.is-you{background:#fff6dcaa}
+.board-rank{display:grid;place-items:center;flex-shrink:0;width:20px;height:20px;font-size:11px;font-weight:700;color:var(--ui-ink);border:1px solid var(--ui-card-border);border-radius:50%}
+.rank-1 .board-rank{color:#4a3000;background:#f5c542;border-color:#a77b0a}
+.rank-2 .board-rank{color:#2f3338;background:#d4d8de;border-color:#8a9099}
+.rank-3 .board-rank{color:#3d1d06;background:#d6904f;border-color:#8e5320}
+.board-row .player-head{width:28px;height:28px}
+.board-copy{flex:1;min-width:0}
+.board-copy strong{display:block;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.board-copy strong small{font-size:8px;font-weight:700;color:var(--ui-accent)}
+.board-bar{display:block;height:5px;margin-top:4px;background:#0000002e;border-radius:1px;overflow:hidden}
+.board-bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--ui-accent-deep),var(--ui-accent));transition:width .4s var(--ease)}
+.board-energy{flex-shrink:0;min-width:28px;text-align:right;font-size:13px;font-weight:700}
+.board-note{margin:6px 0 0;font-size:9px;color:var(--ui-ink-soft);text-align:right}
+
+/* ---------- Theme toggle (settings) ---------- */
+.game .modal .theme-setting{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.game .modal .theme-setting>span small{display:block;margin-top:4px}
+.theme-toggle{display:inline-flex;padding:3px;gap:3px;border:1px solid var(--btn-border);border-radius:4px;background:#0000001f}
+.game .modal .theme-option{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;font-size:13px;font-weight:600;color:var(--ui-ink-soft);background:transparent;border:1px solid transparent;border-radius:3px;transition:background-color var(--t-med) var(--ease),color var(--t-fast) var(--ease),border-color var(--t-med) var(--ease)}
+.game .modal .theme-option:hover{color:var(--ui-ink)}
+.game .modal .theme-option[aria-checked=true]{color:var(--btn-ink);background:var(--btn-active-bg);border-color:var(--ui-ring);box-shadow:0 0 0 2px var(--ui-ring-soft)}
+.game .modal .theme-option:active{transform:translateY(1px)}
+.theme-option i{width:14px;height:14px;border-radius:2px;border:1px solid #0008}
+.theme-option-classic i{background:linear-gradient(135deg,#26282d 50%,#b59868 50%)}
+.theme-option-stardew i{background:linear-gradient(135deg,#fbe1a6 50%,#5c2706 50%)}
+
+/* ---------- Motion: quick, smooth, no overshoot ---------- */
+@keyframes ui-pop{from{transform:translateY(4px);opacity:0}to{transform:none;opacity:1}}
+@keyframes ui-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.reduced-motion :is(.dialogue-box,.mail-count){animation:none!important}
+@media(prefers-reduced-motion:reduce){.game :is(.dialogue-box,.mail-count){animation:none!important}.game :is(.party-member,.social-tab,.botanical-friends>button,.primary,.secondary,.quest-launcher,.board-row,.theme-option,.hud nav button){transition:none!important}}
+@media(max-width:700px){.weekly-board{display:none}.game .modal .social-tab{padding:7px 10px;font-size:12px}.game .modal .dialogue-box{grid-template-columns:1fr}.game .modal .dialogue-portrait{flex-direction:row;justify-content:flex-start}.game .modal .dialogue-portrait .player-head{width:56px;height:56px}}

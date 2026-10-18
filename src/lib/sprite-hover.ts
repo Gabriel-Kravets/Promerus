@@ -18,3 +18,14 @@ export function spriteHoverPixels(source:Uint8ClampedArray,width:number,height:n
  }
  return {pixels,bounds:{left,top,right,bottom}};
 }
+
+/** Treat transparent pockets enclosed by artwork as solid, so only the outer silhouette is outlined. */
+export function fillEnclosedGaps(source:Uint8ClampedArray,width:number,height:number){
+ const filled=new Uint8ClampedArray(source),outside=new Uint8Array(width*height),stack:number[]=[];
+ const visit=(x:number,y:number)=>{const at=y*width+x;if(!outside[at]&&source[at*4+3]<=90){outside[at]=1;stack.push(at);}};
+ for(let x=0;x<width;x++){visit(x,0);visit(x,height-1);}
+ for(let y=0;y<height;y++){visit(0,y);visit(width-1,y);}
+ while(stack.length){const at=stack.pop()!,x=at%width,y=(at-x)/width;if(x>0)visit(x-1,y);if(x<width-1)visit(x+1,y);if(y>0)visit(x,y-1);if(y<height-1)visit(x,y+1);}
+ for(let at=0;at<outside.length;at++)if(!outside[at])filled[at*4+3]=Math.max(filled[at*4+3],255);
+ return filled;
+}
