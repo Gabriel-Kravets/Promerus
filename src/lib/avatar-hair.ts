@@ -58,6 +58,24 @@ export const faceProtection:number[][][][]=[
 // Ribbon/bow fabric is never hair. Coordinates use local atlas cells.
 export const ribbonStanding=[196,76,223,78,241,89,257,106,283,111,313,123,313,143,295,155,316,177,329,199,327,224,313,242,294,241,289,210,293,175,275,150,265,133,242,121,223,112,206,100];
 export const ribbonReading=[207,57,229,58,249,69,269,85,294,88,317,101,318,121,300,140,325,155,340,177,340,198,324,214,305,215,300,187,304,160,284,138,274,117,248,103,227,93,211,79];
+// Exposed hands, forearms and necks. These loose boxes only allow skin
+// recoloring; the palette still requires each pixel to look like skin, so
+// cuffs, sleeves and books inside a box keep their outfit treatment.
+export const skinStanding=[
+ [[83,355,113,355,115,400,85,400],[215,388,262,388,262,423,215,423]],
+ [[75,350,104,350,104,382,75,382],[208,398,258,398,258,426,208,426],[168,252,196,252,192,282,172,282]],
+ [[196,364,245,364,245,424,196,424],[168,255,196,255,196,279,168,279]],
+ [[88,358,128,358,128,418,88,418],[216,356,262,356,262,425,216,425]]
+];
+export const skinReading=[
+ [[56,278,82,278,82,312,56,312],[218,288,262,288,262,332,218,332]],
+ [[72,285,88,285,88,300,72,300],[208,295,242,295,242,325,208,325],[165,222,198,222,198,252,165,252]],
+ [[53,285,79,285,79,320,53,320],[200,296,242,296,242,335,200,335],[175,225,202,225,202,245,175,245]],
+ [[76,295,99,295,99,322,76,322],[216,300,262,300,262,339,216,339]]
+];
+export function isSkinPatchPixel(column:number,readingPose:boolean,x:number,y:number){
+ return (readingPose?skinReading:skinStanding)[column]?.some(points=>contains({kind:'polygon',points},{x,y}))??false;
+}
 export function isHairAccessoryPixel(column:number,readingPose:boolean,x:number,y:number){
  return column===3&&contains({kind:'polygon',points:readingPose?ribbonReading:ribbonStanding},{x,y});
 }

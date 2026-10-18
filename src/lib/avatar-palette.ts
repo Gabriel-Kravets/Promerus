@@ -1,4 +1,4 @@
-import {hairPixel,isFacePixel,isHairPixel,isHairAccessoryPixel} from './avatar-hair';
+import {hairPixel,isFacePixel,isHairPixel,isHairAccessoryPixel,isSkinPatchPixel} from './avatar-hair';
 export type Palette={skin:number[];hair:number[];outfit:number[]};
 /** Shared by full sprites, stride frames, portraits and customization previews. */
 export function avatarPixel(column:number,reading:boolean,x:number,y:number,source:number[],palette:Palette):number[]{
@@ -8,12 +8,14 @@ export function avatarPixel(column:number,reading:boolean,x:number,y:number,sour
   const warm=r>g*1.08&&g>b*1.04;
   // Preserve dark eye/outline pixels and the gold eyeglass frames.
   const glasses=column===1&&g/r>.68&&b/g<.67;
-  if(face){
-    if(l>35&&warm&&!glasses){const shade=Math.max(.25,Math.min(1.5,l/145));return palette.skin.map(c=>Math.round(Math.min(255,c*shade)));}
-    return source;
-  }
+  const skinTone=l>35&&warm&&!glasses;
+  // Faces, hands and necks share one mapping so every exposed patch matches.
+  const skin=()=>{const shade=Math.max(.25,Math.min(1.5,l/145));return palette.skin.map(c=>Math.round(Math.min(255,c*shade)));};
+  if(face)return skinTone?skin():source;
   const hairSource=column!==2||(r>g*1.03&&g>b*1.08); // Blonde locks, excluding purple hat and clothing.
   if(isHairPixel(column,reading,x,y)&&hairSource&&!(column===1&&r>g*1.15&&g>b*1.15))return hairPixel(source,palette.hair,column);
+  // Cream cuffs and collars are warm too; skin is noticeably more saturated.
+  if(skinTone&&g<r*.86&&isSkinPatchPixel(column,reading,x,y))return skin();
   if(l<32)return source;
   const isSkin=r>g*1.12&&g>b*1.12&&r>145;
   const height=reading?486:538,normalized=y/height;

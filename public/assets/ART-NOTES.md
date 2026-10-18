@@ -19,7 +19,7 @@ All study UI is live HTML: the subject cabinet, flashcards, lesson journey, stat
 Run `npm run assets:generate` after editing the source atlases, `src/lib/sproutling-run.ts`, or `src/lib/sprite-hover.ts`.
 
 - `sproutling-run.png` contains twelve prebuilt running poses for each of the two growth stages. The evolved form uses a stronger, hip-anchored stride that remains visible at the in-game size.
-- `desk-hover.png` and `src/lib/scene-assets.json` store the matching hover silhouettes and atlas coordinates.
+- `desk-hover.png`, `garden-hover.png` and `src/lib/scene-assets.json` store the matching hover silhouettes and atlas coordinates. Tree outlines (one per garden stage) fill enclosed gaps first, so only the outer silhouette is traced.
 - The `.webp` files are optimized delivery copies. Character and prop atlases use lossless encoding to preserve alpha hit testing and palette masks; room backgrounds and garden artwork use quality 90.
 
 Keep the generated files with the source changes. The browser loads these assets directly instead of rebuilding sproutling frames and desk outlines at startup. Custom avatar colors are applied once per pose, and only the local player's stride frames are prepared after the scene can paint.

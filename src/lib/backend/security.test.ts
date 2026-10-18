@@ -17,11 +17,12 @@ test('JWT verification rejects forged identities, expired tokens and wrong trust
  await assert.rejects(()=>verifyPlayerToken(expired,'https://test.auth0.com/','app',publicKey));
 });
 test('avatar, profile and movement contracts reject authority fields and invalid coordinates',()=>{
- assert.equal(positionSchema.parse({geometryVersion:'moonlit-v1',x:8,y:8,facing:1,sequence:1,activity:'Idle'}).seat,-1);
+ assert.equal(positionSchema.safeParse({geometryVersion:'moonlit-v1',x:8,y:8,facing:1,sequence:1,activity:'Idle'}).success,false);
+ assert.equal(positionSchema.parse({geometryVersion:'moonlit-v2',x:8,y:8,facing:1,sequence:1,activity:'Idle'}).seat,-1);
  assert.equal(profilePatchSchema.safeParse({player_id:'another-user',energy:300}).success,false);
  assert.equal(avatarSchema.safeParse({skin:'javascript:alert(1)'}).success,false);
- assert.equal(positionSchema.safeParse({geometryVersion:'moonlit-v1',x:NaN,y:8,facing:1,sequence:1,activity:'Idle'}).success,false);
- assert.equal(positionSchema.safeParse({geometryVersion:'moonlit-v1',x:8,y:8,facing:1,sequence:1,activity:'Idle',player_id:'another-user'}).success,false);
+ assert.equal(positionSchema.safeParse({geometryVersion:'moonlit-v2',x:NaN,y:8,facing:1,sequence:1,activity:'Idle'}).success,false);
+ assert.equal(positionSchema.safeParse({geometryVersion:'moonlit-v2',x:8,y:8,facing:1,sequence:1,activity:'Idle',player_id:'another-user'}).success,false);
 });
 
 test('shared Sproutling uses identical server time and stays on clear floor',async()=>{

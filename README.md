@@ -1,7 +1,7 @@
 # Two-phase multiplayer roadmap
 
 1. **Frontend integration and complete multiplayer backend:** Gate B PR #2 is merged into dev. The approved architecture and local backend implementation are on `feat/supabase-multiplayer`; hosted staging configuration/verification is pending. Existing Auth0, art, sprites, cursor and the local demo are retained. Configured online mode adds account-backed profiles/onboarding, Greenhouses navigation, memberships/visits, session movement/presence, server grading and shared progression.
-2. **End-to-end testing and release:** two real accounts in separate sessions/devices, hosted security/reconnection/duplicate-reward checks, fixes, reviewed backend integration into dev, then review and validation of dev into main. PR #1 remains open; no automatic main merge.
+2. **End-to-end testing and release:** two real accounts in separate sessions/devices, hosted security/reconnection/duplicate-reward checks, fixes, reviewed backend integration into dev, then review and validation of dev into main. PR #1 was merged by Gabriel-Kravets during backend development; future main promotion still requires team approval.
 
 Start with [the approved architecture](docs/backend-architecture-proposal.md) and [staging setup / outstanding gates](docs/backend-staging-setup.md). No production database change has been applied. With no public Supabase environment configured, the application continues its explicitly labeled browser-local demo. Auth0 is the only login system.
 

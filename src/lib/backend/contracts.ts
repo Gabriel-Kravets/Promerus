@@ -6,7 +6,7 @@ export const avatarSchema=z.object({
 }).strict();
 export const profilePatchSchema=z.object({name:z.string().trim().min(1).max(20).optional(),avatar:avatarSchema.optional(),level:z.enum(['Beginner','Intermediate','Advanced']).optional(),goal:z.string().max(500).optional(),minutes:z.enum(['5','15','30']).optional(),interests:z.array(z.string().trim().min(1).max(80)).max(8).optional(),intro:z.enum(['seen','skipped']).optional(),onboardingComplete:z.boolean().optional()}).strict();
 export const activitySchema=z.enum(['Online','Studying','Exploring','Idle','Taking a break']);
-export const positionSchema=z.object({x:z.number().finite().min(-2).max(16),y:z.number().finite().min(-2).max(16),facing:z.union([z.literal(-1),z.literal(1)]),sequence:z.number().int().nonnegative(),geometryVersion:z.literal('moonlit-v1'),activity:activitySchema,seat:z.number().int().min(-1).max(3).default(-1)}).strict();
+export const positionSchema=z.object({x:z.number().finite().min(-2).max(16),y:z.number().finite().min(-2).max(16),facing:z.union([z.literal(-1),z.literal(1)]),sequence:z.number().int().nonnegative(),geometryVersion:z.literal('moonlit-v2'),activity:activitySchema,seat:z.number().int().min(-1).max(3).default(-1)}).strict();
 export type BackendProfile={player_id:string;name:string;level:string;goal:string;minutes:string;interests:string[];onboarding_complete:boolean;intro_state:string;last_greenhouse_id:string|null};
 export type Appearance={player_id:string;name:string;avatar:z.infer<typeof avatarSchema>;version:number};
 export type World={id:string;name:string;owner_id:string;visibility:'private'|'public';allow_visits:boolean;energy:number;version:number;access_epoch:number;stage:number;moonlight_bloom:boolean;pet_pause_total:number;pet_pause_until:string|null};

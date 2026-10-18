@@ -1,4 +1,4 @@
-import {contains,floorShape,gardenFootprint} from './world-geometry.ts';
+import {contains,fenceFootprint,floorShape,gardenFootprint} from './world-geometry.ts';
 import {desks} from './world-layout.ts';
 export type Point={x:number;y:number};
 export const iso=(x:number,y:number):Point=>({x:660+(x-y)*36,y:200+(x+y)*18});
@@ -8,7 +8,7 @@ export const deskFootprint=(d:Point)=>({kind:'polygon' as const,points:[-64,-10,
 const isolatedTiles=new Set<string>();
 export function blocked(x:number,y:number):boolean {
  if(isolatedTiles.has(`${x},${y}`))return true;
- const p=iso(x,y),obstacles=[gardenFootprint,...desks.map(deskFootprint)];
+ const p=iso(x,y),obstacles=[gardenFootprint,fenceFootprint,...desks.map(deskFootprint)];
  return [[0,0],...Array.from({length:16},(_,i)=>[Math.cos(i*Math.PI/8)*(AVATAR_RADIUS+1),Math.sin(i*Math.PI/8)*(AVATAR_RADIUS+1)])].some(([dx,dy])=>{
   const q={x:p.x+dx,y:p.y+dy};return !contains(floorShape,q)||obstacles.some(shape=>contains(shape,q));
  });

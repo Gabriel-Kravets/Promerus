@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {iso,uniso,pathfind,blocked,stageFor,planRoute,walkableTiles,approachRoute,GRID_STEP} from './movement';
+import {iso,uniso,pathfind,blocked,stageFor,planRoute,walkableTiles,approachRoute,clearSegment,GRID_STEP} from './movement';
 import {courses} from './courses';
 import {approaches,gardenApproaches,desks,studyStations} from './world-layout';
 import {contains,floorShape,gardenHotspot,furnitureRegions,pickInteraction} from './world-geometry';
@@ -57,4 +57,9 @@ test('party activity respects offline presence and contextual local actions',()=
  const state={online:[true,true,false,true],memberActivities:['Idle','Studying','Exploring','Taking a break'] as MemberActivity[],localActivity:'Exploring' as MemberActivity};
  assert.equal(memberStatus(state,0),'Exploring');assert.equal(memberStatus(state,0,'learn'),'Studying');assert.equal(memberStatus(state,0,'hearth'),'Taking a break');
  assert.equal(memberStatus(state,1),'Studying');assert.equal(memberStatus(state,2),'Offline');assert.equal(memberStatus(state,3),'Taking a break');
+});
+test('floor behind the left rear desk is reachable without crossing the desk',()=>{
+ const behind={x:0,y:5};assert.equal(blocked(behind.x,behind.y),false);
+ const route=planRoute({x:8,y:8},behind);assert.ok(route);assert.deepEqual(route.destination,behind);
+ for(let i=1;i<route.path.length;i++)assert.ok(clearSegment(route.path[i-1],route.path[i]));
 });

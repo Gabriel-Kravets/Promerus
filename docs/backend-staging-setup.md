@@ -1,6 +1,6 @@
 # Staging setup and remaining release gates
 
-Architecture approved by the user on 2026-10-17. Implementation is isolated on `feat/supabase-multiplayer`; the branch must not be merged without review. PR #2 is merged; PR #1 remains open and requires fresh approval of its current head. No hosted database changes have been applied by this work.
+Architecture approved by the user on 2026-10-17. Implementation is isolated on `feat/supabase-multiplayer`; the branch must not be merged without review. PR #2 is merged; PR #1 was subsequently merged by Gabriel-Kravets; this agent did not merge it. Any future release PR still requires team approval. No hosted database changes have been applied by this work.
 
 ## Identify the destination before applying migrations
 
