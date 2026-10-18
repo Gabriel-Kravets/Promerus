@@ -1,4 +1,4 @@
-import {getItemDefinition,type InventoryItem} from './items.ts';
+import {getItemDefinition,itemSprites,type InventoryItem} from './items.ts';
 import {iso,type Point} from './movement.ts';
 import {contains,fenceFootprint,gardenFootprint,type Shape} from './world-geometry.ts';
 import {studyStations} from './world-layout.ts';
@@ -71,9 +71,10 @@ export function itemFootprint(item:InventoryItem,position:Point):Polygon {
     // rather than blocking the room with the canopy's old 2 x 2 grid diamond.
     return ellipsePolygon({kind:'ellipse',...center,rx:26,ry:12});
   }
+  const center=iso(position.x,position.y),traced=itemSprites[item.type]?.footprint;
+  if(traced)return {kind:'polygon',points:traced.map((v,i)=>i%2?center.y+v:center.x+v*(item.mirrored?-1:1))};
   const {width,height}=getItemDefinition(item.type,item.theme).dimensions;
   const scale=item.type==='desk'?1.1:1,down=item.type==='desk'?6:0;
-  const center=iso(position.x,position.y);
   return {kind:'polygon',points:[[-1,-1],[1,-1],[1,1],[-1,1]].flatMap(([x,y])=>{
     const p=iso(position.x+x*width*scale/2,position.y+y*height*scale/2);
     return [center.x+(p.x-center.x)*(item.mirrored?-1:1),p.y+down];
@@ -82,7 +83,7 @@ export function itemFootprint(item:InventoryItem,position:Point):Polygon {
 
 // These are ground footprints in the original scene, not tall interaction silhouettes.
 const builtInFurnitureFootprints:Shape[]=[
-  {kind:'polygon',points:[535,225,595,208,642,227,641,252,577,281,545,269]}, // lantern table
+  {kind:'polygon',points:[538,214,596,198,642,213,644,245,584,262,540,240]}, // lantern table
   {kind:'polygon',points:[716,220,765,238,800,257,816,245,804,280,760,269,716,243]}, // bookshelf and ladder
   {kind:'polygon',points:[268,365,307,349,331,375,322,406,279,421,254,403]}, // armchair
   {kind:'polygon',points:[301,337,348,319,391,337,390,355,334,379,302,363]}, // side table

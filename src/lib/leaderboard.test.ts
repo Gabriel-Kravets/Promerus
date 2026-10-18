@@ -7,8 +7,8 @@ test('weeks start on Monday at local midnight',()=>{
  assert.equal(weekStart(wednesday),new Date(2026,9,12,0,0).getTime());
  assert.equal(daysUntilReset(wednesday),5);
 });
-test('only lessons from this week add to placeholder totals, ranked highest first',()=>{
- const names=['You','Maya','Kai','Jules'];
+test('only lessons from this week count, with no placeholder baseline, ranked highest first',()=>{
+ const names=['You','Ada','Ben','Cy'];
  const rows=weeklyLeaderboard(names,[
   {id:'a',player:0,lesson:'x',at:wednesday-1000},
   {id:'b',player:0,lesson:'y',at:new Date(2026,9,5).getTime()},
@@ -16,5 +16,5 @@ test('only lessons from this week add to placeholder totals, ranked highest firs
   {id:'d',player:3,lesson:'w',at:wednesday-5000},
   {id:'e',player:3,lesson:'v',at:wednesday-6000}
  ],wednesday);
- assert.deepEqual(rows.map(r=>[r.name,r.energy,r.rank]),[['Maya',140,1],['Kai',100,2],['Jules',100,2],['You',20,4]]);
+ assert.deepEqual(rows.map(r=>[r.name,r.energy,r.rank]),[['Cy',40,1],['You',20,2],['Ada',0,3],['Ben',0,3]]);
 });

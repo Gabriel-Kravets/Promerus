@@ -17,7 +17,8 @@ export function createItemArt(item:InventoryItem,temporary=false):Container {
   // Project the centered grid footprint with the room's 36 x 18 iso basis.
   const corners=[[-width/2,-height/2],[width/2,-height/2],[width/2,height/2],[-width/2,height/2]];
   const footprint=corners.flatMap(([x,y])=>[(x-y)*36,(x+y)*18]);
-  if(temporary&&item.type!=='tree')g.poly(footprint).fill({color:ink,alpha:.12}).stroke({color:ink,width:1.5,alpha:.8});
+  // The ghost outlines the same traced floor contact that collisions use.
+  if(temporary&&item.type!=='tree')g.poly([...itemSprites[item.type]?.footprint??footprint]).fill({color:ink,alpha:.12}).stroke({color:ink,width:1.5,alpha:.8});
   const art=item.type==='desk'?studyDeskSprite:itemSprites[item.type],texture=spriteTextures.get(item.type);
   if(art&&texture){
     const sprite=new Sprite(texture);sprite.anchor.set(.5,1);sprite.width=art.width;sprite.height=art.width*texture.height/texture.width;sprite.y=art.offsetY;

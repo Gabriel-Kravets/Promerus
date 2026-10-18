@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import {useBackend} from '@/components/backend/BackendProvider';
-import {useGame,presets,type MemberActivity} from '@/store/game';
+import {useGame,type MemberActivity} from '@/store/game';
 import {memberStatus} from '@/lib/party';
 import {weekStart,weeklyLeaderboard,type LeaderboardRow} from '@/lib/leaderboard';
 import {orderedRoomMembers,rankContributions,partyNames} from '@/lib/backend/party-view';
@@ -10,10 +10,10 @@ import {orderedRoomMembers,rankContributions,partyNames} from '@/lib/backend/par
 export function useWorldParty(){
  const backend=useBackend(),state=useGame();
  const members=orderedRoomMembers(backend.snapshot?.members??[],backend.profile?.player_id);
- const names=backend.enabled?partyNames(members,backend.profile?.name||state.name):[state.name,'Maya','Kai','Jules'];
- const online=backend.enabled?members.map(m=>m.online):state.online;
+ const names=backend.enabled?partyNames(members,backend.profile?.name||state.name):[state.name];
+ const online=backend.enabled?members.map(m=>m.online):[true];
  return {backend,members,names,online,
-  avatar:(i:number)=>backend.enabled?members[i]?.avatar??state.avatar:i===0?state.avatar:presets[i],
+  avatar:(i:number)=>backend.enabled?members[i]?.avatar??state.avatar:state.avatar,
   status:(i:number,panel=''):MemberActivity|'Offline'=>backend.enabled?(!members[i]?.online?'Offline':i===0?memberStatus(state,0,panel):members[i].activity):memberStatus(state,i,panel),
   energy:(i:number)=>backend.enabled?backend.snapshot?.contributions.find(c=>c.player_id===members[i]?.player_id)?.energy??0:state.completions.filter(c=>c.player===i).length*20,
  };

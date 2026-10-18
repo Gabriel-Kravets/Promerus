@@ -8,6 +8,10 @@ export const roomFixtures=[
   ...studyStations.map(station=>({id:`fixture:${station.id}`,type:'desk' as const,name:station.label,position:station.position})),
   {id:'fixture:garden',type:'tree' as const,name:'Shared garden',position:treeCenter},
 ];
+/** A room starts with one study desk per member, up to the four desk spots. */
+export const startingDeskCount=(people:number)=>Math.max(1,Math.min(studyStations.length,Math.floor(people)||1));
+/** Desk spots beyond the room's population: kept out of the room, its geometry and the Collection. */
+export const unusedDesks=(people:number)=>studyStations.slice(startingDeskCount(people)).map(station=>`fixture:${station.id}`);
 export const roomFixture=(id:string)=>roomFixtures.find(fixture=>fixture.id===id);
 export const fixtureItem=(id:string,theme:InventoryItem['theme'],mirrored=false):InventoryItem|undefined=>{
   const fixture=roomFixture(id);return fixture?{id,type:fixture.type,theme,...(mirrored?{mirrored:true}:{})}:undefined;

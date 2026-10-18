@@ -2,7 +2,7 @@ import {z} from 'zod';
 import {readRoomInventory} from '../room-inventory-data.ts';
 import {getItemDefinition,type InventoryItem} from '../items.ts';
 import {shopCatalog} from '../shop.ts';
-import {fixtureItem,roomFixture,fixtureObstacles,type FixturePositions} from '../room-fixtures.ts';
+import {fixtureItem,roomFixture,fixtureObstacles,unusedDesks,type FixturePositions} from '../room-fixtures.ts';
 import {validatePlacement,resolvePlacements,itemFootprint,permanentRoomObstacles,type ItemPlacement} from '../placement.ts';
 import {iso,setMovementObstacles} from '../movement.ts';
 import type {Point} from '../movement.ts';
@@ -33,8 +33,8 @@ export function applyLayoutCommand(raw:unknown,members:string[],input:unknown,oc
   while(state.items.some(item=>item.id===`shop:${type}:${n}`))n++;
   state.items.push({id:`shop:${type}:${n}`,type,theme:command.theme});return state;
  }
- const fixture=roomFixture(command.id),owned=state.items.find(item=>item.id===command.id);
- if(!fixture&&!owned)throw new Error('Room item unavailable');
+ const fixture=roomFixture(command.id),owned=state.items.find(item=>item.id===command.id),unused=unusedDesks(members.length);
+ if(!fixture&&!owned||unused.includes(command.id))throw new Error('Room item unavailable');
  if(command.kind==='return'){
   if(fixture){if(!state.storedFixtures.includes(command.id))state.storedFixtures.push(command.id);}
   else state.placements=state.placements.filter(p=>p.itemId!==command.id);
@@ -43,15 +43,15 @@ export function applyLayoutCommand(raw:unknown,members:string[],input:unknown,oc
  const item=fixture?fixtureItem(command.id,'Stardew',command.mirrored)!:{...owned!,mirrored:command.mirrored};
  const others=resolvePlacements(state.items,state.placements.filter(p=>p.itemId!==command.id));
  const obstacles:Shape[]=occupied.map(position=>{const p=iso(position.x,position.y);return {kind:'ellipse',x:p.x,y:p.y,rx:12,ry:10};});
- const check=validatePlacement(item,command.position,others,obstacles,state.fixturePositions,state.storedFixtures);
+ const check=validatePlacement(item,command.position,others,obstacles,state.fixturePositions,[...state.storedFixtures,...unused]);
  if(!check.valid)throw new Error(check.message);
  if(fixture){state.fixturePositions[command.id]={...command.position,mirrored:command.mirrored};state.storedFixtures=state.storedFixtures.filter(id=>id!==command.id);}
  else{state.items=state.items.map(i=>i.id===command.id?item:i);state.placements=[...state.placements.filter(p=>p.itemId!==command.id),{itemId:command.id,position:command.position}];}
  return state;
 }
 /** Synchronous scope: never leave one world's obstacles in a shared Edge worker. */
-export function withRoomGeometry<T>(layout:RoomLayout,run:()=>T):T{
+export function withRoomGeometry<T>(layout:RoomLayout,run:()=>T,unused:readonly string[]=[]):T{
  const solids=resolvePlacements(layout.items,layout.placements).filter(p=>getItemDefinition(p.item.type,p.item.theme).solid).map(p=>itemFootprint(p.item,p.position));
- setMovementObstacles([...permanentRoomObstacles,...fixtureObstacles(layout.fixturePositions,undefined,layout.storedFixtures,true),...solids],true);
+ setMovementObstacles([...permanentRoomObstacles,...fixtureObstacles(layout.fixturePositions,undefined,[...layout.storedFixtures,...unused],true),...solids],true);
  try{return run();}finally{setMovementObstacles([],false);}
 }
