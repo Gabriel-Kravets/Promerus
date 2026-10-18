@@ -8,7 +8,7 @@ import {PlayerPortrait} from './ui/GamePrimitives';
 
 const OPEN_KEY='sproutbound-leaderboard-open';
 
-// Replaces the Learning Seeds card: who has contributed the most energy since Monday.
+// Replaces the Learning Seeds card: who has contributed the most nutrients since Monday.
 // Minimizes to a launcher like the quest window; the choice is remembered per browser.
 export default function WeeklyLeaderboard({onSelect}:{onSelect:(index:number)=>void}){
  const [open,setOpen]=useState(true);
@@ -20,7 +20,7 @@ export default function WeeklyLeaderboard({onSelect}:{onSelect:(index:number)=>v
  return <div className="board-widget"><section id="weekly-board" className="weekly-board" aria-label="Weekly leaderboard">
   <button className="quest-close" aria-label="Minimize leaderboard" onClick={()=>toggle(false)}><X size={18}/></button>
   <header><Trophy size={16} aria-hidden="true"/><h2>Weekly Leaderboard</h2><small>{days===1?'Resets tomorrow':`Resets in ${days} days`}</small></header>
-  <ol>{rows.map(row=><li key={row.index}><button className={`board-row ${row.index===0?'is-you':''} rank-${row.rank}`} onClick={()=>onSelect(row.index)} aria-label={`Rank ${row.rank}: ${row.name}${row.index===0?' (you)':''}, ${row.energy} energy this week. View details.`}>
+  <ol>{rows.map(row=><li key={row.index}><button className={`board-row ${row.index===0?'is-you':''} rank-${row.rank}`} onClick={()=>onSelect(row.index)} aria-label={`Rank ${row.rank}: ${row.name}${row.index===0?' (you)':''}, ${row.energy} nutrients this week. View details.`}>
    <span className="board-rank" aria-hidden="true">{row.rank}</span>
    <PlayerPortrait avatar={party.avatar(row.index)} name={row.name} offline={row.index>0&&!party.online[row.index]}/>
    <span className="board-copy"><strong>{row.name}{row.index===0&&<small> YOU</small>}</strong><span className="board-bar" aria-hidden="true"><span style={{width:`${row.energy/top*100}%`}}/></span></span>

@@ -23,7 +23,7 @@ export function createTopicStudyService(service:Services){
    const paths=await service.rpc<OnlinePath[]>('learning_snapshot'),path=paths.find(p=>p.id===job.path_id),lesson=path?.lessons.find(l=>!l.completed)??path?.lessons[0];
    if(!lesson)throw new Error('Generated lesson is not available yet.');return begin(lesson,topic,difficulty);
   },
-  async replay(session:StudySession){if(!session.online)throw new Error('Generate an online quiz to earn shared energy.');return begin(await savedLesson(session.online.lesson),session.topic,session.difficulty);},
+  async replay(session:StudySession){if(!session.online)throw new Error('Generate an online quiz to earn shared nutrients.');return begin(await savedLesson(session.online.lesson),session.topic,session.difficulty);},
   async grade(session:StudySession,answers:string[],answer:string):Promise<{result:QuizResult;session:StudySession}>{
    if(!session.online)throw new Error('This browser quiz is not an authenticated lesson. Generate an online quiz first.');
    const lesson=await savedLesson(session.online.lesson),ids=[...lesson.questions.filter(q=>q.kind==='multiple_choice').map(q=>q.id),...lesson.questions.filter(q=>q.kind==='short_answer').map(q=>q.id)];

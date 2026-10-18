@@ -43,6 +43,6 @@ export default function QuestPanel({onStudy}:{onStudy:()=>void}) {
         </button>
       </li>;})}</ul>
     {done.length===quests.length&&<p className="quest-complete" role="status"><Sparkles size={15}/> Every quest done. The garden thanks you!</p>}
-    <button className="primary quest-study" onClick={onStudy}>Study · +20 energy</button>
+    <button className="primary quest-study" onClick={onStudy}>Study · +20 nutrients</button>
   </>;
 }
