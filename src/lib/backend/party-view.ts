@@ -7,3 +7,6 @@ export function rankContributions(rows:Omit<LeaderboardRow,'rank'>[]):Leaderboar
  const ranked=rows.slice().sort((a,b)=>b.energy-a.energy||a.index-b.index);
  return ranked.map(row=>({...row,rank:ranked.findIndex(r=>r.energy===row.energy)+1}));
 }
+
+/** Before choosing a room, main still renders its own-player roster row. */
+export function partyNames(members:RoomMember[],ownName:string){return members.length?members.map(member=>member.name):[ownName||'Gardener'];}
