@@ -363,3 +363,7 @@
 .cozy-study .focus-menu .focus-widget-handle{flex:1;min-width:0}
 .cozy-study .focus-menu-grip{display:grid;place-items:center;flex:0 0 22px;border:0;border-right:1px solid #a38b5544;background:#344c35;color:#bfa775;padding:0;cursor:grab;touch-action:none;user-select:none}
 .cozy-study .focus-menu.dragging .focus-menu-grip{cursor:grabbing}
+
+/* Each mode fills the book page without changing the questionnaire's layout. */
+.cozy-study .study-mode-panel:not([hidden]){display:flex;flex-direction:column;flex:1;min-height:0}
+.cozy-study .study-mode-panel.lesson-journey{overflow-y:auto;scrollbar-width:thin}

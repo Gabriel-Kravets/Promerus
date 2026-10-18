@@ -70,7 +70,7 @@ Automated tests mock Auth0; they do not verify live credentials, dashboard confi
 
 ## Topic and difficulty questionnaires
 
-In **My Desk**, choose **Topic quiz**, enter a learning topic, choose Beginner, Intermediate, or Advanced, and select **Start studying**. Gemini generates four multiple-choice questions and one short answer. Submit all five answers for a score and explanations; matching cards appear in **Flashcards**. The existing offline five-lesson courses remain available through **Lesson journey**, and the six built-in flashcard decks are still selectable.
+In **My Desk**, enter a learning topic, choose Beginner, Intermediate, or Advanced, and select **Start studying**. Gemini generates four multiple-choice questions and one short answer. Submit all five answers for a score and explanations; matching cards appear in **Flashcards**. The existing offline five-lesson courses remain available through **Offline lessons** in the desk heading. In **Flashcards**, use **Flashcard deck** to switch between **Current quiz** and the six built-in decks without discarding your quiz.
 
 Add `GEMINI_API_KEY=your_key` to `.env.local` without replacing the public Auth0 settings. Optionally set `GEMINI_MODEL` to a model supported by your Gemini account. Restart the server after changing these settings. The Gemini key stays on the server; generation and short-answer grading require Gemini access and quota.
 
