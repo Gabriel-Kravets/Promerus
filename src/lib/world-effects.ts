@@ -35,6 +35,7 @@ export function createWorldEffects(scene:Container,room:Texture){
  const flames=new Container();flames.position.set(1148,345);layer.addChild(flames);
  const flameShapes=Array.from({length:4},(_,i)=>{const g=new Graphics().poly([-4,0,-5,-6,-2,-10,0,-18,3,-11,5,-5,4,0]).fill(i%2?0xffe68b:0xffa742);g.x=(i-1.5)*3;flames.addChild(g);return g;});
  let seed=4231;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+ let gardenVisible=true,gardenPosition={x:660,y:421};
  const waterPoint=()=>{for(let n=0;n<100;n++){const p={x:random()*1320,y:605+random()*139};if(waterShapes.some(s=>contains(s,p)))return p;}return {x:20,y:680};};
  const rippleSeeds=ripples.map(()=>({...waterPoint(),offset:random()*7,life:4+random()*4}));
  const waves=waveBands.map(()=>({...waterPoint(),phase:random()*6.28}));
@@ -44,15 +45,23 @@ export function createWorldEffects(scene:Container,room:Texture){
   g.blendMode=kind===3?'normal':'add';layer.addChild(g);return {g,kind,life:2+random()*8,age:random()*9,x:0,y:0,vx:0,vy:0};
  });
  const reset=(p:Particle,burst=false)=>{p.life=3+random()*6;p.age=0;
-  if(p.kind===0){p.x=560+random()*200;p.y=400+random()*60;p.vx=(random()-.5)*7;p.vy=-4-random()*7;}
+  if(p.kind===0){p.x=gardenPosition.x-100+random()*200;p.y=gardenPosition.y-21+random()*60;p.vx=(random()-.5)*7;p.vy=-4-random()*7;}
   else if(p.kind===1){p.x=230+random()*860;p.y=230+random()*260;p.vx=2+random()*3;p.vy=-1-random()*3;}
   else if(p.kind===2){p.x=1144+random()*9;p.y=337;p.vx=(random()-.5)*5;p.vy=-6-random()*7;p.life=2+random()*2;}
   else if(p.kind===3){p.x=350+random()*600;p.y=140+random()*70;p.vx=6+random()*6;p.vy=9+random()*6;p.life=9+random()*4;}
-  else {p.x=420+random()*450;p.y=280+random()*220;p.vx=(660-p.x)/2;p.vy=(426-p.y)/2;p.life=2;p.g.visible=burst;}
+  else {p.x=gardenPosition.x-240+random()*450;p.y=gardenPosition.y-141+random()*220;p.vx=(gardenPosition.x-p.x)/2;p.vy=(gardenPosition.y+5-p.y)/2;p.life=2;p.g.visible=burst;}
  };
  particles.forEach(p=>{reset(p);p.age=random()*p.life;});
  let milestone=-100,lastReaction=false;
  return {
+  setGarden(position:{x:number;y:number}|null){
+   gardenVisible=!!position;lights[9].visible=gardenVisible;
+   if(position){
+    const dx=position.x-gardenPosition.x,dy=position.y-gardenPosition.y;
+    particles.filter(p=>p.kind===0).forEach(p=>{p.x+=dx;p.y+=dy;});
+    gardenPosition={...position};lights[9].position.set(position.x,position.y);
+   }
+  },
   update(time:number,dt:number,motion:boolean,full:boolean,achievement:boolean){
    if(achievement&&!lastReaction){milestone=time;particles.filter(p=>p.kind===4).forEach(p=>reset(p,true));}lastReaction=achievement;
    layer.visible=true;waterCopy.x=motion?Math.sin(time*.47)*1.7:0;waterCopy.y=motion?Math.sin(time*.31)*.65:0;waterCopy.alpha=motion?.32+Math.sin(time*.37)*.045:.28;
@@ -61,7 +70,7 @@ export function createWorldEffects(scene:Container,room:Texture){
    lights.forEach((g,i)=>{const organic=Math.sin(time*(1.1+i*.137)+i*2.3)*.055+Math.sin(time*(2.7+i*.12)+i)*.025;g.alpha=motion&&full?.91+organic:.91;if(motion&&i===9&&time-milestone<2)g.alpha+=Math.sin((time-milestone)/2*Math.PI)*.7;});
    foliage.forEach(p=>{p.c.rotation=motion&&full?Math.sin(time*(.43+p.phase*.06)+p.phase)*p.amp:0;p.c.alpha=motion&&full?.72:0;});
    flameShapes.forEach((g,i)=>{g.scale.y=motion?.8+Math.sin(time*(3.1+i*.7)+i)*.12: .9;g.x=(i-1.5)*3+(motion?Math.sin(time*2.3+i)*.8:0);g.alpha=motion?.68+Math.sin(time*2+i)*.09:.7;});
-   particles.forEach(p=>{p.g.visible=full&&motion&&(p.kind!==4||time-milestone<2);if(!p.g.visible)return;p.age+=dt;if(p.age>=p.life)reset(p,p.kind===4&&time-milestone<2);
+   particles.forEach(p=>{p.g.visible=full&&motion&&(p.kind!==0||gardenVisible)&&(p.kind!==4||time-milestone<2);if(!p.g.visible)return;p.age+=dt;if(p.age>=p.life)reset(p,p.kind===4&&time-milestone<2);
     p.g.position.set(p.x+p.vx*p.age+(p.kind===3?Math.sin(time+p.x)*3:Math.sin(time*.4+p.x)*2),p.y+p.vy*p.age);p.g.alpha=Math.sin(Math.min(1,p.age/p.life)*Math.PI)*(p.kind===3?.55:.65);if(p.kind===3)p.g.rotation=Math.sin(time*.7+p.x)*.4;
    });
   },

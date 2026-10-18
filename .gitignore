@@ -3,6 +3,7 @@ node_modules/
 .pnpm-store/
 .next/
 .next-production/
+.next-dev/
 out/
 *.tsbuildinfo
 

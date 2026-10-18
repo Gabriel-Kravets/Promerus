@@ -1,0 +1,124 @@
+/* Study room in the greenhouse room's look: pixel font, square bevelled buttons with
+   hard drop shadows, framed panels and inventory slots, coloured from the active theme
+   (Classic walnut and brass, Stardew parchment and orange wood) like the rest of the game.
+   Layout stays in study-room.css; this file only restyles the surfaces. */
+.game.theme-classic .cozy-study{
+ --st-panel:linear-gradient(135deg,#393331f7,#25282bf7);--st-frame:var(--game-frame-shadow);--st-border:#b59868;
+ --st-paper:linear-gradient(#2f2c28,#24262a);--st-ink:#efe2c2;--st-ink-soft:#c3b9a8;--st-line:#88705266;
+ --st-card:#22242299;--st-card-border:#82764e;--st-card-on:#3a4a33;--st-slot:#1d1f1d;--st-slot-ring:#5a4a36;
+ --st-title:#f6e7c4;--st-title-shadow:#1a1310;--st-lcd:#141a14;--st-lcd-ink:#b5d78e;
+}
+.game.theme-stardew .cozy-study{
+ --st-panel:linear-gradient(#fbe1a6,#f0c477);--st-frame:var(--sv-frame);--st-border:var(--sv-trim);
+ --st-paper:linear-gradient(#fbe1a6,#f0c477);--st-ink:#3f1a04;--st-ink-soft:#85522a;--st-line:#5c270659;
+ --st-card:#fff3cf;--st-card-border:var(--sv-trim);--st-card-on:#d9ef9f;--st-slot:#f5d390;--st-slot-ring:var(--sv-trim);
+ --st-title:#fff3cf;--st-title-shadow:var(--sv-trim);--st-lcd:#3a2410;--st-lcd-ink:#ffd54a;
+}
+
+/* ---------- Font and crisp pixels ---------- */
+.game .cozy-study{font-family:var(--ui-font);image-rendering:pixelated}
+.game .cozy-study :is(h1,h2,h3,p,small,strong,em,span,b,button,label,input,select,dt,dd){font-family:var(--ui-font)}
+.game .cozy-study :is(h1,h2,h3){font-weight:700;letter-spacing:.3px}
+.game .cozy-study svg{shape-rendering:crispEdges}
+
+/* ---------- Bevelled buttons (same build as the modal buttons) ---------- */
+.game .cozy-study :is(.wood-button,.room-back),.game .cozy-study .lesson-paper .primary{
+ color:var(--btn-ink);background:var(--btn-bg);border:2px solid var(--btn-border);border-radius:0;text-shadow:none;text-transform:none;
+ box-shadow:inset 0 0 0 2px var(--btn-inset),inset 0 0 0 3px var(--btn-bevel),0 4px 0 var(--btn-drop);
+ transition:transform var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease),filter var(--t-fast) var(--ease);
+}
+.game .cozy-study .wood-button{font-size:17px;font-weight:600;letter-spacing:.3px}
+.game .cozy-study :is(.wood-button,.room-back,.lesson-paper .primary):hover:not(:disabled){background:var(--btn-bg);transform:translateY(-1px);filter:brightness(1.06)}
+.game .cozy-study :is(.wood-button,.room-back,.lesson-paper .primary):active:not(:disabled){transform:translateY(3px);filter:none;box-shadow:inset 0 3px 0 var(--btn-press),inset 0 0 0 1px var(--btn-inset),0 1px 0 var(--btn-drop)}
+.game .cozy-study .wood-button.active{background:var(--btn-active-bg);border-color:var(--ui-ring);box-shadow:0 0 0 2px var(--ui-ring-soft),inset 0 0 0 2px var(--btn-inset),0 4px 0 var(--btn-drop)}
+.game .cozy-study .room-back{font-size:13px;font-weight:600;padding:8px 12px}
+.game .cozy-study .cabin-nav button:before{width:4px;background:repeating-linear-gradient(var(--st-border) 0 4px,transparent 4px 6px);box-shadow:none}
+.game .cozy-study .sprig-button>svg{filter:drop-shadow(2px 2px 0 #0006)}
+.game .cozy-study .lesson-paper .primary{font-weight:600;font-size:15px}
+
+/* ---------- Hanging nameplate ---------- */
+.game .cozy-study .hanging-sign{background:var(--st-panel);border:4px solid var(--st-border);border-radius:0;box-shadow:var(--st-frame)}
+.game .cozy-study .hanging-sign:before,.game .cozy-study .hanging-sign:after{width:6px;border:0;background:repeating-linear-gradient(var(--st-border) 0 6px,transparent 6px 9px)}
+.game .cozy-study .hanging-sign h1{font-size:32px;text-transform:none;color:var(--st-title);text-shadow:2px 2px 0 var(--st-title-shadow),-2px 0 0 var(--st-title-shadow),0 -2px 0 var(--st-title-shadow),2px 0 0 var(--st-title-shadow)}
+.game .cozy-study .hanging-sign>svg{filter:drop-shadow(2px 2px 0 var(--st-title-shadow))}
+.game .cozy-study .sign-acorn{color:var(--ui-ring);text-shadow:2px 2px 0 var(--st-title-shadow)}
+
+/* ---------- Subject cabinet: framed panel with inventory slots ---------- */
+.game .cozy-study .wood-frame{background:var(--st-panel);border:4px solid var(--st-border);border-radius:0;box-shadow:var(--st-frame)}
+.game .cozy-study .wood-frame h2{font-size:21px;text-transform:none;color:var(--st-title);text-shadow:2px 2px 0 var(--st-title-shadow);border-bottom:3px solid var(--st-border);box-shadow:0 3px 0 var(--st-line)}
+.game.theme-stardew .cozy-study .wood-frame h2{margin:6px 6px 0;background:var(--btn-bg);color:var(--st-ink);text-shadow:none;border:2px solid var(--sv-trim);box-shadow:inset 0 0 0 2px #fff0c8}
+.game .cozy-study .subject-shelves button{color:var(--st-ink);font-weight:600}
+.game .cozy-study .subject-shelves small{color:var(--st-ink-soft);font-size:10px}
+.game .cozy-study .subject-slot{background:var(--st-slot);border:2px solid var(--st-slot-ring);box-shadow:inset 0 0 0 2px var(--btn-inset),inset 0 0 0 3px var(--st-slot-ring),0 3px 0 var(--btn-drop);transition:transform var(--t-fast) var(--ease)}
+.game .cozy-study .subject-slot:after{background:transparent;border-left:2px dashed var(--st-line)}
+.game .cozy-study .subject-slot>svg{filter:drop-shadow(2px 2px 0 #0005)}
+.game .cozy-study .subject-shelves button:hover .subject-slot{transform:translateY(-2px)}
+.game .cozy-study .chosen-subject .subject-slot{outline:0;border-color:var(--ui-ring);box-shadow:0 0 0 2px var(--ui-ring-soft),inset 0 0 0 2px var(--btn-inset),inset 0 0 0 3px var(--ui-ring),0 3px 0 var(--btn-drop)}
+.game .cozy-study .subject-slot i{font:12px var(--ui-font);color:var(--heart-full);text-shadow:1px 1px 0 var(--heart-shade)}
+.game .cozy-study .cabinet-carving{color:var(--st-ink-soft);border-color:var(--st-line)}
+
+/* ---------- Study page: square framed panel instead of torn paper ---------- */
+.game .cozy-study .study-paper{clip-path:none;filter:none;border:4px solid var(--st-border);border-radius:0;background:var(--st-paper);color:var(--st-ink);box-shadow:var(--st-frame)}
+.game .cozy-study .study-paper>h2,.game .cozy-study .paper-lesson-header h2{font-size:25px;text-transform:none;color:var(--st-ink)}
+.game .cozy-study .paper-rule{height:0;border-top:3px dashed var(--st-line);background:none}
+.game .cozy-study .flash-art>svg{color:var(--ui-accent);filter:drop-shadow(3px 3px 0 #0004)}
+.game .cozy-study .flash-copy{margin:0 4px;padding:14px;background:var(--st-card);border:2px solid var(--st-card-border);box-shadow:inset 0 0 0 2px var(--btn-inset)}
+.game .cozy-study .flash-copy p{color:var(--st-ink);font-weight:600;font-size:19px}
+.game .cozy-study .flash-copy small{color:var(--ui-accent-deep);font-weight:700;font-size:11px}
+.game.theme-classic .cozy-study .flash-copy small{color:var(--ui-accent)}
+.game .cozy-study .flash-copy:has(small) p{font-weight:400}
+.game .cozy-study :is(.card-counter,.paper-footnote){color:var(--st-ink-soft);font-size:12px}
+.game .cozy-study .paper-lesson-header button{color:var(--st-ink)}
+.game .cozy-study .study-stats>div{border-bottom:2px dashed var(--st-line);font-size:15px}
+.game .cozy-study .study-stats dd{font-size:22px;color:var(--ui-accent-deep)}
+.game.theme-classic .cozy-study .study-stats dd{color:var(--ui-accent)}
+.game .cozy-study .paper-settings label{color:var(--st-ink);font-size:15px}
+.game .cozy-study :is(.paper-settings,.lesson-paper) select,.game .cozy-study .lesson-paper input{background:var(--st-card);color:var(--st-ink);border:2px solid var(--st-card-border);border-radius:0;box-shadow:inset 0 2px 0 #0002}
+.game .cozy-study .paper-toggle input{accent-color:var(--ui-accent)}
+/* Numbers in VT323 like the timer (Pixelify's 5 reads as an S); options get explicit
+   colours because the native dropdown list doesn't inherit the translucent Classic fill. */
+.game .cozy-study .paper-settings select,.game .cozy-study .study-stats dd{font-family:'VT323',var(--ui-font);font-weight:400;letter-spacing:.5px}
+.game .cozy-study .paper-settings select{font-size:24px;line-height:1;padding:8px 12px}
+.game .cozy-study .study-stats dd{font-size:30px;line-height:1}
+.game .cozy-study select option{background:#f6ead0;color:#3f1a04}
+
+/* ---------- Embedded learning journey ---------- */
+.game .cozy-study .lesson-paper .learning{color:var(--st-ink)}
+.game .cozy-study .lesson-paper .study-main h1{font-family:var(--ui-font);font-size:30px;color:var(--st-ink)}
+.game .cozy-study .lesson-paper :is(.eyebrow,.lead,.fineprint,.text-button,label){color:var(--st-ink-soft)}
+.game .cozy-study .lesson-paper .eyebrow{font-weight:700;font-size:11px}
+.game .cozy-study .lesson-paper em{color:var(--ui-accent-deep)}
+.game.theme-classic .cozy-study .lesson-paper em{color:var(--ui-accent)}
+.game .cozy-study .lesson-paper :is(.subjects button,.path-node,.answers button,.parchment,.feedback){background:var(--st-card);color:var(--st-ink);border:2px solid var(--st-card-border);border-radius:0;box-shadow:inset 0 0 0 2px var(--btn-inset),0 3px 0 var(--btn-drop)}
+.game .cozy-study .lesson-paper :is(.subjects button,.path-node,.answers button):hover:not(:disabled){transform:translateY(-1px)}
+.game .cozy-study .lesson-paper :is(.subjects .selected,.answers button.selected,.answers button.correct,.feedback.success){background:var(--st-card-on);border-color:var(--ui-ring);box-shadow:0 0 0 2px var(--ui-ring-soft),inset 0 0 0 2px var(--btn-inset),0 3px 0 var(--btn-drop)}
+.game .cozy-study .lesson-paper .path-node:after{width:4px;left:30px;background:repeating-linear-gradient(var(--st-card-border) 0 3px,transparent 3px 5px)}
+.game .cozy-study .lesson-paper .path-node strong{font-family:var(--ui-font);font-size:18px}
+.game .cozy-study .lesson-paper :is(.path-node small,.path-node>span>span){color:var(--st-ink-soft);font-size:10px}
+.game .cozy-study .lesson-paper .node-circle{border-radius:0;background:var(--st-slot);border:2px solid var(--st-slot-ring);color:var(--ui-accent-deep);box-shadow:inset 0 0 0 2px var(--btn-inset)}
+.game.theme-classic .cozy-study .lesson-paper .node-circle{color:var(--ui-accent)}
+.game .cozy-study .lesson-paper .answers button>span{border:2px solid var(--st-card-border);color:var(--st-ink);font-weight:700;background:var(--st-slot)}
+.game .cozy-study .lesson-paper .quiz-progress span{height:8px;border-radius:0;background:var(--st-slot);border:2px solid var(--st-card-border)}
+.game .cozy-study .lesson-paper .quiz-progress .active{background:var(--ui-accent)}
+.game .cozy-study .lesson-paper .parchment :is(.eyebrow,small){color:var(--st-ink-soft)}
+.game .cozy-study .lesson-paper :is(.feedback strong,.feedback p,.parchment h2){color:var(--st-ink)}
+.game .cozy-study .lesson-paper .reward{font-family:var(--ui-font);color:var(--st-ink);border-top:3px dashed var(--st-line);border-bottom:3px dashed var(--st-line)}
+.game .cozy-study .lesson-paper .reward small{font-family:var(--ui-font);color:var(--st-ink-soft)}
+.game .cozy-study .lesson-paper .reward-icon{border-radius:0;background:var(--st-slot);border:3px solid var(--st-slot-ring);color:var(--ui-accent);box-shadow:inset 0 0 0 3px var(--btn-inset),0 4px 0 var(--btn-drop)}
+.game .cozy-study .lesson-paper .loading-state{color:var(--st-ink)}
+
+/* ---------- Focus timer: framed HUD panel with an LCD readout ---------- */
+.game .cozy-study .focus-clock{background:var(--st-panel);border:4px solid var(--st-border);border-radius:0;box-shadow:var(--st-frame)}
+/* VT323 for the digits: Pixelify's 5 reads as an S, and monospaced digits don't jitter as they tick. */
+.game .cozy-study .timer-digits strong{font-family:'VT323',var(--ui-font);font-weight:400;font-size:42px;line-height:1;letter-spacing:1px;padding:3px 10px 1px;background:var(--st-lcd);color:var(--st-lcd-ink);border:2px solid var(--st-border);box-shadow:inset 0 3px 0 #0006;text-shadow:none}
+.game .cozy-study .timer-digits>span{color:var(--st-ink);font-weight:600;font-size:13px}
+/* Light face in both themes so the ticks and hand stay readable. */
+.game .cozy-study .clock-face{border-color:var(--st-border);box-shadow:0 0 0 2px var(--btn-drop),0 4px 0 var(--btn-drop);background:repeating-conic-gradient(from -2deg,#3f2a1a 0deg 4deg,#f6ead0 4deg 30deg)}
+.game .cozy-study .clock-face:before{inset:8px;background:#f6ead0}
+.game .cozy-study .clock-face span{border-radius:0;border-color:var(--st-border);background:var(--btn-bg)}
+.game .cozy-study .clock-face i{background:#c8382a;box-shadow:1px 0 0 #7a1d14}
+.game .cozy-study .clock-face:after{border-radius:0;background:#3f2a1a}
+
+/* ---------- Sproutling speech: dialogue box ---------- */
+.game .cozy-study .room-companion p{background:var(--st-card);color:var(--st-ink);border:3px solid var(--st-card-border);border-radius:0;box-shadow:inset 0 0 0 2px var(--btn-inset),0 4px 0 var(--btn-drop);font-size:13px}
+.game .cozy-study .room-companion p:after{right:-11px;border-left-color:var(--st-card-border)}
