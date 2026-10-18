@@ -8,12 +8,14 @@ export function contains(shape:Shape,p:XY):boolean {
  for(let i=0,j=v.length-2;i<v.length;j=i,i+=2){const x=v[i],y=v[i+1],a=v[j],b=v[j+1];if((y>p.y)!==(b>p.y)&&p.x<(a-x)*(p.y-y)/(b-y)+x)inside=!inside;}
  return inside;
 }
+// The bottom-middle railing and its planter box are solid, so nobody walks onto the fence.
+export const fenceFootprint:Shape={kind:'polygon',points:[360,487,400,503,450,522,505,540,560,536,620,542,655,564,685,575,750,552,820,527,820,640,360,640]};
 export const gardenFootprint:Shape={kind:'ellipse',x:660,y:380,rx:102,ry:50};
 // The canopy is decorative. Only the stone bed/trunk area opens the garden panel.
 export const gardenHotspot:Shape={kind:'ellipse',x:660,y:433,rx:104,ry:43};
 export const furnitureRegions=[
- {id:'library',name:'Bookshelf',action:'View Learning Journey',symbol:'▤',panel:'learn',shape:{kind:'polygon',points:[692,83,817,115,815,262,772,254,770,222,692,204]} as Shape,approaches:[{x:3,y:1.5},{x:3.5,y:1.5}]},
- {id:'board',name:'Quest Board',action:'View Group Goals',symbol:'✧',panel:'quests',shape:{kind:'polygon',points:[854,145,996,202,995,282,854,226]} as Shape,approaches:[{x:8,y:.5},{x:8.5,y:1}]},
+ {id:'library',name:'Bookshelf',action:'View Learning Journey',symbol:'▤',panel:'learn',shape:{kind:'polygon',points:[720,46,853,72,853,215,820,222,800,272,765,262,763,220,722,197]} as Shape,approaches:[{x:3,y:1.5},{x:3.5,y:1.5}]},
+ {id:'board',name:'Quest Board',action:'View Group Goals',symbol:'✧',panel:'quests',shape:{kind:'polygon',points:[850,113,1002,165,1002,268,985,272,850,216]} as Shape,approaches:[{x:8,y:.5},{x:8.5,y:1}]},
  {id:'observatory',name:'Telescope',action:'Look at the Stars',symbol:'✧',panel:'observatory',shape:{kind:'polygon',points:[1066,476,1137,407,1149,415,1107,463,1130,523,1123,528,1098,480,1080,529,1073,526,1089,473,1073,484]} as Shape,approaches:[{x:11,y:4},{x:10.5,y:4.5}]},
  {id:'hearth',name:'Fireplace',action:'Take a Quiet Breath',symbol:'♧',panel:'hearth',shape:{kind:'polygon',points:[1130,280,1159,286,1165,314,1165,367,1155,382,1121,366,1124,320,1131,317]} as Shape,approaches:[{x:11.5,y:-.5},{x:11,y:-.5},{x:11.5,y:0}],lookAt:{x:1145,y:346},preferFirst:true},
  // The potted-plant shelf behind the lantern table, traced around its leaves and legs.
