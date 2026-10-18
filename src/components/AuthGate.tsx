@@ -96,6 +96,7 @@ export default function AuthGate({children}: {children: React.ReactNode}) {
         <button className="auth-link" disabled={busy} onClick={() => void initialize()}>Retry connection</button>
       </>}
     </div>
+    {!busy && !error && <img className="auth-vine" src="/assets/vine.png" width={2172} height={724} alt="" aria-hidden="true" draggable={false}/>}
     <div className="auth-actions">
     <div className="auth-small-ornament" aria-hidden="true"><span/><svg viewBox="0 0 24 24"><path d="M12 21V10M12 14C4 14 2 9 3 4c6 0 10 3 9 8m0 0C12 5 16 2 22 3c0 6-3 11-10 11"/></svg><span/></div>
     <div className="auth-account-links">
